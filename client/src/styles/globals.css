@@ -1,0 +1,163 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  /* Font families */
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-heading: "Poppins", sans-serif;
+  
+  /* Colors */
+  --color-primary-50: oklch(0.98 0.01 264);
+  --color-primary-100: oklch(0.95 0.02 264);
+  --color-primary-200: oklch(0.90 0.05 264);
+  --color-primary-300: oklch(0.82 0.08 264);
+  --color-primary-400: oklch(0.72 0.12 264);
+  --color-primary-500: oklch(0.62 0.15 264);
+  --color-primary-600: oklch(0.52 0.12 264);
+  --color-primary-700: oklch(0.42 0.10 264);
+  --color-primary-800: oklch(0.32 0.08 264);
+  --color-primary-900: oklch(0.22 0.06 264);
+  
+  --color-secondary-50: oklch(0.98 0.01 12);
+  --color-secondary-100: oklch(0.95 0.02 12);
+  --color-secondary-200: oklch(0.90 0.05 12);
+  --color-secondary-300: oklch(0.82 0.08 12);
+  --color-secondary-400: oklch(0.72 0.12 12);
+  --color-secondary-500: oklch(0.62 0.15 12);
+  --color-secondary-600: oklch(0.52 0.12 12);
+  --color-secondary-700: oklch(0.42 0.10 12);
+  --color-secondary-800: oklch(0.32 0.08 12);
+  --color-secondary-900: oklch(0.22 0.06 12);
+  
+  --color-gray-50: oklch(0.99 0 0);
+  --color-gray-100: oklch(0.97 0 0);
+  --color-gray-200: oklch(0.93 0 0);
+  --color-gray-300: oklch(0.87 0 0);
+  --color-gray-400: oklch(0.68 0 0);
+  --color-gray-500: oklch(0.53 0 0);
+  --color-gray-600: oklch(0.42 0 0);
+  --color-gray-700: oklch(0.32 0 0);
+  --color-gray-800: oklch(0.22 0 0);
+  --color-gray-900: oklch(0.13 0 0);
+  
+  --color-white: oklch(1 0 0);
+  --color-black: oklch(0 0 0);
+  
+  --color-accent: oklch(0.76 0.09 180);
+  --color-success: oklch(0.72 0.14 195);
+  --color-warning: oklch(0.85 0.11 85);
+  --color-danger: oklch(0.68 0.15 41);
+  
+  /* Spacing scale */
+  --spacing: 0.25rem;
+  
+  /* Border radius */
+  --radius-sm: 0.25rem;
+  --radius: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  
+  /* Animation */
+  --animate-spin: spin 1s linear infinite;
+  --animate-pulse: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .5;
+  }
+}
+
+/* Base styles */
+* {
+  @apply border-gray-200;
+  
+  @variant dark {
+    @apply border-gray-700;
+  }
+}
+
+body {
+  @apply bg-white text-gray-900;
+  font-feature-settings: "rlig" 1, "calt" 1;
+  
+  @variant dark {
+    @apply bg-gray-900 text-white;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom utilities */
+@utility btn-primary {
+  @apply bg-primary-500 hover:bg-primary-600 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+}
+
+@utility btn-secondary {
+  @apply bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  
+  @variant dark {
+    @apply bg-gray-700 hover:bg-gray-600 text-white;
+  }
+}
+
+@utility btn-outline {
+  @apply border border-primary-500 text-primary-500 hover:bg-primary-500 hover:text-white font-medium py-2 px-4 rounded-lg transition-all duration-200;
+}
+
+@utility card-hover {
+  @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+}
+
+@utility input-field {
+  @apply w-full px-4 py-3 text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200;
+  
+  @variant dark {
+    @apply border-gray-600 bg-gray-700 text-white;
+  }
+}
+
+@utility custom-scrollbar {
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    @apply bg-gray-100;
+    
+    @variant dark {
+      @apply bg-gray-800;
+    }
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    @apply bg-primary-500 rounded-full;
+    
+    &:hover {
+      @apply bg-primary-600;
+    }
+  }
+}
+
+@utility loading {
+  @apply animate-pulse;
+}
