@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { STORAGE_KEYS } from '@/constants';
-import { authService } from '@/services/authService';
+
 import toast from 'react-hot-toast';
+import authService from '../services/authService';
 
 const AuthContext = createContext({
   user: null,

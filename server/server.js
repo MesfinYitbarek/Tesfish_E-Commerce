@@ -15,14 +15,18 @@ import mongoSanitize from 'express-mongo-sanitize';
 
 // Import routes
 import authRoutes from './routes/auth/authRoutes.js';
-import userRoutes from './routes/user/userRoutes.js';
+import cartRoutes from './routes/cart/cartRoutes.js';
 import productRoutes from './routes/product/productRoutes.js';
 import orderRoutes from './routes/order/orderRoutes.js';
 import paymentRoutes from './routes/payment/paymentRoutes.js';
 import bookingRoutes from './routes/booking/bookingRoutes.js';
 import chatRoutes from './routes/chat/chatRoutes.js';
 import reviewRoutes from './routes/review/reviewRoutes.js';
+import notificationRoutes from './routes/notification/notificationRoutes.js';
+import serviceInquiryRoutes from './routes/service/serviceInquiryRoutes.js';
 import adminRoutes from './routes/admin/adminRoutes.js';
+import userRoutes from './routes/user/userRoutes.js';
+import categoryRoutes from './routes/category/categoryRoutes.js';
 
 // Import middleware
 import { errorHandler, notFound } from './middleware/error/errorMiddleware.js';
@@ -52,7 +56,13 @@ initializeSocket(io);
 
 // Security middleware
 app.use(helmet());
-app.use(mongoSanitize());
+app.use((req, res, next) => {
+  if (req.body) req.body = mongoSanitize.sanitize(req.body);
+  if (req.params) req.params = mongoSanitize.sanitize(req.params);
+  // Skip req.query to avoid Express 5 error
+  next();
+});
+
 
 // Rate limiting
 const limiter = rateLimit({
@@ -110,13 +120,16 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/service-inquiries', serviceInquiryRoutes);
 app.use('/api/admin', protect, adminRoutes);
-
+app.use('/api/categories', categoryRoutes);
 // Static file serving for uploads
 app.use('/uploads', express.static('uploads'));
 

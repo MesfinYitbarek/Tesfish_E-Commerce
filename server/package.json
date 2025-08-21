@@ -2,8 +2,16 @@
   "name": "server",
   "version": "1.0.0",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "nodemon server.js",
+    "start": "node server.js",
+    "seed": "node scripts/seedDatabase.js",
+    "test": "jest",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "build": "echo 'Build process for production'",
+    "clean": "rm -rf uploads/* && echo 'Uploads cleaned'"
   },
   "keywords": [],
   "author": "",
