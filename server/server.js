@@ -12,7 +12,7 @@ import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import mongoSanitize from 'express-mongo-sanitize';
-
+// import { injectSocketIO } from '../controllers/chat/chatController.js';
 // Import routes
 import authRoutes from './routes/auth/authRoutes.js';
 import cartRoutes from './routes/cart/cartRoutes.js';
@@ -35,6 +35,7 @@ import { protect } from './middleware/auth/authMiddleware.js';
 // Import utils
 import connectDB from './config/database.js';
 import { initializeSocket } from './config/socket.js';
+import { injectSocketIO } from './controllers/chat/chatController.js';
 
 // Load environment variables
 dotenv.config();
@@ -124,7 +125,7 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/bookings', bookingRoutes);
-app.use('/api/chat', chatRoutes);
+app.use('/api/chat', injectSocketIO(io), chatRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/service-inquiries', serviceInquiryRoutes);

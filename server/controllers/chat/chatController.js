@@ -2,6 +2,38 @@ import Chat from '../../models/Chat.js';
 import User from '../../models/User.js';
 import Product from '../../models/Product.js';
 
+// Helper function to get sender display info
+const getSenderDisplayInfo = (user) => {
+  if (!user) return { displayName: 'Unknown User', userType: 'unknown' };
+
+  switch (user.userType) {
+    case 'company':
+      return {
+        displayName: user.companyProfile?.companyName || 'Company',
+        userType: 'company',
+        avatar: user.companyProfile?.logo || null
+      };
+    case 'individual':
+      return {
+        displayName: `${user.individualProfile?.firstName || ''} ${user.individualProfile?.lastName || ''}`.trim() || 'Individual',
+        userType: 'individual',
+        avatar: user.individualProfile?.avatar || null
+      };
+    case 'customer':
+      return {
+        displayName: `${user.customerProfile?.firstName || ''} ${user.customerProfile?.lastName || ''}`.trim() || 'Customer',
+        userType: 'customer',
+        avatar: user.customerProfile?.avatar || null
+      };
+    default:
+      return {
+        displayName: user.email || 'User',
+        userType: user.userType || 'unknown',
+        avatar: null
+      };
+  }
+};
+
 // @desc    Get user's chats
 // @route   GET /api/chat
 // @access  Private
@@ -11,14 +43,38 @@ export const getChats = async (req, res) => {
       'participants.user': req.user.id,
       status: { $ne: 'archived' }
     })
-    .populate('participants.user', 'companyProfile.companyName individualProfile.firstName individualProfile.lastName customerProfile.firstName customerProfile.lastName email userType avatar')
-    .populate('relatedProduct', 'title media price')
-    .populate('lastMessage.sender', 'companyProfile.companyName individualProfile.firstName individualProfile.lastName')
+    .populate('participants.user', 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar email userType isVerified')
+    .populate('relatedProduct', 'title media pricing productType')
+    .populate('lastMessage.sender', 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar userType')
     .sort({ 'lastMessage.timestamp': -1 });
+
+    // Transform chats to include display names
+    const transformedChats = chats.map(chat => {
+      const chatObj = chat.toObject();
+      
+      // Transform participants
+      chatObj.participants = chatObj.participants.map(participant => ({
+        ...participant,
+        user: {
+          ...participant.user,
+          ...getSenderDisplayInfo(participant.user)
+        }
+      }));
+
+      // Transform last message sender
+      if (chatObj.lastMessage?.sender) {
+        chatObj.lastMessage.sender = {
+          ...chatObj.lastMessage.sender,
+          ...getSenderDisplayInfo(chatObj.lastMessage.sender)
+        };
+      }
+
+      return chatObj;
+    });
 
     res.status(200).json({
       success: true,
-      data: { chats }
+      data: { chats: transformedChats }
     });
   } catch (error) {
     console.error('Get chats error:', error);
@@ -35,9 +91,9 @@ export const getChats = async (req, res) => {
 export const getChat = async (req, res) => {
   try {
     const chat = await Chat.findById(req.params.id)
-      .populate('participants.user', 'companyProfile individualProfile customerProfile email userType avatar')
-      .populate('relatedProduct', 'title media seller price')
-      .populate('messages.sender', 'companyProfile.companyName individualProfile.firstName individualProfile.lastName customerProfile.firstName customerProfile.lastName avatar');
+      .populate('participants.user', 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar email userType isVerified')
+      .populate('relatedProduct', 'title media seller pricing productType')
+      .populate('messages.sender', 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar userType');
 
     if (!chat) {
       return res.status(404).json({
@@ -74,11 +130,44 @@ export const getChat = async (req, res) => {
 
     if (hasUnreadMessages) {
       await chat.save();
+      
+      // Emit read status update to other participants
+      if (req.io) {
+        chat.participants.forEach(participant => {
+          if (participant.user._id.toString() !== req.user.id) {
+            req.io.to(participant.user._id.toString()).emit('messages-read', {
+              chatId: chat._id,
+              readBy: req.user.id
+            });
+          }
+        });
+      }
     }
+
+    // Transform chat to include display names
+    const chatObj = chat.toObject();
+    
+    // Transform participants
+    chatObj.participants = chatObj.participants.map(participant => ({
+      ...participant,
+      user: {
+        ...participant.user,
+        ...getSenderDisplayInfo(participant.user)
+      }
+    }));
+
+    // Transform message senders
+    chatObj.messages = chatObj.messages.map(message => ({
+      ...message,
+      sender: {
+        ...message.sender,
+        ...getSenderDisplayInfo(message.sender)
+      }
+    }));
 
     res.status(200).json({
       success: true,
-      data: { chat }
+      data: { chat: chatObj }
     });
   } catch (error) {
     console.error('Get chat error:', error);
@@ -128,8 +217,8 @@ export const createChat = async (req, res) => {
         { relatedProduct: relatedProduct || null }
       ]
     })
-    .populate('participants.user', 'companyProfile individualProfile customerProfile email userType avatar')
-    .populate('relatedProduct', 'title media price');
+    .populate('participants.user', 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar email userType isVerified')
+    .populate('relatedProduct', 'title media pricing productType');
 
     if (!chat) {
       // Create new chat
@@ -147,8 +236,8 @@ export const createChat = async (req, res) => {
       });
 
       // Populate the newly created chat
-      await chat.populate('participants.user', 'companyProfile individualProfile customerProfile email userType avatar');
-      await chat.populate('relatedProduct', 'title media price');
+      await chat.populate('participants.user', 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar email userType isVerified');
+      await chat.populate('relatedProduct', 'title media pricing productType');
     }
 
     // Add initial message if provided
@@ -175,22 +264,76 @@ export const createChat = async (req, res) => {
       await chat.save();
 
       // Populate the message sender
-      await chat.populate('messages.sender', 'companyProfile.companyName individualProfile.firstName individualProfile.lastName customerProfile.firstName customerProfile.lastName avatar');
+      await chat.populate('messages.sender', 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar userType');
+
+      // Get the newly added message with sender info
+      const messageWithSender = chat.messages[chat.messages.length - 1];
+      const transformedMessage = {
+        ...messageWithSender.toObject(),
+        sender: {
+          ...messageWithSender.sender.toObject(),
+          ...getSenderDisplayInfo(messageWithSender.sender)
+        }
+      };
 
       // Emit real-time notification
       if (req.io) {
         req.io.to(participantId).emit('new-message', {
           chatId: chat._id,
-          message: newMessage,
-          sender: req.user
+          message: transformedMessage,
+          chat: {
+            _id: chat._id,
+            participants: chat.participants.map(p => ({
+              ...p.toObject(),
+              user: {
+                ...p.user.toObject(),
+                ...getSenderDisplayInfo(p.user)
+              }
+            })),
+            relatedProduct: chat.relatedProduct
+          }
+        });
+
+        // Emit chat created event
+        req.io.to(participantId).emit('chat-created', {
+          chat: {
+            ...chat.toObject(),
+            participants: chat.participants.map(p => ({
+              ...p.toObject(),
+              user: {
+                ...p.user.toObject(),
+                ...getSenderDisplayInfo(p.user)
+              }
+            }))
+          }
         });
       }
+    }
+
+    // Transform chat response
+    const chatObj = chat.toObject();
+    chatObj.participants = chatObj.participants.map(participant => ({
+      ...participant,
+      user: {
+        ...participant.user,
+        ...getSenderDisplayInfo(participant.user)
+      }
+    }));
+
+    if (chatObj.messages) {
+      chatObj.messages = chatObj.messages.map(msg => ({
+        ...msg,
+        sender: {
+          ...msg.sender,
+          ...getSenderDisplayInfo(msg.sender)
+        }
+      }));
     }
 
     res.status(201).json({
       success: true,
       message: 'Chat created successfully',
-      data: { chat }
+      data: { chat: chatObj }
     });
   } catch (error) {
     console.error('Create chat error:', error);
@@ -215,7 +358,9 @@ export const sendMessage = async (req, res) => {
       });
     }
 
-    const chat = await Chat.findById(req.params.id);
+    const chat = await Chat.findById(req.params.id)
+      .populate('participants.user', 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar email userType isVerified');
+
     if (!chat) {
       return res.status(404).json({
         success: false,
@@ -224,7 +369,7 @@ export const sendMessage = async (req, res) => {
     }
 
     // Check if user is participant
-    const isParticipant = chat.participants.some(p => p.user.toString() === req.user.id);
+    const isParticipant = chat.participants.some(p => p.user._id.toString() === req.user.id);
     if (!isParticipant) {
       return res.status(403).json({
         success: false,
@@ -256,9 +401,9 @@ export const sendMessage = async (req, res) => {
 
     // Update unread count for other participants
     chat.participants.forEach(participant => {
-      if (participant.user.toString() !== req.user.id) {
+      if (participant.user._id.toString() !== req.user.id) {
         const unreadEntry = chat.unreadCount.find(entry => 
-          entry.user.toString() === participant.user.toString()
+          entry.user.toString() === participant.user._id.toString()
         );
         if (unreadEntry) {
           unreadEntry.count += 1;
@@ -267,18 +412,29 @@ export const sendMessage = async (req, res) => {
     });
 
     await chat.save();
-    await chat.populate('messages.sender', 'companyProfile.companyName individualProfile.firstName individualProfile.lastName customerProfile.firstName customerProfile.lastName avatar');
 
     // Get the newly added message
     const messageWithSender = chat.messages[chat.messages.length - 1];
+    
+    // Get sender info from current user
+    const currentUser = await User.findById(req.user.id);
+    const senderInfo = getSenderDisplayInfo(currentUser);
+    
+    const transformedMessage = {
+      ...messageWithSender.toObject(),
+      sender: {
+        _id: req.user.id,
+        ...senderInfo
+      }
+    };
 
     // Emit real-time message
     if (req.io) {
       chat.participants.forEach(participant => {
-        if (participant.user.toString() !== req.user.id) {
-          req.io.to(participant.user.toString()).emit('new-message', {
+        if (participant.user._id.toString() !== req.user.id) {
+          req.io.to(participant.user._id.toString()).emit('new-message', {
             chatId: chat._id,
-            message: messageWithSender
+            message: transformedMessage
           });
         }
       });
@@ -287,7 +443,7 @@ export const sendMessage = async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Message sent successfully',
-      data: { message: messageWithSender }
+      data: { message: transformedMessage }
     });
   } catch (error) {
     console.error('Send message error:', error);
@@ -296,6 +452,14 @@ export const sendMessage = async (req, res) => {
       message: 'Server error while sending message'
     });
   }
+};
+
+// Add middleware to inject io instance into requests
+export const injectSocketIO = (io) => {
+  return (req, res, next) => {
+    req.io = io;
+    next();
+  };
 };
 
 // @desc    Edit message

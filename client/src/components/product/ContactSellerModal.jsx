@@ -1,18 +1,27 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { 
   ChatBubbleLeftRightIcon,
   PaperClipIcon,
   XMarkIcon,
   PaperAirplaneIcon,
-  CheckBadgeIcon
+  CheckBadgeIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
+import { io } from 'socket.io-client';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
-import Input from '../ui/Input';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import { toast } from 'react-hot-toast';
-import { createChat, sendMessage, resetChat } from '../../store/slices/chatSlice';
+import { 
+  createChat, 
+  sendMessage, 
+  resetChat,
+  addMessage,
+  setCurrentChat
+} from '../../store/slices/chatSlice';
+import { logout } from '../../store/slices/authSlice';
 import { formatRelativeTime, formatCurrency } from '../../utils/helpers';
 
 const ContactSellerModal = ({ isOpen, onClose, product }) => {
@@ -20,12 +29,165 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
   const [attachments, setAttachments] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [chatInitialized, setChatInitialized] = useState(false);
+  const [socket, setSocket] = useState(null);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const [otherUserTyping, setOtherUserTyping] = useState(false);
+  const [authError, setAuthError] = useState(false);
+  
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const socketRef = useRef(null);
 
-  const { user } = useSelector((state) => state.auth);
-  const { currentChat, messages, isLoading } = useSelector((state) => state.chat);
+  const { user, token, isAuthenticated } = useSelector((state) => state.auth);
+  const { currentChat, messages, isLoading, error } = useSelector((state) => state.chat);
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  // Check authentication when modal opens
+  useEffect(() => {
+    if (isOpen && !isAuthenticated) {
+      toast.error('Please log in to contact the seller');
+      onClose();
+      navigate('/auth/login');
+      return;
+    }
+
+    if (isOpen && !token) {
+      toast.error('Authentication required');
+      onClose();
+      return;
+    }
+  }, [isOpen, isAuthenticated, token, navigate, onClose]);
+
+  // Initialize socket connection with better error handling
+  useEffect(() => {
+    if (isOpen && token && isAuthenticated && !authError) {
+      const serverUrl = 'http://localhost:5000';
+      
+      const newSocket = io(serverUrl, {
+        auth: { token },
+        transports: ['websocket', 'polling'],
+        timeout: 10000,
+        forceNew: true
+      });
+
+      newSocket.on('connect', () => {
+        console.log('✅ Connected to chat server');
+        setSocketConnected(true);
+        setSocket(newSocket);
+        socketRef.current = newSocket;
+      });
+
+      newSocket.on('connect_error', (error) => {
+        console.error('❌ Socket connection error:', error);
+        setSocketConnected(false);
+        setAuthError(true);
+        
+        if (error.message.includes('Authentication') || error.message.includes('token')) {
+          toast.error('Session expired. Please log in again.');
+          dispatch(logout());
+          onClose();
+          navigate('/auth/login');
+        } else {
+          console.warn('Chat server unavailable, continuing without real-time features');
+        }
+      });
+
+      newSocket.on('disconnect', (reason) => {
+        console.log('🔌 Socket disconnected:', reason);
+        setSocketConnected(false);
+        
+        if (reason === 'io server disconnect' || reason === 'transport close') {
+          // Server initiated disconnect, possibly due to auth issues
+          setAuthError(true);
+        }
+      });
+
+      return () => {
+        if (newSocket && newSocket.connected) {
+          newSocket.close();
+        }
+        setSocket(null);
+        setSocketConnected(false);
+        socketRef.current = null;
+      };
+    }
+  }, [isOpen, token, isAuthenticated, authError, dispatch, navigate, onClose]);
+
+  // Socket event listeners
+  useEffect(() => {
+    if (!socket || !socketConnected || !currentChat) return;
+
+    // Join chat room
+    socket.emit('join-chat', currentChat._id);
+
+    // Listen for new messages
+    const handleNewMessage = (data) => {
+      try {
+        if (data.chatId === currentChat._id) {
+          dispatch(addMessage(data.message));
+          scrollToBottom();
+        }
+      } catch (error) {
+        console.error('Error handling new message:', error);
+      }
+    };
+
+    // Listen for typing events
+    const handleUserTyping = (data) => {
+      try {
+        if (data.userId !== user?._id) {
+          setOtherUserTyping(data.isTyping);
+          if (data.isTyping) {
+            setTimeout(() => setOtherUserTyping(false), 3000);
+          }
+        }
+      } catch (error) {
+        console.error('Error handling typing event:', error);
+      }
+    };
+
+    // Listen for read status
+    const handleMessagesRead = (data) => {
+      try {
+        if (data.chatId === currentChat._id) {
+          console.log('Messages marked as read by other user');
+        }
+      } catch (error) {
+        console.error('Error handling read status:', error);
+      }
+    };
+
+    // Listen for errors
+    const handleError = (error) => {
+      console.error('Socket error:', error);
+      if (error.message && error.message.includes('Authentication')) {
+        setAuthError(true);
+        toast.error('Session expired. Please log in again.');
+        dispatch(logout());
+        onClose();
+        navigate('/auth/login');
+      }
+    };
+
+    socket.on('new-message', handleNewMessage);
+    socket.on('user-typing', handleUserTyping);
+    socket.on('messages-read', handleMessagesRead);
+    socket.on('error', handleError);
+
+    return () => {
+      socket.off('new-message', handleNewMessage);
+      socket.off('user-typing', handleUserTyping);
+      socket.off('messages-read', handleMessagesRead);
+      socket.off('error', handleError);
+      
+      if (socket.connected) {
+        socket.emit('leave-chat', currentChat._id);
+      }
+    };
+  }, [socket, socketConnected, currentChat, dispatch, user, navigate, onClose]);
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -33,17 +195,38 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
       setChatInitialized(false);
       setMessage('');
       setAttachments([]);
+      setOtherUserTyping(false);
+      setAuthError(false);
     } else {
       dispatch(resetChat());
+      if (socketRef.current) {
+        socketRef.current.close();
+      }
+      setSocket(null);
+      setSocketConnected(false);
     }
   }, [isOpen, dispatch]);
 
   // Initialize chat when modal opens and product is available
   useEffect(() => {
-    if (isOpen && product?.seller?._id && !chatInitialized) {
+    if (isOpen && product?.seller?._id && !chatInitialized && isAuthenticated && !authError) {
       initializeChat();
     }
-  }, [isOpen, product, chatInitialized]);
+  }, [isOpen, product, chatInitialized, isAuthenticated, authError]);
+
+  // Handle Redux errors
+  useEffect(() => {
+    if (error) {
+      if (error.includes('Authentication') || error.includes('Unauthorized') || error.includes('Token')) {
+        toast.error('Session expired. Please log in again.');
+        dispatch(logout());
+        onClose();
+        navigate('/auth/login');
+      } else {
+        toast.error(error);
+      }
+    }
+  }, [error, dispatch, navigate, onClose]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -51,16 +234,32 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
   }, [messages]);
 
   const initializeChat = async () => {
+    if (!isAuthenticated || !token) {
+      toast.error('Please log in to start a conversation');
+      onClose();
+      navigate('/auth/login');
+      return;
+    }
+
     try {
-      await dispatch(createChat({
+      const result = await dispatch(createChat({
         participantId: product.seller._id,
         relatedProduct: product._id
       })).unwrap();
       
+      dispatch(setCurrentChat(result.chat));
       setChatInitialized(true);
     } catch (error) {
       console.error('Failed to initialize chat:', error);
-      toast.error('Failed to start conversation');
+      
+      if (error.includes && (error.includes('Authentication') || error.includes('Unauthorized'))) {
+        toast.error('Session expired. Please log in again.');
+        dispatch(logout());
+        onClose();
+        navigate('/auth/login');
+      } else {
+        toast.error('Failed to start conversation. Please try again.');
+      }
     }
   };
 
@@ -68,13 +267,51 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const sellerInfo = getSellerInfo(product?.seller);
+  const handleTyping = (isTypingNow) => {
+    if (!socket || !socketConnected || !currentChat) return;
+
+    try {
+      setIsTyping(isTypingNow);
+      socket.emit('typing', {
+        chatId: currentChat._id,
+        isTyping: isTypingNow
+      });
+
+      if (isTypingNow) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => {
+          handleTyping(false);
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Error handling typing:', error);
+    }
+  };
+
+  const handleMessageChange = (e) => {
+    setMessage(e.target.value);
+    
+    if (e.target.value.trim() && !isTyping) {
+      handleTyping(true);
+    } else if (!e.target.value.trim() && isTyping) {
+      handleTyping(false);
+    }
+  };
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
+    
+    if (!isAuthenticated || !token) {
+      toast.error('Please log in to send messages');
+      onClose();
+      navigate('/auth/login');
+      return;
+    }
+
     if ((!message.trim() && attachments.length === 0) || !currentChat?._id) return;
     
     setIsSubmitting(true);
+    handleTyping(false); // Stop typing indicator
     
     try {
       await dispatch(sendMessage({
@@ -89,7 +326,16 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
       setMessage('');
       setAttachments([]);
     } catch (error) {
-      toast.error(error || 'Failed to send message');
+      console.error('Send message error:', error);
+      
+      if (error.includes && (error.includes('Authentication') || error.includes('Unauthorized'))) {
+        toast.error('Session expired. Please log in again.');
+        dispatch(logout());
+        onClose();
+        navigate('/auth/login');
+      } else {
+        toast.error(error || 'Failed to send message');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -119,12 +365,58 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
     setAttachments(newAttachments);
   };
 
+  const getSellerInfo = (seller) => {
+    if (!seller) return { name: 'Unknown', type: 'User', verified: false };
+
+    // Check if seller has display info (from updated backend)
+    if (seller.displayName) {
+      return {
+        name: seller.displayName,
+        type: seller.userType === 'company' ? 'Company' : 
+              seller.userType === 'individual' ? 'Individual Seller' : 
+              'User',
+        verified: seller.isVerified || false,
+        avatar: seller.avatar
+      };
+    }
+
+    // Fallback to old structure
+    if (seller.userType === 'company') {
+      return {
+        name: seller.companyProfile?.companyName || 'Company',
+        type: 'Company',
+        verified: seller.isVerified,
+        avatar: seller.companyProfile?.logo
+      };
+    } else if (seller.userType === 'individual') {
+      return {
+        name: `${seller.individualProfile?.firstName || ''} ${seller.individualProfile?.lastName || ''}`.trim() || 'Individual',
+        type: 'Individual Seller',
+        verified: seller.isVerified,
+        avatar: seller.individualProfile?.avatar
+      };
+    }
+    
+    return {
+      name: 'User',
+      type: 'Seller',
+      verified: false,
+      avatar: null
+    };
+  };
+
   const getMessageSenderName = (message) => {
     const sender = message.sender;
     if (!sender) return 'Unknown';
     
     if (sender._id === user?._id) return 'You';
     
+    // Check if sender has display info (from updated backend)
+    if (sender.displayName) {
+      return sender.displayName;
+    }
+
+    // Fallback to old structure
     if (sender.companyProfile?.companyName) {
       return sender.companyProfile.companyName;
     }
@@ -132,9 +424,41 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
     if (sender.individualProfile?.firstName) {
       return `${sender.individualProfile.firstName} ${sender.individualProfile.lastName || ''}`.trim();
     }
+
+    if (sender.customerProfile?.firstName) {
+      return `${sender.customerProfile.firstName} ${sender.customerProfile.lastName || ''}`.trim();
+    }
     
-    return 'Seller';
+    return 'User';
   };
+
+  // Show login prompt if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title="Authentication Required" size="md">
+        <div className="p-6 text-center">
+          <ExclamationTriangleIcon className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+            Please Log In
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            You need to be logged in to contact the seller.
+          </p>
+          <div className="flex space-x-3 justify-center">
+            <Button onClick={onClose} variant="outline">
+              Cancel
+            </Button>
+            <Button onClick={() => {
+              onClose();
+              navigate('/auth/login');
+            }}>
+              Log In
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
 
   if (!product?.seller) {
     return (
@@ -148,6 +472,8 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
       </Modal>
     );
   }
+
+  const sellerInfo = getSellerInfo(product.seller);
 
   return (
     <Modal
@@ -182,6 +508,12 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
                 {sellerInfo.verified && (
                   <CheckBadgeIcon className="h-5 w-5 text-blue-500" />
                 )}
+                <div className="flex items-center space-x-1">
+                  <div className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                  <span className={`text-xs ${socketConnected ? 'text-green-600' : 'text-gray-500'}`}>
+                    {socketConnected ? 'Online' : 'Offline'}
+                  </span>
+                </div>
               </div>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 {sellerInfo.type}
@@ -194,6 +526,15 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
               </div>
             </div>
           </div>
+          
+          {/* Connection status warning */}
+          {!socketConnected && !authError && (
+            <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                ⚠️ Real-time chat unavailable. Messages will still be delivered.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Product info banner */}
@@ -288,12 +629,29 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
                           {msg.isEdited && (
                             <span className="italic">(edited)</span>
                           )}
+                          {isOwnMessage && msg.isRead && (
+                            <span className="text-xs">✓✓</span>
+                          )}
                         </div>
                       </div>
                     </div>
                   </div>
                 );
               })}
+              
+              {/* Typing indicator */}
+              {otherUserTyping && (
+                <div className="flex justify-start">
+                  <div className="bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
               <div ref={messagesEndRef} />
             </div>
           )}
@@ -325,7 +683,7 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
             <div className="flex-1">
               <textarea
                 value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                onChange={handleMessageChange}
                 placeholder={`Message ${sellerInfo.name}...`}
                 rows={2}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none text-base"
@@ -335,6 +693,7 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
                     handleSendMessage(e);
                   }
                 }}
+                disabled={!isAuthenticated}
               />
             </div>
             
@@ -346,13 +705,15 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
                 onChange={handleAttachmentChange}
                 className="hidden"
                 accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                disabled={!isAuthenticated}
               />
               
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Attach file"
+                disabled={!isAuthenticated}
               >
                 <PaperClipIcon className="h-5 w-5" />
               </button>
@@ -361,7 +722,7 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
                 type="submit"
                 size="sm"
                 loading={isSubmitting}
-                disabled={!message.trim() && attachments.length === 0}
+                disabled={(!message.trim() && attachments.length === 0) || !isAuthenticated}
                 className="h-10 px-3"
               >
                 <PaperAirplaneIcon className="h-4 w-4" />
@@ -371,39 +732,13 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
           
           <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
             Press Enter to send, Shift+Enter for new line
+            {socketConnected && <span className="ml-2">• Real-time connected</span>}
+            {!socketConnected && !authError && <span className="ml-2">• Real-time unavailable</span>}
           </div>
         </div>
       </div>
     </Modal>
   );
 };
-
-// Helper function to get seller info
-function getSellerInfo(seller) {
-  if (!seller) return { name: 'Unknown', type: 'User', verified: false };
-
-  if (seller.userType === 'company') {
-    return {
-      name: seller.companyProfile?.companyName || 'Company',
-      type: 'Company',
-      verified: seller.isVerified,
-      avatar: seller.companyProfile?.logo
-    };
-  } else if (seller.userType === 'individual') {
-    return {
-      name: `${seller.individualProfile?.firstName || ''} ${seller.individualProfile?.lastName || ''}`.trim() || 'Individual',
-      type: 'Individual Seller',
-      verified: seller.isVerified,
-      avatar: seller.individualProfile?.avatar
-    };
-  }
-  
-  return {
-    name: 'User',
-    type: 'Seller',
-    verified: false,
-    avatar: null
-  };
-}
 
 export default ContactSellerModal;
