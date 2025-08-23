@@ -15,7 +15,7 @@ import {
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
-import { ETHIOPIAN_CITIES, BUSINESS_CATEGORIES } from '../../constants';
+import { ETHIOPIAN_CITIES} from '../../constants';
 import { toast } from 'react-hot-toast';
 
 const Profile = () => {

@@ -115,6 +115,11 @@ export const router = createBrowserRouter([
     element: <LazyWrapper><CartPage /></LazyWrapper>
   },
 
+  //Profile
+  {
+    path: '/profile',
+    element: <ProtectedRoute><Profile/> </ProtectedRoute>
+  },
   // User Dashboard
   {
     path: '/dashboard',
