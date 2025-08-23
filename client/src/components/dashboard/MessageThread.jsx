@@ -25,22 +25,34 @@ const MessageThread = ({
     );
   }
 
+  const getMessageSenderName = (message) => {
+    if (!message.sender) return 'Unknown';
+    if (message.sender._id === currentUserId) return 'You';
+    
+    // Use displayName if available (from updated backend)
+    if (message.sender.displayName) {
+      return message.sender.displayName;
+    }
+    
+    return 'User';
+  };
+
   const renderMessage = (message, index) => {
-    const isOwnMessage = message.senderId === currentUserId;
-    const showAvatar = !isOwnMessage && (index === 0 || messages[index - 1]?.senderId !== message.senderId);
+    const isOwnMessage = message.sender?._id === currentUserId;
+    const showAvatar = !isOwnMessage && (index === 0 || messages[index - 1]?.sender?._id !== message.sender?._id);
     const showTimestamp = index === messages.length - 1 || 
-      new Date(messages[index + 1]?.timestamp) - new Date(message.timestamp) > 5 * 60 * 1000; // 5 minutes
+      new Date(messages[index + 1]?.createdAt) - new Date(message.createdAt) > 5 * 60 * 1000; // 5 minutes
 
     return (
       <div
-        key={message.id}
+        key={message._id || message.id}
         className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mb-4`}
       >
         <div className={`flex ${isOwnMessage ? 'flex-row-reverse' : 'flex-row'} items-end space-x-2 max-w-xs md:max-w-md lg:max-w-lg`}>
           {/* Avatar */}
           {showAvatar && !isOwnMessage && (
             <div className="w-8 h-8 flex-shrink-0">
-              {participant.avatar ? (
+              {participant?.avatar ? (
                 <img
                   src={participant.avatar}
                   alt={participant.name}
@@ -68,6 +80,15 @@ const MessageThread = ({
                 : showTimestamp ? 'rounded-bl-md' : ''
             }`}
           >
+            {/* Sender name for group context */}
+            {!isOwnMessage && showAvatar && (
+              <p className={`text-xs mb-1 font-medium ${
+                isOwnMessage ? 'text-white text-opacity-80' : 'text-gray-600 dark:text-gray-400'
+              }`}>
+                {getMessageSenderName(message)}
+              </p>
+            )}
+
             {/* Message Content */}
             {message.content && (
               <p className="text-sm whitespace-pre-wrap break-words">
@@ -78,8 +99,8 @@ const MessageThread = ({
             {/* Attachments */}
             {message.attachments && message.attachments.length > 0 && (
               <div className="mt-2 space-y-2">
-                {message.attachments.map((attachment) => (
-                  <div key={attachment.id}>
+                {message.attachments.map((attachment, attachIndex) => (
+                  <div key={attachIndex}>
                     {attachment.type === 'image' ? (
                       <div className="relative">
                         <img
@@ -134,11 +155,11 @@ const MessageThread = ({
             {isOwnMessage && (
               <div className="flex justify-end mt-1">
                 <span className={`text-xs ${
-                  message.read 
+                  message.isRead 
                     ? 'text-white text-opacity-70' 
                     : 'text-white text-opacity-50'
                 }`}>
-                  {message.read ? 'Read' : 'Sent'}
+                  {message.isRead ? '✓✓' : '✓'}
                 </span>
               </div>
             )}
@@ -149,7 +170,7 @@ const MessageThread = ({
         {showTimestamp && (
           <div className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'} mt-1`}>
             <span className="text-xs text-gray-500 dark:text-gray-400 px-2">
-              {formatRelativeTime(message.timestamp)}
+              {formatRelativeTime(message.createdAt)}
             </span>
           </div>
         )}
@@ -176,7 +197,7 @@ const MessageThread = ({
         <div className="flex justify-start mb-4">
           <div className="flex items-end space-x-2">
             <div className="w-8 h-8">
-              {participant.avatar ? (
+              {participant?.avatar ? (
                 <img
                   src={participant.avatar}
                   alt={participant.name}
@@ -209,7 +230,7 @@ const MessageThread = ({
             Start the conversation
           </h3>
           <p className="text-gray-600 dark:text-gray-400">
-            Send a message to {participant.name} about their inquiry
+            Send a message to {participant?.name} about their inquiry
           </p>
         </div>
       )}

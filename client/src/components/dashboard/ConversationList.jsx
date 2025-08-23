@@ -7,6 +7,7 @@ import {
   NoSymbolIcon,
   ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
+import { CheckBadgeIcon } from '@heroicons/react/24/solid';
 import { formatRelativeTime, formatCurrency } from '../../utils/helpers';
 import ConfirmDialog from '../ui/ConfirmDialog';
 
@@ -17,7 +18,7 @@ const ConversationList = ({
   onArchiveConversation,
   onDeleteConversation,
   onBlockUser,
-  currentUserId
+  currentUserId,
 }) => {
   const [showMenu, setShowMenu] = useState(null);
   const [confirmAction, setConfirmAction] = useState({ show: false, type: '', conversation: null });
@@ -83,6 +84,12 @@ const ConversationList = ({
     setConfirmAction({ show: false, type: '', conversation: null });
   };
 
+  // FIXED: Handle conversation click without toggle behavior
+  const handleConversationClick = (conversation) => {
+    // Always call onSelectConversation, regardless of current selection
+    onSelectConversation(conversation);
+  };
+
   if (conversations.length === 0) {
     return (
       <div className="p-8 text-center">
@@ -101,10 +108,10 @@ const ConversationList = ({
     <>
       <div className="divide-y divide-gray-200 dark:divide-gray-700">
         {conversations.map((conversation) => {
-          // Safely handle potentially undefined listing
-          const listingTitle = conversation.listing?.title || 'No listing';
+          const listingTitle = conversation.listing?.title || 'General inquiry';
           const listingImage = conversation.listing?.image || '/api/placeholder/60/60';
           const listingPrice = conversation.listing?.price || 0;
+          const listingCurrency = conversation.listing?.currency || 'ETB';
 
           return (
             <div
@@ -114,7 +121,7 @@ const ConversationList = ({
                   ? 'bg-primary-50 dark:bg-primary-900/20 border-r-2 border-primary-500' 
                   : ''
               }`}
-              onClick={() => onSelectConversation(conversation)}
+              onClick={() => handleConversationClick(conversation)} // FIXED: Always call without conditions
             >
               <div className="flex items-start space-x-3">
                 {/* Avatar */}
@@ -131,6 +138,12 @@ const ConversationList = ({
                     </div>
                   )}
                   
+                  {/* Online indicator */}
+                  {conversation.participant.isOnline && (
+                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></div>
+                  )}
+                  
+                  {/* Unread count */}
                   {conversation.unreadCount > 0 && (
                     <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
                       <span className="text-xs text-white font-medium">
@@ -144,12 +157,21 @@ const ConversationList = ({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
-                        {conversation.participant.name}
-                      </h3>
+                      <div className="flex items-center space-x-2">
+                        <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                          {conversation.participant.name}
+                        </h3>
+                        {conversation.participant.isVerified && (
+                          <CheckBadgeIcon className="h-4 w-4 text-blue-500 flex-shrink-0" />
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {conversation.participant.type === 'company' ? 'Company' : 
+                         conversation.participant.type === 'individual' ? 'Individual Seller' : 'Customer'}
+                      </p>
                       {conversation.listing && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {listingTitle}
+                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
+                          About: {listingTitle}
                         </p>
                       )}
                     </div>
@@ -164,7 +186,7 @@ const ConversationList = ({
                       {/* Menu Button */}
                       <button
                         onClick={(e) => {
-                          e.stopPropagation();
+                          e.stopPropagation(); // IMPORTANT: Prevent conversation selection when clicking menu
                           setShowMenu(showMenu === conversation.id ? null : conversation.id);
                         }}
                         className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -197,7 +219,7 @@ const ConversationList = ({
                         className="w-8 h-8 rounded object-cover"
                       />
                       <span className="text-xs text-primary-600 dark:text-primary-400 font-medium">
-                        {formatCurrency(listingPrice, 'ETB')}
+                        {formatCurrency(listingPrice, listingCurrency)}
                       </span>
                     </div>
                   )}
@@ -214,6 +236,11 @@ const ConversationList = ({
                       <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
                         <ArchiveBoxIcon className="h-3 w-3 mr-1" />
                         Archived
+                      </span>
+                    )}
+                    {conversation.participant.isOnline && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300">
+                        Online
                       </span>
                     )}
                   </div>

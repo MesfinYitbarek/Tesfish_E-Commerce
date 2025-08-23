@@ -2,36 +2,81 @@ import Chat from '../../models/Chat.js';
 import User from '../../models/User.js';
 import Product from '../../models/Product.js';
 
-// Helper function to get sender display info
-const getSenderDisplayInfo = (user) => {
-  if (!user) return { displayName: 'Unknown User', userType: 'unknown' };
+// Helper function to transform user data to include display name
+const transformUserWithDisplayName = (user) => {
+  if (!user) return null;
+
+  const baseUser = {
+    _id: user._id,
+    email: user.email,
+    userType: user.userType,
+    isVerified: user.isVerified
+  };
 
   switch (user.userType) {
     case 'company':
       return {
+        ...baseUser,
         displayName: user.companyProfile?.companyName || 'Company',
-        userType: 'company',
-        avatar: user.companyProfile?.logo || null
+        avatar: user.companyProfile?.logo || null,
+        companyProfile: user.companyProfile
       };
     case 'individual':
       return {
+        ...baseUser,
         displayName: `${user.individualProfile?.firstName || ''} ${user.individualProfile?.lastName || ''}`.trim() || 'Individual',
-        userType: 'individual',
-        avatar: user.individualProfile?.avatar || null
+        avatar: user.individualProfile?.avatar || null,
+        individualProfile: user.individualProfile
       };
     case 'customer':
       return {
+        ...baseUser,
         displayName: `${user.customerProfile?.firstName || ''} ${user.customerProfile?.lastName || ''}`.trim() || 'Customer',
-        userType: 'customer',
-        avatar: user.customerProfile?.avatar || null
+        avatar: user.customerProfile?.avatar || null,
+        customerProfile: user.customerProfile
       };
     default:
       return {
+        ...baseUser,
         displayName: user.email || 'User',
-        userType: user.userType || 'unknown',
         avatar: null
       };
   }
+};
+
+// Helper function to transform message with proper sender info
+const transformMessage = (message) => {
+  const messageObj = message.toObject ? message.toObject() : message;
+
+  return {
+    ...messageObj,
+    sender: transformUserWithDisplayName(messageObj.sender)
+  };
+};
+
+// Helper function to transform chat with all user info
+const transformChat = (chat) => {
+  const chatObj = chat.toObject ? chat.toObject() : chat;
+
+  // Transform participants
+  if (chatObj.participants) {
+    chatObj.participants = chatObj.participants.map(participant => ({
+      ...participant,
+      user: transformUserWithDisplayName(participant.user)
+    }));
+  }
+
+  // Transform messages
+  if (chatObj.messages) {
+    chatObj.messages = chatObj.messages.map(transformMessage);
+  }
+
+  // Transform last message sender
+  if (chatObj.lastMessage?.sender) {
+    chatObj.lastMessage.sender = transformUserWithDisplayName(chatObj.lastMessage.sender);
+  }
+
+  return chatObj;
 };
 
 // @desc    Get user's chats
@@ -43,34 +88,22 @@ export const getChats = async (req, res) => {
       'participants.user': req.user.id,
       status: { $ne: 'archived' }
     })
-    .populate('participants.user', 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar email userType isVerified')
-    .populate('relatedProduct', 'title media pricing productType')
-    .populate('lastMessage.sender', 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar userType')
-    .sort({ 'lastMessage.timestamp': -1 });
+      .populate({
+        path: 'participants.user',
+        select: 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar email userType isVerified'
+      })
+      .populate({
+        path: 'relatedProduct',
+        select: 'title media pricing productType'
+      })
+      .populate({
+        path: 'lastMessage.sender',
+        select: 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar email userType'
+      })
+      .sort({ 'lastMessage.timestamp': -1 });
 
     // Transform chats to include display names
-    const transformedChats = chats.map(chat => {
-      const chatObj = chat.toObject();
-      
-      // Transform participants
-      chatObj.participants = chatObj.participants.map(participant => ({
-        ...participant,
-        user: {
-          ...participant.user,
-          ...getSenderDisplayInfo(participant.user)
-        }
-      }));
-
-      // Transform last message sender
-      if (chatObj.lastMessage?.sender) {
-        chatObj.lastMessage.sender = {
-          ...chatObj.lastMessage.sender,
-          ...getSenderDisplayInfo(chatObj.lastMessage.sender)
-        };
-      }
-
-      return chatObj;
-    });
+    const transformedChats = chats.map(transformChat);
 
     res.status(200).json({
       success: true,
@@ -91,9 +124,18 @@ export const getChats = async (req, res) => {
 export const getChat = async (req, res) => {
   try {
     const chat = await Chat.findById(req.params.id)
-      .populate('participants.user', 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar email userType isVerified')
-      .populate('relatedProduct', 'title media seller pricing productType')
-      .populate('messages.sender', 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar userType');
+      .populate({
+        path: 'participants.user',
+        select: 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar email userType isVerified'
+      })
+      .populate({
+        path: 'relatedProduct',
+        select: 'title media seller pricing productType'
+      })
+      .populate({
+        path: 'messages.sender',
+        select: 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar email userType'
+      });
 
     if (!chat) {
       return res.status(404).json({
@@ -130,7 +172,7 @@ export const getChat = async (req, res) => {
 
     if (hasUnreadMessages) {
       await chat.save();
-      
+
       // Emit read status update to other participants
       if (req.io) {
         chat.participants.forEach(participant => {
@@ -144,30 +186,12 @@ export const getChat = async (req, res) => {
       }
     }
 
-    // Transform chat to include display names
-    const chatObj = chat.toObject();
-    
-    // Transform participants
-    chatObj.participants = chatObj.participants.map(participant => ({
-      ...participant,
-      user: {
-        ...participant.user,
-        ...getSenderDisplayInfo(participant.user)
-      }
-    }));
-
-    // Transform message senders
-    chatObj.messages = chatObj.messages.map(message => ({
-      ...message,
-      sender: {
-        ...message.sender,
-        ...getSenderDisplayInfo(message.sender)
-      }
-    }));
+    // Transform chat with display names
+    const transformedChat = transformChat(chat);
 
     res.status(200).json({
       success: true,
-      data: { chat: chatObj }
+      data: { chat: transformedChat }
     });
   } catch (error) {
     console.error('Get chat error:', error);
@@ -217,8 +241,14 @@ export const createChat = async (req, res) => {
         { relatedProduct: relatedProduct || null }
       ]
     })
-    .populate('participants.user', 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar email userType isVerified')
-    .populate('relatedProduct', 'title media pricing productType');
+      .populate({
+        path: 'participants.user',
+        select: 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar email userType isVerified'
+      })
+      .populate({
+        path: 'relatedProduct',
+        select: 'title media pricing productType'
+      });
 
     if (!chat) {
       // Create new chat
@@ -236,8 +266,14 @@ export const createChat = async (req, res) => {
       });
 
       // Populate the newly created chat
-      await chat.populate('participants.user', 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar email userType isVerified');
-      await chat.populate('relatedProduct', 'title media pricing productType');
+      await chat.populate({
+        path: 'participants.user',
+        select: 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar email userType isVerified'
+      });
+      await chat.populate({
+        path: 'relatedProduct',
+        select: 'title media pricing productType'
+      });
     }
 
     // Add initial message if provided
@@ -263,77 +299,38 @@ export const createChat = async (req, res) => {
 
       await chat.save();
 
-      // Populate the message sender
-      await chat.populate('messages.sender', 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar userType');
+      // Get current user info for the message
+      const currentUser = await User.findById(req.user.id).select('companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar email userType');
 
-      // Get the newly added message with sender info
+      // Get the newly added message and transform it
       const messageWithSender = chat.messages[chat.messages.length - 1];
-      const transformedMessage = {
-        ...messageWithSender.toObject(),
-        sender: {
-          ...messageWithSender.sender.toObject(),
-          ...getSenderDisplayInfo(messageWithSender.sender)
-        }
-      };
+      messageWithSender.sender = currentUser;
+      const transformedMessage = transformMessage(messageWithSender);
 
       // Emit real-time notification
       if (req.io) {
+        const transformedChatForEmit = transformChat(chat);
+
         req.io.to(participantId).emit('new-message', {
           chatId: chat._id,
           message: transformedMessage,
-          chat: {
-            _id: chat._id,
-            participants: chat.participants.map(p => ({
-              ...p.toObject(),
-              user: {
-                ...p.user.toObject(),
-                ...getSenderDisplayInfo(p.user)
-              }
-            })),
-            relatedProduct: chat.relatedProduct
-          }
+          chat: transformedChatForEmit
         });
 
         // Emit chat created event
         req.io.to(participantId).emit('chat-created', {
-          chat: {
-            ...chat.toObject(),
-            participants: chat.participants.map(p => ({
-              ...p.toObject(),
-              user: {
-                ...p.user.toObject(),
-                ...getSenderDisplayInfo(p.user)
-              }
-            }))
-          }
+          chat: transformedChatForEmit
         });
       }
     }
 
     // Transform chat response
-    const chatObj = chat.toObject();
-    chatObj.participants = chatObj.participants.map(participant => ({
-      ...participant,
-      user: {
-        ...participant.user,
-        ...getSenderDisplayInfo(participant.user)
-      }
-    }));
-
-    if (chatObj.messages) {
-      chatObj.messages = chatObj.messages.map(msg => ({
-        ...msg,
-        sender: {
-          ...msg.sender,
-          ...getSenderDisplayInfo(msg.sender)
-        }
-      }));
-    }
+    const transformedChat = transformChat(chat);
 
     res.status(201).json({
       success: true,
       message: 'Chat created successfully',
-      data: { chat: chatObj }
+      data: { chat: transformedChat }
     });
   } catch (error) {
     console.error('Create chat error:', error);
@@ -350,7 +347,7 @@ export const createChat = async (req, res) => {
 export const sendMessage = async (req, res) => {
   try {
     const { content, messageType = 'text', attachments } = req.body;
-    
+
     if (!content || !content.trim()) {
       return res.status(400).json({
         success: false,
@@ -359,7 +356,10 @@ export const sendMessage = async (req, res) => {
     }
 
     const chat = await Chat.findById(req.params.id)
-      .populate('participants.user', 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar email userType isVerified');
+      .populate({
+        path: 'participants.user',
+        select: 'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar email userType isVerified'
+      });
 
     if (!chat) {
       return res.status(404).json({
@@ -402,7 +402,7 @@ export const sendMessage = async (req, res) => {
     // Update unread count for other participants
     chat.participants.forEach(participant => {
       if (participant.user._id.toString() !== req.user.id) {
-        const unreadEntry = chat.unreadCount.find(entry => 
+        const unreadEntry = chat.unreadCount.find(entry =>
           entry.user.toString() === participant.user._id.toString()
         );
         if (unreadEntry) {
@@ -413,31 +413,58 @@ export const sendMessage = async (req, res) => {
 
     await chat.save();
 
-    // Get the newly added message
-    const messageWithSender = chat.messages[chat.messages.length - 1];
-    
-    // Get sender info from current user
-    const currentUser = await User.findById(req.user.id);
-    const senderInfo = getSenderDisplayInfo(currentUser);
-    
-    const transformedMessage = {
-      ...messageWithSender.toObject(),
-      sender: {
-        _id: req.user.id,
-        ...senderInfo
-      }
-    };
+    // Get current user info for the message
+    const currentUser = await User.findById(req.user.id).select('companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar email userType');
 
-    // Emit real-time message
+    // Get the newly added message and attach sender info
+    const messageWithSender = chat.messages[chat.messages.length - 1];
+    messageWithSender.sender = currentUser;
+    const transformedMessage = transformMessage(messageWithSender);
+
+    console.log(`💬 Sending message to chat ${chat._id}:`, {
+      chatId: chat._id,
+      messageContent: transformedMessage.content,
+      senderId: req.user.id,
+      participantIds: chat.participants.map(p => p.user._id.toString())
+    });
+    const transformedChat = transformChat(chat);
+    // Emit real-time message to chat room
     if (req.io) {
+      // Emit to chat room
+      req.io.to(`chat-${chat._id}`).emit('new-message', {
+        chatId: chat._id,
+        message: transformedMessage,
+        chat: transformedChat // Include the full chat data for new conversations
+      });
+
+      // Also emit to individual participant rooms as backup
       chat.participants.forEach(participant => {
         if (participant.user._id.toString() !== req.user.id) {
-          req.io.to(participant.user._id.toString()).emit('new-message', {
+          const participantId = participant.user._id.toString();
+          console.log(`📤 Emitting to user ${participantId}`);
+
+          req.io.to(participantId).emit('new-message', {
             chatId: chat._id,
-            message: transformedMessage
+            message: transformedMessage,
+            chat: transformedChat // Include the full chat data
+          });
+
+          // Emit chat list update
+          req.io.to(participantId).emit('chat-updated', {
+            chatId: chat._id,
+            lastMessage: {
+              content: transformedMessage.content,
+              timestamp: new Date(),
+              sender: transformedMessage.sender
+            }
           });
         }
       });
+
+      console.log(`✅ Message emitted to ${chat.participants.length} participants`);
+
+    } else {
+      console.warn('⚠️ Socket.io not available');
     }
 
     res.status(201).json({
@@ -452,14 +479,6 @@ export const sendMessage = async (req, res) => {
       message: 'Server error while sending message'
     });
   }
-};
-
-// Add middleware to inject io instance into requests
-export const injectSocketIO = (io) => {
-  return (req, res, next) => {
-    req.io = io;
-    next();
-  };
 };
 
 // @desc    Edit message
@@ -527,9 +546,14 @@ export const editMessage = async (req, res) => {
     message.editedAt = new Date();
 
     await chat.save();
-    await chat.populate('messages.sender', 'companyProfile.companyName individualProfile.firstName individualProfile.lastName customerProfile.firstName customerProfile.lastName avatar');
 
+    // Get current user info for the message
+    const currentUser = await User.findById(req.user.id).select('companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar email userType');
+
+    // Get the updated message and attach sender info
     const updatedMessage = chat.messages.id(messageId);
+    updatedMessage.sender = currentUser;
+    const transformedMessage = transformMessage(updatedMessage);
 
     // Emit real-time update
     if (req.io) {
@@ -537,7 +561,7 @@ export const editMessage = async (req, res) => {
         if (participant.user.toString() !== req.user.id) {
           req.io.to(participant.user.toString()).emit('message-edited', {
             chatId: chat._id,
-            message: updatedMessage
+            message: transformedMessage
           });
         }
       });
@@ -546,7 +570,7 @@ export const editMessage = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Message updated successfully',
-      data: { message: updatedMessage }
+      data: { message: transformedMessage }
     });
   } catch (error) {
     console.error('Edit message error:', error);
@@ -615,8 +639,8 @@ export const deleteMessage = async (req, res) => {
     chat.messages.pull(messageId);
 
     // Update last message if this was the last message
-    if (chat.lastMessage && 
-        Math.abs(chat.lastMessage.timestamp.getTime() - messageTimestamp.getTime()) < 1000) {
+    if (chat.lastMessage &&
+      Math.abs(chat.lastMessage.timestamp.getTime() - messageTimestamp.getTime()) < 1000) {
       const remainingMessages = chat.messages.sort((a, b) => b.createdAt - a.createdAt);
       if (remainingMessages.length > 0) {
         const lastMessage = remainingMessages[0];
@@ -698,6 +722,18 @@ export const markAsRead = async (req, res) => {
 
     if (hasUnreadMessages) {
       await chat.save();
+
+      // Emit read status update
+      if (req.io) {
+        chat.participants.forEach(participant => {
+          if (participant.user.toString() !== req.user.id) {
+            req.io.to(participant.user.toString()).emit('messages-read', {
+              chatId: chat._id,
+              readBy: req.user.id
+            });
+          }
+        });
+      }
     }
 
     res.status(200).json({
@@ -713,6 +749,14 @@ export const markAsRead = async (req, res) => {
   }
 };
 
+// Add middleware to inject io instance into requests
+export const injectSocketIO = (io) => {
+  return (req, res, next) => {
+    req.io = io;
+    next();
+  };
+};
+
 // @desc    Block user in chat
 // @route   PUT /api/chat/:id/block
 // @access  Private
@@ -720,7 +764,7 @@ export const blockUser = async (req, res) => {
   try {
     const { userId } = req.body;
     const chat = await Chat.findById(req.params.id);
-    
+
     if (!chat) {
       return res.status(404).json({
         success: false,
@@ -776,7 +820,7 @@ export const blockUser = async (req, res) => {
 export const unblockUser = async (req, res) => {
   try {
     const chat = await Chat.findById(req.params.id);
-    
+
     if (!chat) {
       return res.status(404).json({
         success: false,
@@ -951,7 +995,7 @@ export const getChatParticipants = async (req, res) => {
 export const searchMessages = async (req, res) => {
   try {
     const { q } = req.query;
-    
+
     if (!q || q.trim().length === 0) {
       return res.status(400).json({
         success: false,
@@ -980,15 +1024,15 @@ export const searchMessages = async (req, res) => {
 
     // Search messages
     const searchRegex = new RegExp(q.trim(), 'i');
-    const matchingMessages = chat.messages.filter(message => 
+    const matchingMessages = chat.messages.filter(message =>
       searchRegex.test(message.content)
     );
 
     res.status(200).json({
       success: true,
-      data: { 
+      data: {
         messages: matchingMessages,
-        totalMatches: matchingMessages.length 
+        totalMatches: matchingMessages.length
       }
     });
   } catch (error) {

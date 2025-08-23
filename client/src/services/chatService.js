@@ -30,6 +30,15 @@ const chatService = {
   deleteMessage: (chatId, messageId) => {
     return api.delete(`/chat/${chatId}/message/${messageId}`);
   },
+  deleteChat: async (chatId) => {
+    try {
+      const response = await api.delete(`/chat/${chatId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Delete chat error:', error);
+      throw error;
+    }
+  },
 
   // Archive a chat
   archiveChat: (chatId) => {

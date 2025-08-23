@@ -1,5 +1,6 @@
+// Updated ChatWindow.jsx
 import { useState, useEffect, useRef } from 'react';
-import { 
+import {
   ArrowLeftIcon,
   PaperAirplaneIcon,
   PaperClipIcon,
@@ -9,59 +10,184 @@ import {
   FaceSmileIcon,
   UserIcon
 } from '@heroicons/react/24/outline';
+import { CheckBadgeIcon } from '@heroicons/react/24/solid';
 import { useDispatch, useSelector } from 'react-redux';
-import { 
-  fetchChat, 
-  sendMessage, 
-  editMessage, 
+import {
+  fetchChat,
+  sendMessage,
+  editMessage,
   deleteMessage,
+  addMessage,
+  updateMessage,
+  removeMessage,
+  markMessagesAsRead
 } from '../../store/slices/chatSlice';
 import chatService from '../../services/chatService';
 import MessageThread from './MessageThread';
 import ContactInfo from './ContactInfo';
 import Button from '../ui/Button';
 import { formatCurrency } from '../../utils/helpers';
+import { toast } from 'react-hot-toast';
 
-const ChatWindow = ({ 
-  conversation, 
-  currentUserId, 
-  onToggleSidebar, 
-  sidebarOpen 
+const ChatWindow = ({
+  conversation,
+  currentUserId,
+  onToggleSidebar,
+  sidebarOpen,
+  socket,
+  socketConnected
 }) => {
   const [newMessage, setNewMessage] = useState('');
   const [showContactInfo, setShowContactInfo] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [otherUserTyping, setOtherUserTyping] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
   const dispatch = useDispatch();
 
-  const { 
-    messages, 
-    isLoading, 
-    isSending, 
-    error 
+  const {
+    messages,
+    isLoading,
+    isSending,
+    error
   } = useSelector((state) => state.chat);
 
+  // Fetch chat data when conversation changes
   useEffect(() => {
     if (conversation?.id) {
+      console.log('📂 Fetching chat data for:', conversation.id);
       dispatch(fetchChat(conversation.id));
     }
   }, [conversation?.id, dispatch]);
 
+  // Scroll to bottom when messages change
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    if (!socket || !conversation?.id || !socketConnected) return;
+
+    console.log('🏠 ChatWindow joining chat room:', conversation.id);
+
+    // Join chat room
+    socket.emit('join-chat', conversation.id);
+
+    // Listen for new messages - NO REFRESH, JUST APPEND
+    const handleNewMessage = (data) => {
+      console.log('📨 ChatWindow received new message:', data);
+
+      if (data.chatId === conversation.id) {
+        console.log('✅ Adding message to current chat (Telegram style)');
+
+        // Add message immediately without any refresh
+        dispatch(addMessage({
+          ...data.message,
+          chatId: data.chatId
+        }));
+
+        // Scroll to bottom smoothly
+        setTimeout(() => scrollToBottom(), 50);
+      }
+    };
+
+    // Listen for typing events
+    const handleUserTyping = (data) => {
+      if (data.chatId === conversation.id && data.userId !== currentUserId) {
+        setOtherUserTyping(data.isTyping);
+        if (data.isTyping) {
+          setTimeout(() => setOtherUserTyping(false), 3000);
+        }
+      }
+    };
+
+    // Listen for message updates - UPDATE SPECIFIC MESSAGE ONLY
+    const handleMessageEdited = (data) => {
+      if (data.chatId === conversation.id) {
+        dispatch(updateMessage({
+          messageId: data.message._id,
+          updates: data.message
+        }));
+      }
+    };
+
+    const handleMessageDeleted = (data) => {
+      if (data.chatId === conversation.id) {
+        dispatch(removeMessage(data.messageId));
+      }
+    };
+
+    // Listen for read status updates - UPDATE READ STATUS ONLY
+    const handleMessagesRead = (data) => {
+      if (data.chatId === conversation.id) {
+        dispatch(markMessagesAsRead({
+          chatId: conversation.id,
+          readBy: data.readBy
+        }));
+      }
+    };
+
+    socket.on('new-message', handleNewMessage);
+    socket.on('user-typing', handleUserTyping);
+    socket.on('message-edited', handleMessageEdited);
+    socket.on('message-deleted', handleMessageDeleted);
+    socket.on('messages-read', handleMessagesRead);
+
+    return () => {
+      console.log('🚪 ChatWindow leaving chat room:', conversation.id);
+      socket.off('new-message', handleNewMessage);
+      socket.off('user-typing', handleUserTyping);
+      socket.off('message-edited', handleMessageEdited);
+      socket.off('message-deleted', handleMessageDeleted);
+      socket.off('messages-read', handleMessagesRead);
+
+      if (socket.connected) {
+        socket.emit('leave-chat', conversation.id);
+      }
+    };
+  }, [socket, conversation?.id, currentUserId, dispatch, socketConnected]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const handleTyping = (isTypingNow) => {
+    if (!socket || !conversation?.id || !socketConnected) return;
+
+    console.log('⌨️ Emitting typing status:', { isTypingNow, chatId: conversation.id });
+    setIsTyping(isTypingNow);
+    socket.emit('typing', {
+      chatId: conversation.id,
+      isTyping: isTypingNow
+    });
+
+    if (isTypingNow) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        handleTyping(false);
+      }, 2000);
+    }
+  };
+
+  const handleMessageChange = (e) => {
+    setNewMessage(e.target.value);
+
+    if (e.target.value.trim() && !isTyping) {
+      handleTyping(true);
+    } else if (!e.target.value.trim() && isTyping) {
+      handleTyping(false);
+    }
+  };
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    
+
     if (!newMessage.trim() && !fileInputRef.current?.files?.length) return;
-    
+
+    handleTyping(false); // Stop typing indicator
+
     try {
       const messageData = {
         content: newMessage.trim(),
@@ -73,7 +199,7 @@ const ChatWindow = ({
       if (fileInputRef.current?.files?.length > 0) {
         setUploadingFiles(true);
         const files = Array.from(fileInputRef.current.files);
-        
+
         // Upload files first
         for (const file of files) {
           try {
@@ -85,25 +211,31 @@ const ChatWindow = ({
             });
           } catch (uploadError) {
             console.error('Error uploading file:', uploadError);
-            // Continue with other files
           }
         }
         setUploadingFiles(false);
       }
 
+      console.log('📤 Sending message:', { chatId: conversation.id, messageData });
+
       // Send message using Redux action
-      await dispatch(sendMessage({
+      const result = await dispatch(sendMessage({
         chatId: conversation.id,
         messageData
       })).unwrap();
 
+      // Clear the input
       setNewMessage('');
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-      
+
+      // Scroll to bottom after sending
+      setTimeout(() => scrollToBottom(), 100);
+
     } catch (error) {
       console.error('Error sending message:', error);
+      toast.error('Failed to send message');
       setUploadingFiles(false);
     }
   };
@@ -120,7 +252,11 @@ const ChatWindow = ({
       throw error;
     }
   };
-
+  const handleBackToList = () => {
+    // On mobile, show sidebar but keep current chat selected
+    onToggleSidebar();
+    // Don't clear the current chat - just toggle sidebar visibility
+  };
   const handleDeleteMessage = async (messageId) => {
     try {
       await dispatch(deleteMessage({
@@ -150,6 +286,9 @@ const ChatWindow = ({
     );
   }
 
+  console.log('💬 ChatWindow render - Messages count:', messages?.length);
+  console.log('💬 Socket connected:', socketConnected);
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -157,34 +296,48 @@ const ChatWindow = ({
         <div className="flex items-center space-x-3">
           {!sidebarOpen && (
             <button
-              onClick={onToggleSidebar}
+              onClick={handleBackToList} 
               className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 md:hidden"
             >
               <ArrowLeftIcon className="h-5 w-5" />
             </button>
           )}
-          
+
           {/* Participant Info */}
           <div className="flex items-center space-x-3">
-            {participant?.avatar ? (
-              <img
-                src={participant.avatar}
-                alt={participant.name}
-                className="w-10 h-10 rounded-full object-cover"
-              />
-            ) : (
-              <div className="w-10 h-10 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center">
-                <UserIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-              </div>
-            )}
+            <div className="relative">
+              {participant?.avatar ? (
+                <img
+                  src={participant.avatar}
+                  alt={participant.name}
+                  className="w-10 h-10 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-10 h-10 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center">
+                  <UserIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                </div>
+              )}
+              {participant?.isOnline && socketConnected && (
+                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white dark:border-gray-900 rounded-full"></div>
+              )}
+            </div>
             <div>
-              <h2 className="font-semibold text-gray-900 dark:text-gray-100">
-                {participant?.name || 'Unknown User'}
-              </h2>
+              <div className="flex items-center space-x-2">
+                <h2 className="font-semibold text-gray-900 dark:text-gray-100">
+                  {participant?.name || 'Unknown User'}
+                </h2>
+                {participant?.isVerified && (
+                  <CheckBadgeIcon className="h-4 w-4 text-blue-500" />
+                )}
+              </div>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {participant?.type === 'customer' ? 'Customer' : 'User'}
-                {isTyping && (
+                {participant?.type === 'company' ? 'Company' :
+                  participant?.type === 'individual' ? 'Individual Seller' : 'Customer'}
+                {otherUserTyping && socketConnected && (
                   <span className="ml-2 text-green-500">typing...</span>
+                )}
+                {!otherUserTyping && participant?.isOnline && socketConnected && (
+                  <span className="ml-2 text-green-500">online</span>
                 )}
               </p>
             </div>
@@ -193,24 +346,18 @@ const ChatWindow = ({
 
         {/* Action Buttons */}
         <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1">
+            <div className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+            <span className={`text-xs ${socketConnected ? 'text-green-600' : 'text-gray-500'}`}>
+              {socketConnected ? 'Connected' : 'Offline'}
+            </span>
+          </div>
           <button
             onClick={() => setShowContactInfo(!showContactInfo)}
             className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
             title="Contact info"
           >
             <InformationCircleIcon className="h-5 w-5" />
-          </button>
-          <button
-            className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
-            title="Voice call"
-          >
-            <PhoneIcon className="h-5 w-5" />
-          </button>
-          <button
-            className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
-            title="Video call"
-          >
-            <VideoCameraIcon className="h-5 w-5" />
           </button>
         </div>
       </div>
@@ -229,7 +376,7 @@ const ChatWindow = ({
                 {listing.title}
               </h3>
               <p className="text-sm text-blue-700 dark:text-blue-300">
-                {formatCurrency(listing.price, 'ETB')}
+                {formatCurrency(listing.price, listing.currency || 'ETB')}
               </p>
             </div>
             <Button size="sm" variant="outline">
@@ -254,11 +401,11 @@ const ChatWindow = ({
           {/* Message Thread */}
           <div className="flex-1 overflow-y-auto">
             <MessageThread
-              messages={messages}
+              messages={messages || []}
               currentUserId={currentUserId}
               participant={participant}
               isLoading={isLoading}
-              isTyping={isTyping}
+              isTyping={otherUserTyping}
               onEditMessage={handleEditMessage}
               onDeleteMessage={handleDeleteMessage}
             />
@@ -274,13 +421,13 @@ const ChatWindow = ({
                 </p>
               </div>
             )}
-            
+
             <form onSubmit={handleSendMessage} className="flex items-end space-x-3">
               <div className="flex-1">
                 <div className="relative">
                   <textarea
                     value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
+                    onChange={handleMessageChange}
                     placeholder="Type a message..."
                     rows={1}
                     className="w-full px-4 py-3 pr-20 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none text-base"
@@ -293,7 +440,7 @@ const ChatWindow = ({
                     }}
                     disabled={isSending || uploadingFiles}
                   />
-                  
+
                   {/* Attachment and Emoji Buttons */}
                   <div className="absolute right-2 bottom-2 flex items-center space-x-1">
                     <button
@@ -337,6 +484,12 @@ const ChatWindow = ({
               }}
               className="hidden"
             />
+
+            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              Press Enter to send, Shift+Enter for new line
+              {socketConnected && <span className="ml-2">• Real-time connected</span>}
+              {!socketConnected && <span className="ml-2">• Real-time offline</span>}
+            </div>
           </div>
         </div>
 
