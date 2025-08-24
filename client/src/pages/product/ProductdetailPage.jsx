@@ -22,7 +22,7 @@ import ProductReviews from '../../components/product/ProductReviews';
 import BookingSection from '../../components/product/BookingSection';
 import RelatedProducts from '../../components/product/RelatedProducts';
 import ShareModal from '../../components/product/ShareModal';
-import ContactSellerModal from '../../components/product/ContactSellerModal';
+import ContactSellerModal from '../../components/chat/ContactSellerModal';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Button from '../../components/ui/Button';
 

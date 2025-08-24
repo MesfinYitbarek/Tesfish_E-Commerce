@@ -19,9 +19,9 @@ import {
   removeMessage,
   updateChatInList
 } from '../../store/slices/chatSlice';
-import ConversationList from '../../components/dashboard/ConversationList';
-import ChatWindow from '../../components/dashboard/ChatWindow';
-// import NewMessageModal from '../../components/dashboard/NewMessageModal';
+import ConversationList from '../../components/chat/ConversationList';
+import ChatWindow from '../../components/chat/ChatWindow';
+// import NewMessageModal from '../../components/chat/NewMessageModal';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';

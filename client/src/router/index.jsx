@@ -31,7 +31,7 @@ const MyListings = lazy(() => import('../pages/dashboard/MyListings'));
 const CreateProduct = lazy(() => import('../pages/dashboard/CreateProduct'));
 const Analytics = lazy(() => import('../pages/dashboard/Analytics'));
 const NotificationPanel = lazy(() => import('../pages/dashboard/NotificationPanel'));
-const Messages = lazy(() => import('../pages/dashboard/Messages'));
+const Messages = lazy(() => import('../pages/chat/Messages'));
 const Bookings = lazy(() => import('../pages/dashboard/Bookings'));
 const Settings = lazy(() => import('../pages/dashboard/Settings'));
 const Profile = lazy(() => import('../pages/profile/Profile'));
