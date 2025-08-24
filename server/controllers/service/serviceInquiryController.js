@@ -1,552 +1,685 @@
 import ServiceInquiry from '../../models/ServiceInquiry.js';
 import User from '../../models/User.js';
-import { sendEmail } from '../../utils/email/emailService.js';
+import { asyncHandler } from '../../utils/asyncHandler.js';
+import { AppError } from '../../utils/appError.js';
+import { sendNotification } from '../../Services/NotificationService.js';
 import { uploadToCloudinary } from '../../utils/upload/cloudinaryService.js';
-
-// @desc    Create service inquiry
+import { v4 as uuidv4 } from "uuid";
+// @desc    Create new service inquiry
 // @route   POST /api/service-inquiries
-// @access  Private
-export const createServiceInquiry = async (req, res) => {
-  try {
-    const {
-      serviceProvider,
-      serviceType,
-      customerInfo,
-      projectDetails,
-      priority = 'medium'
-    } = req.body;
+// @access  Private (Any authenticated user)
 
-    // Validate service provider
-    const provider = await User.findById(serviceProvider);
-    if (!provider) {
-      return res.status(404).json({
-        success: false,
-        message: 'Service provider not found'
-      });
+
+
+
+export const createServiceInquiry = asyncHandler(async (req, res) => {
+  let { serviceType, projectDetails, serviceSpecifics } = req.body;
+
+  // ✅ Parse JSON if frontend sends strings
+  if (typeof projectDetails === "string") {
+    try {
+      projectDetails = JSON.parse(projectDetails);
+    } catch (err) {
+      return res.status(400).json({ success: false, message: "Invalid projectDetails JSON" });
     }
-
-    // Check if provider offers the requested service
-    const providerCategories = provider.companyProfile?.businessCategories || [];
-    const serviceMapping = {
-      'project-management': 'construction',
-      'engineering-design': 'engineering',
-      'interior-design': 'interior-design',
-      'consultancy': 'services'
-    };
-
-    if (!providerCategories.includes(serviceMapping[serviceType]) && !providerCategories.includes('services')) {
-      return res.status(400).json({
-        success: false,
-        message: 'Service provider does not offer this service type'
-      });
-    }
-
-    // Handle file attachments
-    let attachments = [];
-    if (req.files && req.files.length > 0) {
-      const uploadPromises = req.files.map(file => uploadToCloudinary(file.path, 'service-inquiries'));
-      const uploadedFiles = await Promise.all(uploadPromises);
-      
-      attachments = uploadedFiles.map(file => ({
-        name: file.original_filename,
-        url: file.secure_url,
-        type: file.resource_type
-      }));
-    }
-
-    const inquiryData = {
-      customer: req.user.id,
-      serviceProvider,
-      serviceType,
-      customerInfo: customerInfo || {
-        firstName: req.user.customerProfile?.firstName || req.user.individualProfile?.firstName,
-        lastName: req.user.customerProfile?.lastName || req.user.individualProfile?.lastName,
-        email: req.user.email,
-        phone: req.user.customerProfile?.phone || req.user.individualProfile?.phone
-      },
-      projectDetails,
-      attachments,
-      priority
-    };
-
-    const inquiry = await ServiceInquiry.create(inquiryData);
-
-    // Send notification email to service provider
-    await sendEmail({
-      to: provider.email,
-      subject: 'New Service Inquiry - CitiLights',
-      template: 'serviceInquiryNotification',
-      data: {
-        providerName: provider.fullName,
-        customerName: `${inquiryData.customerInfo.firstName} ${inquiryData.customerInfo.lastName}`,
-        serviceType: serviceType.replace('-', ' ').toUpperCase(),
-        projectTitle: projectDetails.title,
-        projectDescription: projectDetails.description,
-        inquiryUrl: `${process.env.CLIENT_URL}/dashboard/service-inquiries/${inquiry._id}`
-      }
-    });
-
-    // Send confirmation email to customer
-    await sendEmail({
-      to: inquiryData.customerInfo.email,
-      subject: 'Service Inquiry Submitted - CitiLights',
-      template: 'serviceInquiryConfirmation',
-      data: {
-        customerName: `${inquiryData.customerInfo.firstName} ${inquiryData.customerInfo.lastName}`,
-        providerName: provider.fullName,
-        serviceType: serviceType.replace('-', ' ').toUpperCase(),
-        projectTitle: projectDetails.title
-      }
-    });
-
-    const populatedInquiry = await ServiceInquiry.findById(inquiry._id)
-      .populate('customer', 'customerProfile individualProfile email')
-      .populate('serviceProvider', 'companyProfile individualProfile email');
-
-    res.status(201).json({
-      success: true,
-      message: 'Service inquiry submitted successfully',
-      data: { inquiry: populatedInquiry }
-    });
-  } catch (error) {
-    console.error('Create service inquiry error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while creating service inquiry'
-    });
   }
-};
+  if (typeof serviceSpecifics === "string") {
+    try {
+      serviceSpecifics = JSON.parse(serviceSpecifics);
+    } catch (err) {
+      return res.status(400).json({ success: false, message: "Invalid serviceSpecifics JSON" });
+    }
+  }
 
-// @desc    Get customer's service inquiries
+  // ✅ Handle file uploads
+  let attachments = [];
+  if (req.files && req.files.length > 0) {
+    for (const file of req.files) {
+      const uploadResult = await uploadToCloudinary(file.buffer, file.originalname);
+      attachments.push({
+        name: file.originalname,
+        url: uploadResult.secure_url,
+        type: file.mimetype,
+        size: file.size,
+      });
+    }
+  }
+
+  // ✅ Fallback customer if not authenticated
+  const customerId = req.user?._id || "000000000000000000000000";
+
+  // ✅ Auto-generate inquiry number
+  const inquiryNumber = `INQ-${Date.now()}-${uuidv4().slice(0, 6)}`;
+
+  // ✅ Create service inquiry
+  const inquiry = await ServiceInquiry.create({
+    inquiryNumber,
+    customer: customerId,
+    serviceType,
+    projectDetails,
+    serviceSpecifics: serviceSpecifics || {},
+    attachments,
+    source: "website",
+  });
+
+  // ✅ Populate customer if real user exists
+  if (req.user?._id) {
+    await inquiry.populate("customer", "firstName lastName email phone customerProfile");
+
+    // 🔔 Notify admins
+    const adminUsers = await User.find({ userType: "admin" });
+    for (const admin of adminUsers) {
+      await sendNotification(admin._id, {
+        type: "new_service_inquiry",
+        title: "New Service Inquiry",
+        message: `New ${serviceType.replace("-", " ")} inquiry from ${inquiry.customer.firstName} ${inquiry.customer.lastName}`,
+        data: { inquiryId: inquiry._id },
+      });
+    }
+  }
+
+  res.status(201).json({
+    success: true,
+    message: "✅ Service inquiry created successfully",
+    data: inquiry,
+  });
+});
+
+
+// @desc    Get customer's own inquiries
 // @route   GET /api/service-inquiries/my-inquiries
-// @access  Private
-export const getMyInquiries = async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
+// @access  Private (Customer)
+export const getMyInquiries = asyncHandler(async (req, res) => {
+  const {
+    page = 1,
+    limit = 10,
+    status,
+    serviceType,
+    sortBy = 'createdAt',
+    sortOrder = 'desc'
+  } = req.query;
 
-    const query = { customer: req.user.id };
+  const query = { customer: req.user.id };
+  
+  if (status) query.status = status;
+  if (serviceType) query.serviceType = serviceType;
 
-    // Status filter
-    if (req.query.status) {
-      query.status = req.query.status;
-    }
+  const sortOptions = {};
+  sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
-    // Service type filter
-    if (req.query.serviceType) {
-      query.serviceType = req.query.serviceType;
-    }
+  const inquiries = await ServiceInquiry.find(query)
+    .populate('assignedAdmin', 'firstName lastName email')
+    .sort(sortOptions)
+    .limit(limit * 1)
+    .skip((page - 1) * limit)
+    .exec();
 
-    const inquiries = await ServiceInquiry.find(query)
-      .populate('serviceProvider', 'companyProfile individualProfile email sellerRating')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+  const total = await ServiceInquiry.countDocuments(query);
 
-    const total = await ServiceInquiry.countDocuments(query);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        inquiries,
-        pagination: {
-          currentPage: page,
-          totalPages: Math.ceil(total / limit),
-          totalInquiries: total
-        }
+  res.json({
+    success: true,
+    data: {
+      inquiries,
+      pagination: {
+        current: parseInt(page),
+        total: Math.ceil(total / limit),
+        count: inquiries.length,
+        totalRecords: total
       }
-    });
-  } catch (error) {
-    console.error('Get my inquiries error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while fetching inquiries'
-    });
-  }
-};
+    }
+  });
+});
 
-// @desc    Get service provider's inquiries
+// @desc    Get all inquiries for admin team
 // @route   GET /api/service-inquiries/provider/inquiries
-// @access  Private (Service providers only)
-export const getProviderInquiries = async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
+// @access  Private (Admin only)
+export const getProviderInquiries = asyncHandler(async (req, res) => {
+  const {
+    page = 1,
+    limit = 10,
+    status,
+    serviceType,
+    assignedAdmin,
+    priority,
+    search,
+    sortBy = 'createdAt',
+    sortOrder = 'desc'
+  } = req.query;
 
-    const query = { serviceProvider: req.user.id };
-
-    // Status filter
-    if (req.query.status) {
-      query.status = req.query.status;
-    }
-
-    // Priority filter
-    if (req.query.priority) {
-      query.priority = req.query.priority;
-    }
-
-    // Service type filter
-    if (req.query.serviceType) {
-      query.serviceType = req.query.serviceType;
-    }
-
-    const inquiries = await ServiceInquiry.find(query)
-      .populate('customer', 'customerProfile individualProfile email')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-
-    const total = await ServiceInquiry.countDocuments(query);
-
-    res.status(200).json({
-      success: true,
-      data: {
-        inquiries,
-        pagination: {
-          currentPage: page,
-          totalPages: Math.ceil(total / limit),
-          totalInquiries: total
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Get provider inquiries error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while fetching provider inquiries'
-    });
+  let query = {};
+  
+  if (status) query.status = status;
+  if (serviceType) query.serviceType = serviceType;
+  if (assignedAdmin) query.assignedAdmin = assignedAdmin;
+  if (priority) query.priority = priority;
+  
+  if (search) {
+    query.$or = [
+      { 'projectDetails.title': { $regex: search, $options: 'i' } },
+      { 'projectDetails.description': { $regex: search, $options: 'i' } },
+      { inquiryNumber: { $regex: search, $options: 'i' } }
+    ];
   }
-};
+
+  const sortOptions = {};
+  sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+  const inquiries = await ServiceInquiry.find(query)
+    .populate('customer', 'firstName lastName email phone customerProfile')
+    .populate('assignedAdmin', 'firstName lastName email')
+    .sort(sortOptions)
+    .limit(limit * 1)
+    .skip((page - 1) * limit)
+    .exec();
+
+  const total = await ServiceInquiry.countDocuments(query);
+
+  // Get status counts for dashboard
+  const statusCounts = await ServiceInquiry.aggregate([
+    {
+      $group: {
+        _id: '$status',
+        count: { $sum: 1 }
+      }
+    }
+  ]);
+
+  res.json({
+    success: true,
+    data: {
+      inquiries,
+      statusCounts,
+      pagination: {
+        current: parseInt(page),
+        total: Math.ceil(total / limit),
+        count: inquiries.length,
+        totalRecords: total
+      }
+    }
+  });
+});
 
 // @desc    Get single service inquiry
 // @route   GET /api/service-inquiries/:id
-// @access  Private
-export const getServiceInquiry = async (req, res) => {
-  try {
-    const inquiry = await ServiceInquiry.findById(req.params.id)
-      .populate('customer', 'customerProfile individualProfile email')
-      .populate('serviceProvider', 'companyProfile individualProfile email sellerRating')
-      .populate('messages.sender', 'companyProfile.companyName individualProfile.firstName individualProfile.lastName customerProfile.firstName customerProfile.lastName');
+// @access  Private (Customer - own inquiries, Admin - all inquiries)
+export const getServiceInquiry = asyncHandler(async (req, res) => {
+  const inquiry = await ServiceInquiry.findById(req.params.id)
+    .populate('customer', 'firstName lastName email phone customerProfile')
+    .populate('assignedAdmin', 'firstName lastName email')
+    .populate('messages.sender', 'firstName lastName email userType customerProfile')
+    .populate('quotes.submittedBy', 'firstName lastName email')
+    .populate('consultation.scheduledBy', 'firstName lastName email')
+    .populate('statusHistory.changedBy', 'firstName lastName email')
+    .populate('internalNotes.addedBy', 'firstName lastName email');
 
-    if (!inquiry) {
-      return res.status(404).json({
-        success: false,
-        message: 'Service inquiry not found'
-      });
-    }
-
-    // Check authorization
-    const isCustomer = inquiry.customer._id.toString() === req.user.id;
-    const isProvider = inquiry.serviceProvider._id.toString() === req.user.id;
-    const isAdmin = req.user.userType === 'admin';
-
-    if (!isCustomer && !isProvider && !isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to view this inquiry'
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: { inquiry }
-    });
-  } catch (error) {
-    console.error('Get service inquiry error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while fetching service inquiry'
-    });
+  if (!inquiry) {
+    throw new AppError('Service inquiry not found', 404);
   }
-};
+
+  // Check permissions
+  const isCustomer = req.user.id.toString() === inquiry.customer._id.toString();
+  const isAdmin = req.user.userType === 'admin';
+
+  if (!isCustomer && !isAdmin) {
+    throw new AppError('Not authorized to access this inquiry', 403);
+  }
+
+  // Hide internal notes from customers
+  if (isCustomer) {
+    inquiry.internalNotes = undefined;
+  }
+
+  res.json({
+    success: true,
+    data: {
+      inquiry
+    }
+  });
+});
 
 // @desc    Update inquiry status
 // @route   PUT /api/service-inquiries/:id/status
-// @access  Private
-export const updateInquiryStatus = async (req, res) => {
-  try {
-    const { status, note } = req.body;
-    
-    const inquiry = await ServiceInquiry.findById(req.params.id)
-      .populate('customer', 'customerProfile individualProfile email')
-      .populate('serviceProvider', 'companyProfile individualProfile email');
+// @access  Private (Admin only)
+export const updateInquiryStatus = asyncHandler(async (req, res) => {
+  const { status, note, assignToMe } = req.body;
 
-    if (!inquiry) {
-      return res.status(404).json({
-        success: false,
-        message: 'Service inquiry not found'
-      });
-    }
+  const inquiry = await ServiceInquiry.findById(req.params.id);
 
-    // Check authorization
-    const isProvider = inquiry.serviceProvider._id.toString() === req.user.id;
-    const isCustomer = inquiry.customer._id.toString() === req.user.id;
-    const isAdmin = req.user.userType === 'admin';
-
-    if (!isProvider && !isCustomer && !isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to update this inquiry'
-      });
-    }
-
-    // Validate status transitions
-    const validTransitions = {
-      pending: ['reviewing', 'rejected'],
-      reviewing: ['quoted', 'rejected'],
-      quoted: ['accepted', 'rejected'],
-      accepted: ['completed'],
-      rejected: [],
-      completed: []
-    };
-
-    if (!validTransitions[inquiry.status].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot change status from ${inquiry.status} to ${status}`
-      });
-    }
-
-    inquiry.status = status;
-    
-    // Add message to inquiry timeline
-    if (note) {
-      inquiry.messages.push({
-        sender: req.user.id,
-        content: note,
-        timestamp: new Date()
-      });
-    }
-
-    await inquiry.save();
-
-    // Send status update email
-    const recipientEmail = isProvider ? inquiry.customerInfo.email : inquiry.serviceProvider.email;
-    const recipientName = isProvider ? 
-      `${inquiry.customerInfo.firstName} ${inquiry.customerInfo.lastName}` : 
-      inquiry.serviceProvider.fullName;
-
-    await sendEmail({
-      to: recipientEmail,
-      subject: `Service Inquiry Update - ${inquiry._id}`,
-      template: 'serviceInquiryStatusUpdate',
-      data: {
-        recipientName,
-        status,
-        projectTitle: inquiry.projectDetails.title,
-        note,
-        inquiryUrl: `${process.env.CLIENT_URL}/dashboard/service-inquiries/${inquiry._id}`
-      }
-    });
-
-    res.status(200).json({
-      success: true,
-      message: 'Inquiry status updated successfully',
-      data: { inquiry }
-    });
-  } catch (error) {
-    console.error('Update inquiry status error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while updating inquiry status'
-    });
+  if (!inquiry) {
+    throw new AppError('Service inquiry not found', 404);
   }
-};
 
-// @desc    Submit quote
+  const oldStatus = inquiry.status;
+  inquiry.status = status;
+
+  // Assign to current admin if requested
+  if (assignToMe && !inquiry.assignedAdmin) {
+    inquiry.assignedAdmin = req.user.id;
+  }
+
+  // Add to status history
+  inquiry.statusHistory.push({
+    status,
+    changedBy: req.user.id,
+    note: note || `Status changed from ${oldStatus} to ${status}`
+  });
+
+  await inquiry.save();
+  await inquiry.populate('customer', 'firstName lastName email');
+  await inquiry.populate('assignedAdmin', 'firstName lastName email');
+
+  // Notify customer about status change
+  await sendNotification(inquiry.customer._id, {
+    type: 'inquiry_status_update',
+    title: 'Inquiry Status Updated',
+    message: `Your ${inquiry.serviceType.replace('-', ' ')} inquiry status has been updated to ${status}`,
+    data: { inquiryId: inquiry._id, status }
+  });
+
+  res.json({
+    success: true,
+    data: {
+      inquiry
+    }
+  });
+});
+
+// @desc    Submit quote for inquiry
 // @route   POST /api/service-inquiries/:id/quote
-// @access  Private (Service providers only)
-export const submitQuote = async (req, res) => {
-  try {
-    const {
-      amount,
-      currency = 'ETB',
-      breakdown,
-      validUntil,
-      terms
-    } = req.body;
+// @access  Private (Admin only)
+export const submitQuote = asyncHandler(async (req, res) => {
+  const {
+    amount,
+    currency = 'ETB',
+    breakdown,
+    timeline,
+    terms,
+    validUntil
+  } = req.body;
 
-    const inquiry = await ServiceInquiry.findById(req.params.id)
-      .populate('customer', 'customerProfile individualProfile email');
+  const inquiry = await ServiceInquiry.findById(req.params.id);
 
-    if (!inquiry) {
-      return res.status(404).json({
-        success: false,
-        message: 'Service inquiry not found'
-      });
+  if (!inquiry) {
+    throw new AppError('Service inquiry not found', 404);
+  }
+
+  if (inquiry.status === 'completed' || inquiry.status === 'cancelled') {
+    throw new AppError('Cannot submit quote for completed or cancelled inquiry', 400);
+  }
+
+  // Create new quote
+  const newQuote = {
+    submittedBy: req.user.id,
+    amount,
+    currency,
+    breakdown: breakdown || [],
+    timeline: timeline || {},
+    terms: terms || '',
+    validUntil: new Date(validUntil)
+  };
+
+  inquiry.quotes.push(newQuote);
+  inquiry.status = 'quoted';
+
+  // Assign inquiry to current admin if not assigned
+  if (!inquiry.assignedAdmin) {
+    inquiry.assignedAdmin = req.user.id;
+  }
+
+  // Add to status history
+  inquiry.statusHistory.push({
+    status: 'quoted',
+    changedBy: req.user.id,
+    note: `Quote submitted for ${amount.toLocaleString()} ${currency}`
+  });
+
+  await inquiry.save();
+  await inquiry.populate('customer', 'firstName lastName email');
+
+  // Notify customer about new quote
+  await sendNotification(inquiry.customer._id, {
+    type: 'new_quote',
+    title: 'New Quote Available',
+    message: `A new quote has been submitted for your ${inquiry.serviceType.replace('-', ' ')} inquiry`,
+    data: { inquiryId: inquiry._id, amount, currency }
+  });
+
+  res.json({
+    success: true,
+    data: {
+      inquiry
     }
+  });
+});
 
-    // Check authorization
-    if (inquiry.serviceProvider.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to quote for this inquiry'
-      });
-    }
+// @desc    Respond to quote (accept/reject)
+// @route   PUT /api/service-inquiries/:id/quotes/:quoteId/respond
+// @access  Private (Customer - own inquiries)
+export const respondToQuote = asyncHandler(async (req, res) => {
+  const { action, message } = req.body; // action: 'accept' or 'reject'
+  
+  const inquiry = await ServiceInquiry.findById(req.params.id);
 
-    // Check if inquiry is in reviewable state
-    if (!['pending', 'reviewing'].includes(inquiry.status)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot submit quote for this inquiry status'
-      });
-    }
+  if (!inquiry) {
+    throw new AppError('Service inquiry not found', 404);
+  }
 
-    inquiry.quote = {
-      amount,
-      currency,
-      breakdown: breakdown || [],
-      validUntil: validUntil || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days default
-      terms,
-      quotedAt: new Date()
-    };
+  // Check if user is the customer
+  if (req.user.id.toString() !== inquiry.customer.toString()) {
+    throw new AppError('Not authorized to respond to this quote', 403);
+  }
 
-    inquiry.status = 'quoted';
-    await inquiry.save();
+  const quote = inquiry.quotes.id(req.params.quoteId);
+  if (!quote) {
+    throw new AppError('Quote not found', 404);
+  }
 
-    // Send quote notification email
-    await sendEmail({
-      to: inquiry.customerInfo.email,
-      subject: 'Quote Received - CitiLights',
-      template: 'serviceQuoteReceived',
-      data: {
-        customerName: `${inquiry.customerInfo.firstName} ${inquiry.customerInfo.lastName}`,
-        providerName: req.user.fullName,
-        projectTitle: inquiry.projectDetails.title,
-        quoteAmount: amount,
-        currency,
-        validUntil: inquiry.quote.validUntil.toLocaleDateString(),
-        inquiryUrl: `${process.env.CLIENT_URL}/dashboard/service-inquiries/${inquiry._id}`
+  if (quote.status !== 'pending') {
+    throw new AppError('Quote has already been responded to', 400);
+  }
+
+  // Check if quote is expired
+  if (new Date() > new Date(quote.validUntil)) {
+    throw new AppError('Quote has expired', 400);
+  }
+
+  // Update quote status
+  quote.status = action === 'accept' ? 'accepted' : 'rejected';
+  quote.customerResponse = {
+    action,
+    message: message || '',
+    respondedAt: new Date()
+  };
+
+  // Update inquiry status
+  if (action === 'accept') {
+    inquiry.status = 'accepted';
+    // Reject all other pending quotes
+    inquiry.quotes.forEach(q => {
+      if (q._id.toString() !== quote._id.toString() && q.status === 'pending') {
+        q.status = 'rejected';
       }
     });
+  }
 
-    res.status(200).json({
-      success: true,
-      message: 'Quote submitted successfully',
-      data: { inquiry }
-    });
-  } catch (error) {
-    console.error('Submit quote error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while submitting quote'
+  // Add to status history
+  inquiry.statusHistory.push({
+    status: inquiry.status,
+    changedBy: req.user.id,
+    note: `Quote ${action}ed by customer${message ? ': ' + message : ''}`
+  });
+
+  await inquiry.save();
+
+  // Notify admin team
+  const adminUsers = await User.find({ userType: 'admin' });
+  for (const admin of adminUsers) {
+    await sendNotification(admin._id, {
+      type: 'quote_response',
+      title: `Quote ${action === 'accept' ? 'Accepted' : 'Rejected'}`,
+      message: `Customer ${action}ed quote for ${inquiry.projectDetails.title}`,
+      data: { inquiryId: inquiry._id, action }
     });
   }
-};
+
+  res.json({
+    success: true,
+    data: {
+      inquiry
+    }
+  });
+});
 
 // @desc    Add message to inquiry
 // @route   POST /api/service-inquiries/:id/message
-// @access  Private
-export const addMessage = async (req, res) => {
-  try {
-    const { content, attachments } = req.body;
-    
-    const inquiry = await ServiceInquiry.findById(req.params.id);
-    if (!inquiry) {
-      return res.status(404).json({
-        success: false,
-        message: 'Service inquiry not found'
-      });
-    }
+// @access  Private (Customer - own inquiries, Admin - all inquiries)
+export const addMessage = asyncHandler(async (req, res) => {
+  const { message } = req.body;
 
-    // Check authorization
-    const isCustomer = inquiry.customer.toString() === req.user.id;
-    const isProvider = inquiry.serviceProvider.toString() === req.user.id;
+  const inquiry = await ServiceInquiry.findById(req.params.id);
 
-    if (!isCustomer && !isProvider) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to message in this inquiry'
-      });
-    }
+  if (!inquiry) {
+    throw new AppError('Service inquiry not found', 404);
+  }
 
-    const message = {
-      sender: req.user.id,
-      content,
-      attachments: attachments || [],
-      timestamp: new Date()
-    };
+  // Check permissions
+  const isCustomer = req.user.id.toString() === inquiry.customer.toString();
+  const isAdmin = req.user.userType === 'admin';
 
-    inquiry.messages.push(message);
-    await inquiry.save();
+  if (!isCustomer && !isAdmin) {
+    throw new AppError('Not authorized to message on this inquiry', 403);
+  }
 
-    await inquiry.populate('messages.sender', 'companyProfile.companyName individualProfile.firstName individualProfile.lastName customerProfile.firstName customerProfile.lastName');
+  const newMessage = {
+    sender: req.user.id,
+    message,
+    timestamp: new Date()
+  };
 
-    // Get the newly added message
-    const newMessage = inquiry.messages[inquiry.messages.length - 1];
+  inquiry.messages.push(newMessage);
+  await inquiry.save();
 
-    res.status(201).json({
-      success: true,
-      message: 'Message added successfully',
-      data: { message: newMessage }
+  await inquiry.populate('messages.sender', 'firstName lastName email userType customerProfile');
+
+  // Notify the other party
+  if (isCustomer && inquiry.assignedAdmin) {
+    await sendNotification(inquiry.assignedAdmin, {
+      type: 'new_message',
+      title: 'New Message',
+      message: `New message from ${req.user.firstName} ${req.user.lastName}`,
+      data: { inquiryId: inquiry._id }
     });
-  } catch (error) {
-    console.error('Add message error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while adding message'
+  } else if (isAdmin) {
+    await sendNotification(inquiry.customer, {
+      type: 'new_message',
+      title: 'New Message',
+      message: 'You have a new message from TesGold Services',
+      data: { inquiryId: inquiry._id }
     });
   }
-};
 
-// @desc    Get service inquiry statistics
-// @route   GET /api/service-inquiries/stats
-// @access  Private (Service providers only)
-export const getInquiryStats = async (req, res) => {
-  try {
-    const stats = await ServiceInquiry.aggregate([
-      { $match: { serviceProvider: req.user._id } },
-      {
-        $group: {
-          _id: null,
-          total: { $sum: 1 },
-          pending: {
-            $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] }
-          },
-          reviewing: {
-            $sum: { $cond: [{ $eq: ['$status', 'reviewing'] }, 1, 0] }
-          },
-          quoted: {
-            $sum: { $cond: [{ $eq: ['$status', 'quoted'] }, 1, 0] }
-          },
-          accepted: {
-            $sum: { $cond: [{ $eq: ['$status', 'accepted'] }, 1, 0] }
-          },
-          completed: {
-            $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] }
-          },
-          rejected: {
-            $sum: { $cond: [{ $eq: ['$status', 'rejected'] }, 1, 0] }
-          },
-          totalQuoteValue: {
-            $sum: { $cond: [{ $ne: ['$quote.amount', null] }, '$quote.amount', 0] }
-          }
-        }
+  res.json({
+    success: true,
+    data: {
+      message: inquiry.messages[inquiry.messages.length - 1]
+    }
+  });
+});
+
+// @desc    Schedule consultation
+// @route   POST /api/service-inquiries/:id/consultation
+// @access  Private (Admin only)
+export const scheduleConsultation = asyncHandler(async (req, res) => {
+  const {
+    dateTime,
+    duration,
+    location,
+    meetingLink,
+    notes
+  } = req.body;
+
+  const inquiry = await ServiceInquiry.findById(req.params.id);
+
+  if (!inquiry) {
+    throw new AppError('Service inquiry not found', 404);
+  }
+
+  // Validate meeting link for online consultations
+  if (location === 'online' && !meetingLink) {
+    throw new AppError('Meeting link is required for online consultations', 400);
+  }
+
+  inquiry.consultation = {
+    scheduled: true,
+    scheduledBy: req.user.id,
+    dateTime: new Date(dateTime),
+    duration: parseInt(duration),
+    location,
+    meetingLink: location === 'online' ? meetingLink : undefined,
+    notes: notes || '',
+    status: 'scheduled'
+  };
+
+  // Assign inquiry to current admin if not assigned
+  if (!inquiry.assignedAdmin) {
+    inquiry.assignedAdmin = req.user.id;
+  }
+
+  await inquiry.save();
+  await inquiry.populate('customer', 'firstName lastName email');
+
+  // Notify customer
+  await sendNotification(inquiry.customer._id, {
+    type: 'consultation_scheduled',
+    title: 'Consultation Scheduled',
+    message: `A consultation has been scheduled for ${new Date(dateTime).toLocaleDateString()}`,
+    data: { inquiryId: inquiry._id, dateTime, location }
+  });
+
+  res.json({
+    success: true,
+    data: {
+      inquiry
+    }
+  });
+});
+
+// @desc    Get inquiry statistics for admin
+// @route   GET /api/service-inquiries/provider/stats
+// @access  Private (Admin only)
+export const getInquiryStats = asyncHandler(async (req, res) => {
+  const { period = '30d' } = req.query;
+
+  // Calculate date range
+  let dateFilter = {};
+  const now = new Date();
+  
+  switch (period) {
+    case '7d':
+      dateFilter.createdAt = { $gte: new Date(now.setDate(now.getDate() - 7)) };
+      break;
+    case '30d':
+      dateFilter.createdAt = { $gte: new Date(now.setDate(now.getDate() - 30)) };
+      break;
+    case '90d':
+      dateFilter.createdAt = { $gte: new Date(now.setDate(now.getDate() - 90)) };
+      break;
+    case '1y':
+      dateFilter.createdAt = { $gte: new Date(now.setFullYear(now.getFullYear() - 1)) };
+      break;
+  }
+
+  const [stats] = await ServiceInquiry.getInquiryStats(dateFilter);
+
+  // Get admin workload
+  const adminWorkload = await ServiceInquiry.getAdminWorkload();
+
+  // Calculate response time metrics
+  const responseTimeStats = await ServiceInquiry.aggregate([
+    { $match: { ...dateFilter, 'analytics.responseTime': { $exists: true } } },
+    {
+      $group: {
+        _id: null,
+        avgResponseTime: { $avg: '$analytics.responseTime' },
+        minResponseTime: { $min: '$analytics.responseTime' },
+        maxResponseTime: { $max: '$analytics.responseTime' }
       }
-    ]);
+    }
+  ]);
 
-    const result = stats[0] || {
-      total: 0,
-      pending: 0,
-      reviewing: 0,
-      quoted: 0,
-      accepted: 0,
-      completed: 0,
-      rejected: 0,
-      totalQuoteValue: 0
-    };
+  // Calculate revenue metrics from accepted quotes
+  const revenueStats = await ServiceInquiry.aggregate([
+    { $match: { ...dateFilter, 'quotes.status': 'accepted' } },
+    { $unwind: '$quotes' },
+    { $match: { 'quotes.status': 'accepted' } },
+    {
+      $group: {
+        _id: null,
+        totalRevenue: { $sum: '$quotes.amount' },
+        avgQuoteValue: { $avg: '$quotes.amount' },
+        totalProjects: { $sum: 1 }
+      }
+    }
+  ]);
 
-    res.status(200).json({
-      success: true,
-      data: result
-    });
-  } catch (error) {
-    console.error('Get inquiry stats error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while fetching inquiry statistics'
-    });
+  res.json({
+    success: true,
+    data: {
+      period,
+      ...stats,
+      adminWorkload,
+      responseTime: responseTimeStats[0] || {},
+      revenue: revenueStats[0] || {}
+    }
+  });
+});
+
+// @desc    Assign inquiry to admin
+// @route   PUT /api/service-inquiries/:id/assign
+// @access  Private (Admin only)
+export const assignInquiry = asyncHandler(async (req, res) => {
+  const { adminId } = req.body;
+
+  const inquiry = await ServiceInquiry.findById(req.params.id);
+
+  if (!inquiry) {
+    throw new AppError('Service inquiry not found', 404);
   }
-};
+
+  // Verify admin exists
+  const admin = await User.findOne({ _id: adminId, userType: 'admin' });
+  if (!admin) {
+    throw new AppError('Admin user not found', 404);
+  }
+
+  inquiry.assignedAdmin = adminId;
+  
+  // Add to status history
+  inquiry.statusHistory.push({
+    status: inquiry.status,
+    changedBy: req.user.id,
+    note: `Inquiry assigned to ${admin.firstName} ${admin.lastName}`
+  });
+
+  await inquiry.save();
+
+  // Notify assigned admin
+  await sendNotification(adminId, {
+    type: 'inquiry_assigned',
+    title: 'Inquiry Assigned',
+    message: `You have been assigned to handle inquiry ${inquiry.inquiryNumber}`,
+    data: { inquiryId: inquiry._id }
+  });
+
+  res.json({
+    success: true,
+    data: {
+      inquiry
+    }
+  });
+});
+
+// @desc    Add internal note
+// @route   POST /api/service-inquiries/:id/internal-note
+// @access  Private (Admin only)
+export const addInternalNote = asyncHandler(async (req, res) => {
+  const { note } = req.body;
+
+  const inquiry = await ServiceInquiry.findById(req.params.id);
+
+  if (!inquiry) {
+    throw new AppError('Service inquiry not found', 404);
+  }
+
+  inquiry.internalNotes.push({
+    note,
+    addedBy: req.user.id
+  });
+
+  await inquiry.save();
+
+  res.json({
+    success: true,
+    message: 'Internal note added successfully'
+  });
+});

@@ -8,39 +8,51 @@ import RootLayout from '../components/layout/RootLayout';
 import DashboardLayout from '../components/layout/DashboardLayout';
 import AuthLayout from '../components/layout/AuthLayout';
 import AdminLayout from '../components/layout/AdminLayout';
-import PlatformAnalytics from '../pages/admin/PlatformAnalytics';
 import CustomerDashboardLayout from '../components/layout/CustomerDashboardLayout';
-import CustomerRegistrations from '../pages/customer/CustomerRegistrations';
-import PaymentProcessing from '../pages/customer/PaymentProcessing';
-import ServicesPage from '../pages/services/ServicesPage';
-import ServiceDetailPage from '../pages/services/ServiceDetailPage';
-import PropertyDetailPage from '../pages/property/PropertyDetailPage';
-import PropertiesPage from '../pages/property/PropertiesPage';
-import EditProduct from '../pages/dashboard/EditProduct';
 
-// Lazy Pages
+// Lazy Pages - Existing
 const HomePage = lazy(() => import('../pages/home/HomePage'));
 const CartPage = lazy(() => import('../pages/cart/CartPage'));
 const ProductsPage = lazy(() => import('../pages/product/ProductsPage'));
 const ProductDetailPage = lazy(() => import('../pages/product/ProductDetailPage'));
+const PropertiesPage = lazy(() => import('../pages/property/PropertiesPage'));
+const PropertyDetailPage = lazy(() => import('../pages/property/PropertyDetailPage'));
 const ForgotPasswordPage = lazy(() => import('../pages/auth/ForgetPasswordPage'));
 const LoginPage = lazy(() => import('../pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('../pages/auth/RegisterPage'));
+const Profile = lazy(() => import('../pages/profile/Profile'));
+const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
+
+// Services - Public Pages
+const ServicesPage = lazy(() => import('../pages/Services/ServicesPage'));
+const ServiceDetailPage = lazy(() => import('../pages/Services/ServiceDetailPage'));
+
+// Dashboard Pages - Regular Users
 const DashboardOverview = lazy(() => import('../pages/dashboard/DashboardOverview'));
 const MyListings = lazy(() => import('../pages/dashboard/MyListings'));
 const CreateProduct = lazy(() => import('../pages/dashboard/CreateProduct'));
+const EditProduct = lazy(() => import('../pages/dashboard/EditProduct'));
 const Analytics = lazy(() => import('../pages/dashboard/Analytics'));
 const NotificationPanel = lazy(() => import('../pages/dashboard/NotificationPanel'));
 const Messages = lazy(() => import('../pages/chat/Messages'));
 const Bookings = lazy(() => import('../pages/dashboard/Bookings'));
 const Settings = lazy(() => import('../pages/dashboard/Settings'));
-const Profile = lazy(() => import('../pages/profile/Profile'));
+
+// Admin Pages
 const AdminDashboard = lazy(() => import('../pages/admin/AdminDashboard'));
+const PlatformAnalytics = lazy(() => import('../pages/admin/PlatformAnalytics'));
 const UserManagement = lazy(() => import('../pages/admin/UserManagement'));
 const ListingModeration = lazy(() => import('../pages/admin/ListingModeration'));
-const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
+const ServicesDashboard = lazy(() => import('../pages/admin/ServicesDashboard'));
+const ServiceInquiryDetail = lazy(() => import('../pages/services/ServiceInquiryDetail'));
 
-// Protected Route
+// Customer Pages
+const CustomerDashboard = lazy(() => import('../pages/Customer/CustomerDashboard'));
+const CustomerRegistrations = lazy(() => import('../pages/customer/CustomerRegistrations'));
+const PaymentProcessing = lazy(() => import('../pages/customer/PaymentProcessing'));
+const ServiceInquiries = lazy(() => import('../pages/Customer/ServiceInquiries'));
+
+// Protected Route Component
 const ProtectedRoute = ({ children, requiredRole = null }) => {
   const { user, isAuthenticated } = useSelector((state) => state.auth);
 
@@ -50,7 +62,13 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
 
   // Redirect non-admins away from admin routes
   if (requiredRole && user?.userType !== requiredRole) {
-    return <Navigate to="/dashboard" replace />;
+    if (requiredRole === 'admin') {
+      return <Navigate to="/dashboard" replace />;
+    }
+    if (requiredRole === 'customer') {
+      return <Navigate to="/dashboard" replace />;
+    }
+    return <Navigate to="/" replace />;
   }
 
   // Optional: Redirect admins away from user dashboard
@@ -85,10 +103,10 @@ export const router = createBrowserRouter([
       { index: true, element: <LazyWrapper><HomePage /></LazyWrapper> },
       { path: 'products', element: <LazyWrapper><ProductsPage /></LazyWrapper> },
       { path: 'product/:id', element: <LazyWrapper><ProductDetailPage /></LazyWrapper> },
-      { path: 'services', element: <LazyWrapper><ServicesPage /></LazyWrapper> },
-      { path: 'services/:serviceId', element: <LazyWrapper><ServiceDetailPage /></LazyWrapper> },
       { path: 'properties', element: <LazyWrapper><PropertiesPage /></LazyWrapper> },
       { path: 'properties/:id', element: <LazyWrapper><PropertyDetailPage /></LazyWrapper> },
+      { path: 'services', element: <LazyWrapper><ServicesPage /></LazyWrapper> },
+      { path: 'services/:serviceId', element: <LazyWrapper><ServiceDetailPage /></LazyWrapper> },
       { path: 'forgot-password', element: <LazyWrapper><ForgotPasswordPage /></LazyWrapper> }
     ]
   },
@@ -102,25 +120,24 @@ export const router = createBrowserRouter([
       { path: 'register', element: <LazyWrapper><RegisterPage /></LazyWrapper> }
     ]
   },
-  {
-    path: '/auth',
-    element: <AuthLayout />,
-    children: [
-      { path: 'login', element: <LazyWrapper><LoginPage /></LazyWrapper> },
-      { path: 'register', element: <LazyWrapper><RegisterPage /></LazyWrapper> }
-    ]
-  },
+
+  // Cart Route (Public/Protected)
   {
     path: '/cart',
     element: <LazyWrapper><CartPage /></LazyWrapper>
   },
 
-  //Profile
+  // Profile Route (Protected)
   {
     path: '/profile',
-    element: <ProtectedRoute><Profile/> </ProtectedRoute>
+    element: (
+      <ProtectedRoute>
+        <LazyWrapper><Profile /></LazyWrapper>
+      </ProtectedRoute>
+    )
   },
-  // User Dashboard
+
+  // Regular User Dashboard (Company/Individual Sellers)
   {
     path: '/dashboard',
     element: (
@@ -149,13 +166,66 @@ export const router = createBrowserRouter([
       <ProtectedRoute requiredRole="admin">
         <LazyWrapper><AdminLayout /></LazyWrapper>
       </ProtectedRoute>
+    ),
+    children: [
+      { index: true, element: <LazyWrapper><AdminDashboard /></LazyWrapper> },
+      { path: 'users', element: <LazyWrapper><UserManagement /></LazyWrapper> },
+      { path: 'analytics', element: <LazyWrapper><PlatformAnalytics /></LazyWrapper> },
+      { path: 'listings', element: <LazyWrapper><ListingModeration /></LazyWrapper> },
+      
+      // Service Management Routes
+      { path: 'services', element: <LazyWrapper><ServicesDashboard /></LazyWrapper> },
+      { path: 'services/inquiries', element: <LazyWrapper><ServicesDashboard /></LazyWrapper> },
+      { path: 'services/inquiries/:id', element: <LazyWrapper><ServiceInquiryDetail /></LazyWrapper> },
+      { path: 'services/analytics', element: <LazyWrapper><ServicesDashboard /></LazyWrapper> }
+    ]
+  },
+
+  // Customer Routes
+  {
+    path: '/customer',
+    element: (
+      <ProtectedRoute requiredRole="customer">
+        <CustomerDashboardLayout />
+      </ProtectedRoute>
+    ),
+    children: [
+      { index: true, element: <LazyWrapper><CustomerDashboard /></LazyWrapper> },
+      { path: 'dashboard', element: <LazyWrapper><CustomerDashboard /></LazyWrapper> },
+      { path: 'registrations', element: <LazyWrapper><CustomerRegistrations /></LazyWrapper> },
+      { path: 'payments', element: <LazyWrapper><PaymentProcessing /></LazyWrapper> },
+      
+      // Service Inquiry Routes for Customers
+      { path: 'dashboard/inquiries', element: <LazyWrapper><ServiceInquiries /></LazyWrapper> },
+      { path: 'dashboard/inquiries/:id', element: <LazyWrapper><ServiceInquiryDetail /></LazyWrapper> },
+      { path: 'services', element: <LazyWrapper><ServiceInquiries /></LazyWrapper> },
+      { path: 'services/inquiries', element: <LazyWrapper><ServiceInquiries /></LazyWrapper> },
+      { path: 'services/inquiries/:id', element: <LazyWrapper><ServiceInquiryDetail /></LazyWrapper> },
+      
+      // Profile and Settings
+      { path: 'profile', element: <LazyWrapper><Profile /></LazyWrapper> },
+      { path: 'settings', element: <LazyWrapper><Settings /></LazyWrapper> },
+      { path: 'notifications', element: <LazyWrapper><NotificationPanel /></LazyWrapper> },
+      { path: 'messages', element: <LazyWrapper><Messages /></LazyWrapper> }
+    ]
+  },
+
+  // Service Inquiry Detail Routes (Accessible to both admin and customers)
+  {
+    path: '/inquiry/:id',
+    element: (
+      <ProtectedRoute>
+        <LazyWrapper><ServiceInquiryDetail /></LazyWrapper>
+      </ProtectedRoute>
     )
   },
+
+  // Legacy Admin Routes (For backwards compatibility)
   {
     path: '/admin/users',
     element: (
       <ProtectedRoute requiredRole="admin">
-        <LazyWrapper><UserManagement /></LazyWrapper>
+        <Navigate to="/admin/users" replace />
       </ProtectedRoute>
     )
   },
@@ -163,7 +233,7 @@ export const router = createBrowserRouter([
     path: '/admin/analytics',
     element: (
       <ProtectedRoute requiredRole="admin">
-        <LazyWrapper><PlatformAnalytics /></LazyWrapper>
+        <Navigate to="/admin/analytics" replace />
       </ProtectedRoute>
     )
   },
@@ -171,25 +241,17 @@ export const router = createBrowserRouter([
     path: '/admin/listings',
     element: (
       <ProtectedRoute requiredRole="admin">
-        <LazyWrapper><ListingModeration /></LazyWrapper>
+        <Navigate to="/admin/listings" replace />
       </ProtectedRoute>
     )
   },
-  
-  // customer
-  {
-    path: '/customer',
-    element: (
-      <ProtectedRoute requiredRole="customer">
-        <LazyWrapper><CustomerDashboardLayout /></LazyWrapper>
-      </ProtectedRoute>
-    )
-  },
+
+  // Legacy Customer Routes (For backwards compatibility)
   {
     path: '/customer/registrations',
     element: (
       <ProtectedRoute requiredRole="customer">
-        <LazyWrapper><CustomerRegistrations /></LazyWrapper>
+        <Navigate to="/customer/registrations" replace />
       </ProtectedRoute>
     )
   },
@@ -197,9 +259,16 @@ export const router = createBrowserRouter([
     path: '/customer/payments',
     element: (
       <ProtectedRoute requiredRole="customer">
-        <LazyWrapper><PaymentProcessing /></LazyWrapper>
+        <Navigate to="/customer/payments" replace />
       </ProtectedRoute>
     )
   },
-  
+
+  // Catch-all route for 404
+  {
+    path: '*',
+    element: <LazyWrapper><NotFoundPage /></LazyWrapper>
+  }
 ]);
+
+export default router;

@@ -15,7 +15,11 @@ import {
   BellIcon,
   MagnifyingGlassIcon,
   SunIcon,
-  MoonIcon
+  MoonIcon,
+  WrenchScrewdriverIcon,
+  ClipboardDocumentListIcon,
+  CurrencyDollarIcon,
+  CalendarIcon
 } from '@heroicons/react/24/outline';
 import { logout } from '../../store/slices/authSlice';
 
@@ -24,13 +28,16 @@ const AdminLayout = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
+  const { stats } = useSelector((state) => state.serviceInquiry);
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   
-  // Mock admin stats
+  // Mock admin stats (you can replace with actual data from Redux)
   const pendingApprovals = 12;
   const flaggedUsers = 3;
+  const pendingServiceInquiries = stats?.statusDistribution?.find(s => s._id === 'pending')?.count || 0;
+  const pendingQuotes = stats?.statusDistribution?.find(s => s._id === 'quoted')?.count || 0;
 
   useEffect(() => {
     // Check for dark mode preference
@@ -51,28 +58,80 @@ const AdminLayout = () => {
     navigate('/auth/login');
   };
 
-  const NavItem = ({ to, icon, label, badge, end = false }) => {
+  const NavItem = ({ to, icon, label, badge, end = false, children = null }) => {
     const isActive = end 
       ? location.pathname === to 
       : location.pathname.startsWith(to);
 
+    const [isExpanded, setIsExpanded] = useState(isActive);
+
+    return (
+      <div>
+        <Link
+          to={to}
+          className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+            isActive
+              ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300'
+              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+          }`}
+          onClick={(e) => {
+            if (children) {
+              e.preventDefault();
+              setIsExpanded(!isExpanded);
+            } else {
+              setSidebarOpen(false);
+            }
+          }}
+        >
+          <span className="mr-3">{icon}</span>
+          <span className="flex-1">{label}</span>
+          {badge && (
+            <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+              {badge}
+            </span>
+          )}
+          {children && (
+            <svg
+              className={`ml-2 h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          )}
+        </Link>
+        
+        {children && isExpanded && (
+          <div className="ml-6 mt-2 space-y-1">
+            {children}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const SubNavItem = ({ to, label, badge }) => {
+    const isActive = location.pathname === to;
+    
     return (
       <Link
         to={to}
-        className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+        className={`block px-3 py-2 text-sm rounded-lg transition-colors ${
           isActive
-            ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300'
-            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+            ? 'bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400'
+            : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
         }`}
         onClick={() => setSidebarOpen(false)}
       >
-        <span className="mr-3">{icon}</span>
-        <span className="flex-1">{label}</span>
-        {badge && (
-          <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-            {badge}
-          </span>
-        )}
+        <div className="flex items-center justify-between">
+          <span>{label}</span>
+          {badge && (
+            <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+              {badge}
+            </span>
+          )}
+        </div>
       </Link>
     );
   };
@@ -113,28 +172,55 @@ const AdminLayout = () => {
               label="Dashboard"
               end 
             />
+            
             <NavItem 
               to="/admin/users" 
               icon={<UsersIcon className="h-5 w-5" />}
               label="User Management"
               badge={flaggedUsers > 0 ? flaggedUsers : null}
             />
+            
             <NavItem 
               to="/admin/listings" 
               icon={<BuildingOfficeIcon className="h-5 w-5" />}
               label="Listing Moderation"
               badge={pendingApprovals > 0 ? pendingApprovals : null}
             />
+
+            {/* Service Management */}
+            <NavItem 
+              to="/admin/services" 
+              icon={<WrenchScrewdriverIcon className="h-5 w-5" />}
+              label="Service Management"
+              badge={pendingServiceInquiries + pendingQuotes > 0 ? pendingServiceInquiries + pendingQuotes : null}
+            >
+              <SubNavItem 
+                to="/admin/services" 
+                label="Overview" 
+              />
+              <SubNavItem 
+                to="/admin/services/inquiries" 
+                label="All Inquiries" 
+                badge={pendingServiceInquiries > 0 ? pendingServiceInquiries : null}
+              />
+              <SubNavItem 
+                to="/admin/services/analytics" 
+                label="Analytics" 
+              />
+            </NavItem>
+            
             <NavItem 
               to="/admin/analytics" 
               icon={<ChartBarIcon className="h-5 w-5" />}
               label="Platform Analytics"
             />
+            
             <NavItem 
               to="/admin/reports" 
               icon={<ExclamationTriangleIcon className="h-5 w-5" />}
               label="Reports & Issues"
             />
+            
             <NavItem 
               to="/admin/content" 
               icon={<DocumentTextIcon className="h-5 w-5" />}
@@ -207,7 +293,7 @@ const AdminLayout = () => {
                   </div>
                   <input
                     type="text"
-                    placeholder="Search users, listings..."
+                    placeholder="Search users, listings, inquiries..."
                     className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm"
                   />
                 </div>
@@ -215,6 +301,28 @@ const AdminLayout = () => {
             </div>
 
             <div className="flex items-center space-x-4">
+              {/* Quick Stats */}
+              <div className="hidden xl:flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
+                {pendingServiceInquiries > 0 && (
+                  <Link
+                    to="/admin/services/inquiries?status=pending"
+                    className="flex items-center space-x-1 hover:text-gray-800 dark:hover:text-gray-200"
+                  >
+                    <ClipboardDocumentListIcon className="h-4 w-4" />
+                    <span>{pendingServiceInquiries} pending</span>
+                  </Link>
+                )}
+                {pendingQuotes > 0 && (
+                  <Link
+                    to="/admin/services/inquiries?status=quoted"
+                    className="flex items-center space-x-1 hover:text-gray-800 dark:hover:text-gray-200"
+                  >
+                    <CurrencyDollarIcon className="h-4 w-4" />
+                    <span>{pendingQuotes} quotes</span>
+                  </Link>
+                )}
+              </div>
+
               {/* Admin Badge */}
               <div className="hidden md:flex items-center space-x-2 px-3 py-1 bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-full text-sm font-medium">
                 <ShieldCheckIcon className="h-4 w-4" />
@@ -236,7 +344,7 @@ const AdminLayout = () => {
               {/* Notifications */}
               <button className="relative p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors">
                 <BellIcon className="h-5 w-5" />
-                {(pendingApprovals + flaggedUsers) > 0 && (
+                {(pendingApprovals + flaggedUsers + pendingServiceInquiries + pendingQuotes) > 0 && (
                   <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
                 )}
               </button>

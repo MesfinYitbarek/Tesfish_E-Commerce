@@ -1,44 +1,29 @@
 import { ArrowTrendingUpIcon, ArrowTrendingDownIcon } from '@heroicons/react/24/outline';
 
-const StatsCard = ({ 
-  title, 
-  value, 
-  change, 
-  changeType, 
-  icon: Icon, 
+const StatsCard = ({
+  title,
+  value,
+  change,
+  changeType,
+  icon: Icon,
   color = 'blue',
   description,
-  onClick 
+  onClick
 }) => {
   const colorClasses = {
-    blue: {
-      bg: 'bg-blue-50 dark:bg-blue-900/20',
-      icon: 'text-blue-600 dark:text-blue-400',
-      border: 'border-blue-200 dark:border-blue-800'
-    },
-    green: {
-      bg: 'bg-green-50 dark:bg-green-900/20',
-      icon: 'text-green-600 dark:text-green-400',
-      border: 'border-green-200 dark:border-green-800'
-    },
-    purple: {
-      bg: 'bg-purple-50 dark:bg-purple-900/20',
-      icon: 'text-purple-600 dark:text-purple-400',
-      border: 'border-purple-200 dark:border-purple-800'
-    },
-    orange: {
-      bg: 'bg-orange-50 dark:bg-orange-900/20',
-      icon: 'text-orange-600 dark:text-orange-400',
-      border: 'border-orange-200 dark:border-orange-800'
-    },
-    red: {
-      bg: 'bg-red-50 dark:bg-red-900/20',
-      icon: 'text-red-600 dark:text-red-400',
-      border: 'border-red-200 dark:border-red-800'
-    }
+    blue: { bg: 'bg-blue-50 dark:bg-blue-900/20', icon: 'text-blue-600 dark:text-blue-400', border: 'border-blue-200 dark:border-blue-800' },
+    green: { bg: 'bg-green-50 dark:bg-green-900/20', icon: 'text-green-600 dark:text-green-400', border: 'border-green-200 dark:border-green-800' },
+    purple: { bg: 'bg-purple-50 dark:bg-purple-900/20', icon: 'text-purple-600 dark:text-purple-400', border: 'border-purple-200 dark:border-purple-800' },
+    orange: { bg: 'bg-orange-50 dark:bg-orange-900/20', icon: 'text-orange-600 dark:text-orange-400', border: 'border-orange-200 dark:border-orange-800' },
+    red: { bg: 'bg-red-50 dark:bg-red-900/20', icon: 'text-red-600 dark:text-red-400', border: 'border-red-200 dark:border-red-800' }
   };
 
-  const colors = colorClasses[color];
+  // ✅ safe fallback
+  const colors = colorClasses[color] || {
+    bg: 'bg-gray-50 dark:bg-gray-900/20',
+    icon: 'text-gray-600 dark:text-gray-400',
+    border: 'border-gray-200 dark:border-gray-800'
+  };
 
   return (
     <div 

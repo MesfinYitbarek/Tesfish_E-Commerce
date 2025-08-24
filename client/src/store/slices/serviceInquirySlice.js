@@ -1,145 +1,172 @@
-import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import serviceInquiryService from '../../services/serviceInquiryService';
-
+// store/slices/serviceInquirySlice.js
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import api from '../../services/api';
 
 const initialState = {
   inquiries: [],
+  myInquiries: [],
   currentInquiry: null,
-  stats: null,
-  loading: false,
-  error: null,
-  success: false,
-  pagination: {
-    currentPage: 1,
-    totalPages: 1,
-    totalItems: 0
-  }
+  stats: {
+    overview: {},
+    statusDistribution: [],
+    serviceTypeDistribution: [],
+    monthlyTrend: [],
+    adminWorkload: []
+  },
+  filters: {            // <-- Add filters state
+    status: '',
+    serviceType: '',
+    assignedAdmin: '',
+    priority: '',
+    search: ''
+  },
+  isLoading: false,
+  isSubmitting: false,
+  error: null
 };
 
-// Create service inquiry
+// Async thunks
 export const createServiceInquiry = createAsyncThunk(
   'serviceInquiry/create',
-  async (inquiryData, thunkAPI) => {
+  async (formData, { rejectWithValue }) => {
     try {
-      return await serviceInquiryService.createServiceInquiry(inquiryData);
+      const response = await api.post('/service-inquiries', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data.data.inquiry;
     } catch (error) {
-      const message = 
-        (error.response && error.response.data && error.response.data.message) ||
-        error.message ||
-        error.toString();
-      return thunkAPI.rejectWithValue(message);
+      return rejectWithValue(error.response?.data?.message || 'Failed to create service inquiry');
     }
   }
 );
 
-// Get customer inquiries
-export const getMyInquiries = createAsyncThunk(
-  'serviceInquiry/getMyInquiries',
-  async (filters, thunkAPI) => {
+export const fetchMyInquiries = createAsyncThunk(
+  'serviceInquiry/fetchMy',
+  async (params = {}, { rejectWithValue }) => {
     try {
-      return await serviceInquiryService.getMyInquiries(filters);
+      const response = await api.get('/service-inquiries/my-inquiries', { params });
+      return response.data.data;
     } catch (error) {
-      const message = 
-        (error.response && error.response.data && error.response.data.message) ||
-        error.message ||
-        error.toString();
-      return thunkAPI.rejectWithValue(message);
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch inquiries');
     }
   }
 );
 
-// Get provider inquiries
-export const getProviderInquiries = createAsyncThunk(
-  'serviceInquiry/getProviderInquiries',
-  async (filters, thunkAPI) => {
+export const fetchProviderInquiries = createAsyncThunk(
+  'serviceInquiry/fetchProvider',
+  async (params = {}, { rejectWithValue }) => {
     try {
-      return await serviceInquiryService.getProviderInquiries(filters);
+      const response = await api.get('/service-inquiries/provider/inquiries', { params });
+      return response.data.data;
     } catch (error) {
-      const message = 
-        (error.response && error.response.data && error.response.data.message) ||
-        error.message ||
-        error.toString();
-      return thunkAPI.rejectWithValue(message);
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch provider inquiries');
     }
   }
 );
 
-// Get single inquiry
-export const getServiceInquiry = createAsyncThunk(
-  'serviceInquiry/getOne',
-  async (id, thunkAPI) => {
+export const fetchInquiry = createAsyncThunk(
+  'serviceInquiry/fetchOne',
+  async (id, { rejectWithValue }) => {
     try {
-      return await serviceInquiryService.getServiceInquiry(id);
+      const response = await api.get(`/service-inquiries/${id}`);
+      return response.data.data.inquiry;
     } catch (error) {
-      const message = 
-        (error.response && error.response.data && error.response.data.message) ||
-        error.message ||
-        error.toString();
-      return thunkAPI.rejectWithValue(message);
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch inquiry');
     }
   }
 );
 
-// Update inquiry status
 export const updateInquiryStatus = createAsyncThunk(
   'serviceInquiry/updateStatus',
-  async ({ id, statusData }, thunkAPI) => {
+  async ({ inquiryId, status, note, assignToMe }, { rejectWithValue }) => {
     try {
-      return await serviceInquiryService.updateInquiryStatus(id, statusData);
+      const response = await api.put(`/service-inquiries/${inquiryId}/status`, {
+        status,
+        note,
+        assignToMe
+      });
+      return response.data.data.inquiry;
     } catch (error) {
-      const message = 
-        (error.response && error.response.data && error.response.data.message) ||
-        error.message ||
-        error.toString();
-      return thunkAPI.rejectWithValue(message);
+      return rejectWithValue(error.response?.data?.message || 'Failed to update status');
     }
   }
 );
 
-// Submit quote
 export const submitQuote = createAsyncThunk(
   'serviceInquiry/submitQuote',
-  async ({ id, quoteData }, thunkAPI) => {
+  async ({ inquiryId, quoteData }, { rejectWithValue }) => {
     try {
-      return await serviceInquiryService.submitQuote(id, quoteData);
+      const response = await api.post(`/service-inquiries/${inquiryId}/quote`, quoteData);
+      return response.data.data.inquiry;
     } catch (error) {
-      const message = 
-        (error.response && error.response.data && error.response.data.message) ||
-        error.message ||
-        error.toString();
-      return thunkAPI.rejectWithValue(message);
+      return rejectWithValue(error.response?.data?.message || 'Failed to submit quote');
     }
   }
 );
 
-// Add message
+export const respondToQuote = createAsyncThunk(
+  'serviceInquiry/respondToQuote',
+  async ({ inquiryId, quoteId, action, message }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/service-inquiries/${inquiryId}/quotes/${quoteId}/respond`, {
+        action,
+        message
+      });
+      return response.data.data.inquiry;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to respond to quote');
+    }
+  }
+);
+
 export const addMessage = createAsyncThunk(
   'serviceInquiry/addMessage',
-  async ({ id, messageData }, thunkAPI) => {
+  async ({ inquiryId, message }, { rejectWithValue }) => {
     try {
-      return await serviceInquiryService.addMessage(id, messageData);
+      const response = await api.post(`/service-inquiries/${inquiryId}/message`, { message });
+      return response.data.data.message;
     } catch (error) {
-      const message = 
-        (error.response && error.response.data && error.response.data.message) ||
-        error.message ||
-        error.toString();
-      return thunkAPI.rejectWithValue(message);
+      return rejectWithValue(error.response?.data?.message || 'Failed to send message');
     }
   }
 );
 
-// Get inquiry stats
-export const getInquiryStats = createAsyncThunk(
-  'serviceInquiry/getStats',
-  async (_, thunkAPI) => {
+export const scheduleConsultation = createAsyncThunk(
+  'serviceInquiry/scheduleConsultation',
+  async ({ inquiryId, consultationData }, { rejectWithValue }) => {
     try {
-      return await serviceInquiryService.getInquiryStats();
+      const response = await api.post(`/service-inquiries/${inquiryId}/consultation`, consultationData);
+      return response.data.data.inquiry;
     } catch (error) {
-      const message = 
-        (error.response && error.response.data && error.response.data.message) ||
-        error.message ||
-        error.toString();
-      return thunkAPI.rejectWithValue(message);
+      return rejectWithValue(error.response?.data?.message || 'Failed to schedule consultation');
+    }
+  }
+);
+
+export const fetchStats = createAsyncThunk(
+  'serviceInquiry/fetchStats',
+  async (period = '30d', { rejectWithValue }) => {
+    try {
+      const response = await api.get('/service-inquiries/provider/stats', {
+        params: { period }
+      });
+      return response.data.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch stats');
+    }
+  }
+);
+
+export const assignInquiry = createAsyncThunk(
+  'serviceInquiry/assign',
+  async ({ inquiryId, adminId }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/service-inquiries/${inquiryId}/assign`, { adminId });
+      return response.data.data.inquiry;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to assign inquiry');
     }
   }
 );
@@ -148,140 +175,195 @@ const serviceInquirySlice = createSlice({
   name: 'serviceInquiry',
   initialState,
   reducers: {
-    reset: (state) => {
-      state.loading = false;
-      state.success = false;
-      state.error = null;
-    },
     clearCurrentInquiry: (state) => {
       state.currentInquiry = null;
+    },
+    clearError: (state) => {
+      state.error = null;
+    },
+    updateInquiryInList: (state, action) => {
+      const updatedInquiry = action.payload;
+      const inquiryIndex = state.inquiries.findIndex(i => i._id === updatedInquiry._id);
+      if (inquiryIndex !== -1) state.inquiries[inquiryIndex] = updatedInquiry;
+
+      const myInquiryIndex = state.myInquiries.findIndex(i => i._id === updatedInquiry._id);
+      if (myInquiryIndex !== -1) state.myInquiries[myInquiryIndex] = updatedInquiry;
+
+      if (state.currentInquiry?._id === updatedInquiry._id) {
+        state.currentInquiry = updatedInquiry;
+      }
+    },
+    setFilters: (state, action) => {   // <-- Add this reducer
+      state.filters = { ...state.filters, ...action.payload };
     }
   },
   extraReducers: (builder) => {
     builder
-      // Create service inquiry
+      // Create Service Inquiry
       .addCase(createServiceInquiry.pending, (state) => {
-        state.loading = true;
+        state.isSubmitting = true;
+        state.error = null;
       })
       .addCase(createServiceInquiry.fulfilled, (state, action) => {
-        state.loading = false;
-        state.success = true;
-        state.inquiries.unshift(action.payload.data.inquiry);
+        state.isSubmitting = false;
+        state.myInquiries.unshift(action.payload);
       })
       .addCase(createServiceInquiry.rejected, (state, action) => {
-        state.loading = false;
+        state.isSubmitting = false;
         state.error = action.payload;
       })
-      
-      // Get customer inquiries
-      .addCase(getMyInquiries.pending, (state) => {
-        state.loading = true;
+
+      // Fetch My Inquiries
+      .addCase(fetchMyInquiries.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
       })
-      .addCase(getMyInquiries.fulfilled, (state, action) => {
-        state.loading = false;
-        state.inquiries = action.payload.data.inquiries;
-        state.pagination = action.payload.data.pagination;
+      .addCase(fetchMyInquiries.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.myInquiries = action.payload.inquiries;
       })
-      .addCase(getMyInquiries.rejected, (state, action) => {
-        state.loading = false;
+      .addCase(fetchMyInquiries.rejected, (state, action) => {
+        state.isLoading = false;
         state.error = action.payload;
       })
-      
-      // Get provider inquiries
-      .addCase(getProviderInquiries.pending, (state) => {
-        state.loading = true;
+
+      // Fetch Provider Inquiries
+      .addCase(fetchProviderInquiries.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
       })
-      .addCase(getProviderInquiries.fulfilled, (state, action) => {
-        state.loading = false;
-        state.inquiries = action.payload.data.inquiries;
-        state.pagination = action.payload.data.pagination;
+      .addCase(fetchProviderInquiries.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.inquiries = action.payload.inquiries;
+
+        // Update stats with status counts
+        state.stats.statusDistribution = action.payload.statusCounts || [];
       })
-      .addCase(getProviderInquiries.rejected, (state, action) => {
-        state.loading = false;
+      .addCase(fetchProviderInquiries.rejected, (state, action) => {
+        state.isLoading = false;
         state.error = action.payload;
       })
-      
-      // Get single inquiry
-      .addCase(getServiceInquiry.pending, (state) => {
-        state.loading = true;
+
+      // Fetch Single Inquiry
+      .addCase(fetchInquiry.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
       })
-      .addCase(getServiceInquiry.fulfilled, (state, action) => {
-        state.loading = false;
-        state.currentInquiry = action.payload.data.inquiry;
+      .addCase(fetchInquiry.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.currentInquiry = action.payload;
       })
-      .addCase(getServiceInquiry.rejected, (state, action) => {
-        state.loading = false;
+      .addCase(fetchInquiry.rejected, (state, action) => {
+        state.isLoading = false;
         state.error = action.payload;
       })
-      
-      // Update inquiry status
+
+      // Update Status
       .addCase(updateInquiryStatus.pending, (state) => {
-        state.loading = true;
+        state.isSubmitting = true;
+        state.error = null;
       })
       .addCase(updateInquiryStatus.fulfilled, (state, action) => {
-        state.loading = false;
-        state.success = true;
-        if (state.currentInquiry && state.currentInquiry._id === action.payload.data.inquiry._id) {
-          state.currentInquiry = action.payload.data.inquiry;
-        }
-        state.inquiries = state.inquiries.map(inquiry => 
-          inquiry._id === action.payload.data.inquiry._id ? action.payload.data.inquiry : inquiry
-        );
+        state.isSubmitting = false;
+        state.currentInquiry = action.payload;
+        serviceInquirySlice.caseReducers.updateInquiryInList(state, action);
       })
       .addCase(updateInquiryStatus.rejected, (state, action) => {
-        state.loading = false;
+        state.isSubmitting = false;
         state.error = action.payload;
       })
-      
-      // Submit quote
+
+      // Submit Quote
       .addCase(submitQuote.pending, (state) => {
-        state.loading = true;
+        state.isSubmitting = true;
+        state.error = null;
       })
       .addCase(submitQuote.fulfilled, (state, action) => {
-        state.loading = false;
-        state.success = true;
-        if (state.currentInquiry && state.currentInquiry._id === action.payload.data.inquiry._id) {
-          state.currentInquiry = action.payload.data.inquiry;
-        }
-        state.inquiries = state.inquiries.map(inquiry => 
-          inquiry._id === action.payload.data.inquiry._id ? action.payload.data.inquiry : inquiry
-        );
+        state.isSubmitting = false;
+        state.currentInquiry = action.payload;
+        serviceInquirySlice.caseReducers.updateInquiryInList(state, action);
       })
       .addCase(submitQuote.rejected, (state, action) => {
-        state.loading = false;
+        state.isSubmitting = false;
         state.error = action.payload;
       })
-      
-      // Add message
+
+      // Respond to Quote
+      .addCase(respondToQuote.pending, (state) => {
+        state.isSubmitting = true;
+        state.error = null;
+      })
+      .addCase(respondToQuote.fulfilled, (state, action) => {
+        state.isSubmitting = false;
+        state.currentInquiry = action.payload;
+        serviceInquirySlice.caseReducers.updateInquiryInList(state, action);
+      })
+      .addCase(respondToQuote.rejected, (state, action) => {
+        state.isSubmitting = false;
+        state.error = action.payload;
+      })
+
+      // Add Message
       .addCase(addMessage.pending, (state) => {
-        state.loading = true;
+        state.isSubmitting = true;
+        state.error = null;
       })
       .addCase(addMessage.fulfilled, (state, action) => {
-        state.loading = false;
-        state.success = true;
+        state.isSubmitting = false;
         if (state.currentInquiry) {
-          state.currentInquiry.messages.push(action.payload.data.message);
+          state.currentInquiry.messages.push(action.payload);
         }
       })
       .addCase(addMessage.rejected, (state, action) => {
-        state.loading = false;
+        state.isSubmitting = false;
         state.error = action.payload;
       })
-      
-      // Get stats
-      .addCase(getInquiryStats.pending, (state) => {
-        state.loading = true;
+
+      // Schedule Consultation
+      .addCase(scheduleConsultation.pending, (state) => {
+        state.isSubmitting = true;
+        state.error = null;
       })
-      .addCase(getInquiryStats.fulfilled, (state, action) => {
-        state.loading = false;
-        state.stats = action.payload.data;
+      .addCase(scheduleConsultation.fulfilled, (state, action) => {
+        state.isSubmitting = false;
+        state.currentInquiry = action.payload;
+        serviceInquirySlice.caseReducers.updateInquiryInList(state, action);
       })
-      .addCase(getInquiryStats.rejected, (state, action) => {
-        state.loading = false;
+      .addCase(scheduleConsultation.rejected, (state, action) => {
+        state.isSubmitting = false;
+        state.error = action.payload;
+      })
+
+      // Fetch Stats
+      .addCase(fetchStats.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchStats.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.stats = action.payload;
+      })
+      .addCase(fetchStats.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
+      })
+
+      // Assign Inquiry
+      .addCase(assignInquiry.pending, (state) => {
+        state.isSubmitting = true;
+        state.error = null;
+      })
+      .addCase(assignInquiry.fulfilled, (state, action) => {
+        state.isSubmitting = false;
+        state.currentInquiry = action.payload;
+        serviceInquirySlice.caseReducers.updateInquiryInList(state, action);
+      })
+      .addCase(assignInquiry.rejected, (state, action) => {
+        state.isSubmitting = false;
         state.error = action.payload;
       });
   }
 });
 
-export const { reset, clearCurrentInquiry } = serviceInquirySlice.actions;
+export const { clearCurrentInquiry, clearError, updateInquiryInList, setFilters } = serviceInquirySlice.actions;
 export default serviceInquirySlice.reducer;

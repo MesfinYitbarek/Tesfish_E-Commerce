@@ -1,3 +1,4 @@
+// routes/service/serviceInquiryRoutes.js
 import express from 'express';
 import { body } from 'express-validator';
 import {
@@ -7,7 +8,9 @@ import {
   getServiceInquiry,
   updateInquiryStatus,
   submitQuote,
+  respondToQuote,
   addMessage,
+  scheduleConsultation,
   getInquiryStats
 } from '../../controllers/service/serviceInquiryController.js';
 import { protect, authorize } from '../../middleware/auth/authMiddleware.js';
@@ -16,55 +19,78 @@ import { handleValidationErrors } from '../../middleware/validation/validationMi
 
 const router = express.Router();
 
-// Validation rules
-const inquiryValidation = [
-  body('serviceProvider').notEmpty().withMessage('Service provider is required'),
-  body('serviceType').isIn(['project-management', 'engineering-design', 'interior-design', 'consultancy', 'other']),
-  body('projectDetails.title').notEmpty().withMessage('Project title is required'),
-  body('projectDetails.description').notEmpty().withMessage('Project description is required'),
-  handleValidationErrors
-];
+
 
 const quoteValidation = [
   body('amount').isNumeric().withMessage('Quote amount must be a number'),
   body('currency').optional().isIn(['ETB', 'USD', 'EUR']),
-  body('validUntil').optional().isISO8601().withMessage('Valid until must be a valid date'),
+  body('validUntil').isISO8601().withMessage('Valid until must be a valid date'),
+  handleValidationErrors
+];
+
+const statusUpdateValidation = [
+  body('status').isIn(['pending', 'under-review', 'quoted', 'negotiating', 'accepted', 'in-progress', 'completed', 'cancelled', 'rejected']),
+  body('note').optional().isLength({ max: 1000 }).withMessage('Note cannot exceed 1000 characters'),
+  handleValidationErrors
+];
+
+const consultationValidation = [
+  body('dateTime').isISO8601().withMessage('Date and time must be valid'),
+  body('duration').isInt({ min: 15, max: 480 }).withMessage('Duration must be between 15 and 480 minutes'),
+  body('location').isIn(['online', 'office', 'site-visit', 'client-location']),
+  body('meetingLink').optional().isURL().withMessage('Meeting link must be a valid URL'),
   handleValidationErrors
 ];
 
 // All routes require authentication
 router.use(protect);
 
-// Customer routes
+// Customer routes - any authenticated user can create inquiries
 router.post('/', 
   uploadMiddleware.array('attachments', 5),
-  inquiryValidation,
   createServiceInquiry
 );
 
 router.get('/my-inquiries', getMyInquiries);
 
-// Service provider routes
+// Admin/Provider routes - only admins can manage service inquiries
 router.get('/provider/inquiries', 
-  authorize('company', 'individual'), 
+  authorize('admin'), 
   getProviderInquiries
 );
 
 router.get('/provider/stats', 
-  authorize('company', 'individual'), 
+  authorize('admin'), 
   getInquiryStats
 );
 
-// Shared routes (customer, provider, admin)
+// Shared routes - customers can view their inquiries, admins can view all
 router.get('/:id', getServiceInquiry);
-router.put('/:id/status', updateInquiryStatus);
-router.post('/:id/message', addMessage);
 
-// Provider-only routes
+// Admin-only routes for managing inquiries
+router.put('/:id/status', 
+  authorize('admin'),
+  statusUpdateValidation,
+  updateInquiryStatus
+);
+
 router.post('/:id/quote', 
-  authorize('company', 'individual'),
+  authorize('admin'),
   quoteValidation,
   submitQuote
 );
+
+router.put('/:id/quotes/:quoteId/respond',
+  respondToQuote
+);
+
+router.post('/:id/consultation',
+  authorize('admin'),
+  consultationValidation,
+  scheduleConsultation
+);
+
+// Communication - both customers and admins can send messages
+router.post('/:id/message', addMessage);
 
 export default router;

@@ -5,6 +5,7 @@ import {
   CreditCardIcon,
   ChatBubbleLeftRightIcon,
   HeartIcon,
+  UserIcon,
   CalendarIcon,
   ClockIcon,
   ExclamationTriangleIcon,

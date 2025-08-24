@@ -460,7 +460,7 @@ const PlatformAnalytics = () => {
               title="Bounce Rate"
               value={analyticsData.engagement.bounceRate}
               change={-2.1}
-              icon={TrendingDownIcon}
+              icon={ArrowTrendingDownIcon}
               color="bg-orange-500"
               suffix="%"
             />
