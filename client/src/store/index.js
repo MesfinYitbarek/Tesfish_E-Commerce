@@ -6,6 +6,7 @@ import orderSlice from './slices/orderSlice';
 import chatSlice from './slices/chatSlice';
 import notificationSlice from './slices/notificationSlice';
 import uiSlice from './slices/uiSlice';
+import appointmentSlice from './slices/appointmentSlice';
 import serviceInquirySlice from './slices/serviceInquirySlice'
 export const store = configureStore({
   reducer: {
@@ -17,6 +18,7 @@ export const store = configureStore({
     chat: chatSlice,
     notifications: notificationSlice,
     ui: uiSlice,
+    appointments: appointmentSlice ,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

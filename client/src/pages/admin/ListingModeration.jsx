@@ -1,4 +1,6 @@
+// pages/admin/ListingModeration.jsx
 import { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { 
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -11,163 +13,168 @@ import {
   MapPinIcon,
   CurrencyDollarIcon,
   UserIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import ListingDetailsModal from '../../components/admin/ListingDetailsModal';
-import { formatCurrency, formatRelativeTime } from '../../utils/helpers';
 import { toast } from 'react-hot-toast';
-import api from '../../services/api';
+import {
+  fetchProductsForAdmin,
+  bulkUpdateProducts,
+  bulkDeleteProducts,
+  updateProductStatus,
+  setFilters,
+  clearFilters
+} from '../../store/slices/productSlice';
+
+// Helper functions
+const formatCurrency = (amount, currency = 'ETB') => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency === 'ETB' ? 'USD' : currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount).replace('$', currency === 'ETB' ? 'ETB ' : '$');
+};
+
+const formatRelativeTime = (date) => {
+  const now = new Date();
+  const diffInSeconds = Math.floor((now - new Date(date)) / 1000);
+  
+  if (diffInSeconds < 60) return 'Just now';
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  
+  return new Date(date).toLocaleDateString();
+};
 
 const ListingModeration = () => {
-  const [listings, setListings] = useState([]);
-  const [filteredListings, setFilteredListings] = useState([]);
+  const dispatch = useDispatch();
+  
+  // Redux state
+  const {
+    adminProducts: products = [],
+    adminLoading: isLoading = false,
+    error = null,
+    pagination = { currentPage: 1, totalPages: 1, totalProducts: 0 },
+    filters = {}
+  } = useSelector((state) => state.products);
+
+  // Local state
   const [selectedListing, setSelectedListing] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
-  const [isLoading, setIsLoading] = useState(true);
   const [confirmAction, setConfirmAction] = useState({ show: false, type: '', listing: null });
   const [selectedListings, setSelectedListings] = useState([]);
   const [showBulkActions, setShowBulkActions] = useState(false);
-  const [pagination, setPagination] = useState({
-    currentPage: 1,
-    totalPages: 1,
-    totalProducts: 0
-  });
 
+  // Initialize and fetch data
   useEffect(() => {
-    fetchListings();
-  }, [searchQuery, statusFilter, typeFilter, sortBy, pagination.currentPage]);
+    const fetchFilters = {
+      search: searchQuery || undefined,
+      status: statusFilter !== 'all' ? mapUIStatusToBackend(statusFilter) : undefined,
+      productType: typeFilter !== 'all' ? typeFilter : undefined,
+      sort: sortBy,
+      page: pagination.currentPage,
+      limit: 20
+    };
 
-  useEffect(() => {
-    filterAndSortListings();
-  }, [listings]);
+    dispatch(setFilters(fetchFilters));
+    dispatch(fetchProductsForAdmin(fetchFilters));
+  }, [dispatch, searchQuery, statusFilter, typeFilter, sortBy, pagination.currentPage]);
 
-  const fetchListings = async () => {
-    setIsLoading(true);
-    try {
-      const queryParams = new URLSearchParams();
-      queryParams.append('page', pagination.currentPage.toString());
-      queryParams.append('limit', '20');
-      
-      if (searchQuery) queryParams.append('search', searchQuery);
-      if (statusFilter !== 'all') {
-        // Map component status to backend status
-        const statusMap = {
-          pending: 'draft',
-          approved: 'active',
-          rejected: 'discontinued'
-        };
-        queryParams.append('status', statusMap[statusFilter] || statusFilter);
-      }
-      if (typeFilter !== 'all') queryParams.append('productType', typeFilter);
-      
-      // Map sorting options
-      const sortMap = {
-        newest: 'newest',
-        oldest: 'oldest',
-        'price-high': 'price-high',
-        'price-low': 'price-low',
-        priority: 'newest' // fallback to newest for priority
-      };
-      queryParams.append('sort', sortMap[sortBy] || 'newest');
-
-      const response = await api.get(`/products?${queryParams.toString()}`);
-
-      if (response.data.success) {
-        // Transform product data to listing format
-        const transformedListings = response.data.data.products.map(product => ({
-          id: product._id,
-          title: product.title,
-          description: product.description,
-          price: product.pricing.basePrice,
-          currency: product.pricing.currency,
-          type: product.productType,
-          category: product.category?.name || 'Uncategorized',
-          status: mapProductStatusToListingStatus(product.status),
-          images: product.media?.images?.map(img => img.url) || [],
-          location: {
-            city: product.realEstateDetails?.location?.city || 'N/A',
-            subcity: product.realEstateDetails?.location?.state || '',
-            address: product.realEstateDetails?.location?.address || ''
-          },
-          seller: {
-            id: product.seller._id,
-            name: product.seller.companyProfile?.companyName || 
-                  `${product.seller.individualProfile?.firstName || ''} ${product.seller.individualProfile?.lastName || ''}`.trim() ||
-                  'Unknown Seller',
-            type: product.sellerType,
-            email: product.seller.email || 'N/A',
-            phone: product.seller.companyProfile?.contactInfo?.phone || 
-                   product.seller.individualProfile?.phone || 'N/A',
-            verified: product.seller.isVerified || false
-          },
-          submittedAt: new Date(product.createdAt),
-          features: extractFeatures(product),
-          specifications: extractSpecifications(product),
-          flagged: false, // TODO: Implement flagging system
-          priority: determinePriority(product),
-          views: product.views || 0,
-          originalProduct: product // Keep original product data
-        }));
-
-        setListings(transformedListings);
-        setPagination(response.data.data.pagination);
-      } else {
-        throw new Error(response.data.message || 'Failed to fetch listings');
-      }
-    } catch (error) {
-      console.error('Error fetching listings:', error);
-      if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
-      } else if (!error.response) {
-        toast.error('Failed to load listings. Please check your connection.');
-      }
-    } finally {
-      setIsLoading(false);
-    }
+  // Map UI status to backend status
+  const mapUIStatusToBackend = (uiStatus) => {
+    const statusMap = {
+      pending: 'draft',
+      approved: 'active',
+      rejected: 'discontinued',
+      sold: 'sold',
+      rented: 'rented'
+    };
+    return statusMap[uiStatus] || uiStatus;
   };
 
-  // Helper function to map product status to listing status
-  const mapProductStatusToListingStatus = (productStatus) => {
+  // Map backend status to UI status
+  const mapBackendStatusToUI = (backendStatus) => {
     const statusMap = {
       draft: 'pending',
+      'pending-approval': 'pending',
       active: 'approved',
       sold: 'approved',
+      rented: 'approved',
       'out-of-stock': 'approved',
       discontinued: 'rejected'
     };
-    return statusMap[productStatus] || 'pending';
+    return statusMap[backendStatus] || 'pending';
   };
 
-  // Helper function to extract features from product
+  // Transform product data to listing format
+  const transformProductToListing = (product) => ({
+    id: product._id,
+    title: product.title,
+    description: product.description,
+    price: product.pricing?.basePrice || 0,
+    currency: product.pricing?.currency || 'ETB',
+    type: product.productType,
+    subType: product.subProductType,
+    listingType: product.listingType,
+    status: mapBackendStatusToUI(product.status),
+    images: product.media?.images?.map(img => img.url) || [],
+    location: {
+      city: product.propertyDetails?.location?.city || 'N/A',
+      subcity: product.propertyDetails?.location?.subcity || '',
+      address: product.propertyDetails?.location?.address || ''
+    },
+    seller: {
+      id: product.seller?._id,
+      name: product.seller?.userType === 'company' 
+        ? product.seller.companyProfile?.companyName || 'Company'
+        : `${product.seller?.individualProfile?.firstName || ''} ${product.seller?.individualProfile?.lastName || ''}`.trim() || 'Individual',
+      type: product.seller?.userType || 'individual',
+      email: product.contactInfo?.email || product.seller?.email || 'N/A',
+      phone: product.contactInfo?.phone || 'N/A',
+      verified: product.seller?.isVerified || false
+    },
+    submittedAt: new Date(product.createdAt),
+    updatedAt: new Date(product.updatedAt),
+    features: extractFeatures(product),
+    specifications: extractSpecifications(product),
+    flagged: false, // TODO: Implement flagging system
+    priority: determinePriority(product),
+    views: product.views || 0,
+    inquiries: product.totalInquiries || 0,
+    originalProduct: product
+  });
+
+  // Extract features from product
   const extractFeatures = (product) => {
     const features = [];
     
-    if (product.realEstateDetails) {
-      const { bedrooms, bathrooms, area, features: propertyFeatures } = product.realEstateDetails;
+    if (product.propertyDetails) {
+      const { bedrooms, bathrooms, area, features: propertyFeatures, amenities } = product.propertyDetails;
       if (bedrooms) features.push(`${bedrooms} bedrooms`);
       if (bathrooms) features.push(`${bathrooms} bathrooms`);
-      if (area) features.push(`${area.value} ${area.unit}`);
+      if (area?.value) features.push(`${area.value} ${area.unit || 'sqm'}`);
       if (propertyFeatures) features.push(...propertyFeatures);
+      if (amenities) features.push(...amenities);
     }
     
-    if (product.serviceDetails) {
-      const { duration, location, requirements } = product.serviceDetails;
-      if (duration) features.push(`${duration.value} ${duration.unit} duration`);
-      if (location) features.push(`${location} service`);
-      if (requirements) features.push(...requirements);
+    if (product.specifications && product.specifications.length > 0) {
+      features.push(...product.specifications.map(spec => `${spec.name}: ${spec.value}`));
     }
     
     return features;
   };
 
-  // Helper function to extract specifications from product
+  // Extract specifications from product
   const extractSpecifications = (product) => {
     const specs = {};
     
@@ -177,31 +184,39 @@ const ListingModeration = () => {
       });
     }
     
-    if (product.realEstateDetails) {
-      const { area, floors, parkingSpaces, yearBuilt } = product.realEstateDetails;
-      if (area) specs.area = `${area.value} ${area.unit}`;
+    if (product.propertyDetails) {
+      const { area, floors, parkingSpaces, yearBuilt, furnishingStatus } = product.propertyDetails;
+      if (area?.value) specs.area = `${area.value} ${area.unit || 'sqm'}`;
       if (floors) specs.floors = floors.toString();
       if (parkingSpaces) specs.parking = `${parkingSpaces} spaces`;
       if (yearBuilt) specs.yearBuilt = yearBuilt.toString();
+      if (furnishingStatus) specs.furnishing = furnishingStatus;
+    }
+
+    if (product.vehicleDetails) {
+      const { make, model, year, mileage, fuelType } = product.vehicleDetails;
+      if (make) specs.make = make;
+      if (model) specs.model = model;
+      if (year) specs.year = year.toString();
+      if (mileage) specs.mileage = `${mileage} km`;
+      if (fuelType) specs.fuelType = fuelType;
     }
     
     return specs;
   };
 
-  // Helper function to determine priority based on product data
+  // Determine priority based on product data
   const determinePriority = (product) => {
     if (product.isFeatured || product.isPromoted) return 'high';
-    if (product.pricing.basePrice > 1000000) return 'high'; // High-value properties
+    if (product.pricing?.basePrice > 5000000) return 'high'; // High-value properties (5M ETB)
     if (product.views > 100) return 'medium';
     return 'low';
   };
 
-  const filterAndSortListings = () => {
-    // Since filtering is now done server-side, just set the listings
-    setFilteredListings(listings);
-  };
+  // Transform products for display
+  const transformedListings = products.map(transformProductToListing);
 
-  const handleListingAction = (action, listing, reason = '') => {
+  const handleListingAction = async (action, listing, reason = '') => {
     const actions = {
       approve: {
         title: 'Approve Listing',
@@ -236,67 +251,33 @@ const ListingModeration = () => {
     const { type, listing, reason } = confirmAction;
     
     try {
-      let response;
-      
       switch (type) {
         case 'approve':
-          response = await api.put(`/products/${listing.id}`, { status: 'active' });
+          await dispatch(updateProductStatus({ 
+            productId: listing.id, 
+            status: 'active' 
+          })).unwrap();
           break;
         case 'reject':
-          response = await api.put(`/products/${listing.id}`, { 
-            status: 'discontinued',
-            rejectionReason: reason || 'No reason provided'
-          });
+          await dispatch(updateProductStatus({ 
+            productId: listing.id, 
+            status: 'discontinued' 
+          })).unwrap();
           break;
         case 'delete':
-          response = await api.delete(`/products/${listing.id}`);
+          await dispatch(bulkDeleteProducts([listing.id])).unwrap();
           break;
         default:
           throw new Error('Invalid action type');
       }
 
-      if (response.data.success) {
-        // Update local state
-        if (type === 'delete') {
-          setListings(prev => prev.filter(l => l.id !== listing.id));
-        } else {
-          setListings(prev => prev.map(l => {
-            if (l.id === listing.id) {
-              switch (type) {
-                case 'approve':
-                  return { 
-                    ...l, 
-                    status: 'approved',
-                    approvedAt: new Date(),
-                    approvedBy: 'Current Admin'
-                  };
-                case 'reject':
-                  return { 
-                    ...l, 
-                    status: 'rejected',
-                    rejectedAt: new Date(),
-                    rejectedBy: 'Current Admin',
-                    rejectionReason: reason || 'No reason provided'
-                  };
-                default:
-                  return l;
-              }
-            }
-            return l;
-          }));
-        }
-
-        toast.success(response.data.message || `Listing ${type}d successfully`);
-      } else {
-        throw new Error(response.data.message || `Failed to ${type} listing`);
-      }
+      // Refresh the data
+      dispatch(fetchProductsForAdmin(filters));
+      toast.success(`Listing ${type}d successfully`);
+      
     } catch (error) {
       console.error('Error executing listing action:', error);
-      if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
-      } else {
-        toast.error(`Failed to ${type} listing. Please try again.`);
-      }
+      toast.error(`Failed to ${type} listing. Please try again.`);
     } finally {
       setConfirmAction({ show: false, type: '', listing: null });
     }
@@ -309,61 +290,79 @@ const ListingModeration = () => {
     }
 
     try {
-      const bulkUpdatePromises = selectedListings.map(listingId => {
-        const updateData = action === 'approve' 
-          ? { status: 'active' }
-          : { status: 'discontinued', rejectionReason: 'Bulk rejection' };
-        
-        return api.put(`/products/${listingId}`, updateData);
-      });
-
-      await Promise.all(bulkUpdatePromises);
+      const updates = action === 'approve' 
+        ? { status: 'active' }
+        : { status: 'discontinued' };
       
-      setListings(prev => prev.map(listing => {
-        if (selectedListings.includes(listing.id)) {
-          switch (action) {
-            case 'approve':
-              return { 
-                ...listing, 
-                status: 'approved',
-                approvedAt: new Date(),
-                approvedBy: 'Current Admin'
-              };
-            case 'reject':
-              return { 
-                ...listing, 
-                status: 'rejected',
-                rejectedAt: new Date(),
-                rejectedBy: 'Current Admin',
-                rejectionReason: 'Bulk rejection'
-              };
-            default:
-              return listing;
-          }
-        }
-        return listing;
-      }));
+      await dispatch(bulkUpdateProducts({ 
+        productIds: selectedListings, 
+        updates 
+      })).unwrap();
 
       setSelectedListings([]);
       setShowBulkActions(false);
-      toast.success(`${selectedListings.length} listings ${action}d successfully`);
+      
+      // Refresh the data
+      dispatch(fetchProductsForAdmin(filters));
+      
     } catch (error) {
       console.error('Error executing bulk action:', error);
       toast.error(`Failed to ${action} listings`);
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedListings.length === 0) {
+      toast.error('Please select listings first');
+      return;
+    }
+
+    try {
+      await dispatch(bulkDeleteProducts(selectedListings)).unwrap();
+      setSelectedListings([]);
+      setShowBulkActions(false);
+      
+      // Refresh the data
+      dispatch(fetchProductsForAdmin(filters));
+      
+    } catch (error) {
+      console.error('Error executing bulk delete:', error);
+      toast.error('Failed to delete listings');
+    }
+  };
+
   const exportListings = async () => {
     try {
-      const response = await api.get('/products/export', {
-        responseType: 'blob'
-      });
+      // Create CSV content
+      const csvHeaders = [
+        'ID', 'Title', 'Type', 'Status', 'Price', 'Currency', 'Location', 
+        'Seller', 'Created', 'Views', 'Inquiries'
+      ];
       
-      // Create blob link to download
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const csvRows = transformedListings.map(listing => [
+        listing.id,
+        `"${listing.title}"`,
+        listing.type,
+        listing.status,
+        listing.price,
+        listing.currency,
+        `"${listing.location.city}"`,
+        `"${listing.seller.name}"`,
+        listing.submittedAt.toISOString().split('T')[0],
+        listing.views,
+        listing.inquiries
+      ]);
+
+      const csvContent = [csvHeaders, ...csvRows]
+        .map(row => row.join(','))
+        .join('\n');
+
+      // Create and download file
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'listings.csv');
+      link.setAttribute('download', `listings-${new Date().toISOString().split('T')[0]}.csv`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -377,7 +376,9 @@ const ListingModeration = () => {
   };
 
   const handlePageChange = (newPage) => {
-    setPagination(prev => ({ ...prev, currentPage: newPage }));
+    const newFilters = { ...filters, page: newPage };
+    dispatch(setFilters(newFilters));
+    dispatch(fetchProductsForAdmin(newFilters));
   };
 
   const getStatusColor = (status) => {
@@ -399,13 +400,13 @@ const ListingModeration = () => {
   };
 
   const statusCounts = {
-    all: pagination.totalProducts,
-    pending: listings.filter(l => l.status === 'pending').length,
-    approved: listings.filter(l => l.status === 'approved').length,
-    rejected: listings.filter(l => l.status === 'rejected').length
+    all: pagination.totalProducts || 0,
+    pending: transformedListings.filter(l => l.status === 'pending').length,
+    approved: transformedListings.filter(l => l.status === 'approved').length,
+    rejected: transformedListings.filter(l => l.status === 'rejected').length
   };
 
-  if (isLoading) {
+  if (isLoading && transformedListings.length === 0) {
     return (
       <div className="flex items-center justify-center py-12">
         <LoadingSpinner size="lg" text="Loading listings..." />
@@ -443,22 +444,19 @@ const ListingModeration = () => {
           <Button
             onClick={exportListings}
             variant="outline"
-            className="flex items-center space-x-2"
+            leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
           >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <span>Export CSV</span>
+            Export CSV
           </Button>
         </div>
       </div>
 
       {/* Bulk Actions Panel */}
       {showBulkActions && selectedListings.length > 0 && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+        <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+              <span className="text-sm font-medium text-indigo-900 dark:text-indigo-100">
                 Bulk Actions for {selectedListings.length} listings:
               </span>
               <div className="flex space-x-2">
@@ -478,6 +476,14 @@ const ListingModeration = () => {
                 >
                   Reject All
                 </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleBulkDelete}
+                  className="border-red-300 text-red-600 hover:bg-red-50"
+                >
+                  Delete All
+                </Button>
               </div>
             </div>
             <button
@@ -485,7 +491,7 @@ const ListingModeration = () => {
                 setSelectedListings([]);
                 setShowBulkActions(false);
               }}
-              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+              className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300"
             >
               <XMarkIcon className="h-5 w-5" />
             </button>
@@ -510,7 +516,7 @@ const ListingModeration = () => {
                 status === 'pending' ? 'bg-yellow-500' :
                 status === 'approved' ? 'bg-green-500' :
                 status === 'rejected' ? 'bg-red-500' :
-                'bg-blue-500'
+                'bg-indigo-500'
               }`}></div>
             </div>
           </div>
@@ -526,6 +532,7 @@ const ListingModeration = () => {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               leftIcon={<MagnifyingGlassIcon className="h-4 w-4" />}
+              className="text-base"
             />
           </div>
 
@@ -533,7 +540,7 @@ const ListingModeration = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
             >
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
@@ -544,26 +551,25 @@ const ListingModeration = () => {
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
             >
               <option value="all">All Types</option>
-              <option value="physical">Physical</option>
-              <option value="digital">Digital</option>
-              <option value="service">Service</option>
-              <option value="real-estate">Real Estate</option>
-              <option value="rental">Rental</option>
+              <option value="homes">Homes</option>
+              <option value="plots">Plots</option>
+              <option value="commercials">Commercial</option>
+              <option value="others">Others</option>
             </select>
 
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
             >
               <option value="newest">Newest First</option>
               <option value="oldest">Oldest First</option>
               <option value="price-high">Price: High to Low</option>
               <option value="price-low">Price: Low to High</option>
-              <option value="priority">Priority</option>
+              <option value="views">Most Viewed</option>
             </select>
           </div>
         </div>
@@ -571,175 +577,237 @@ const ListingModeration = () => {
 
       {/* Listings Grid */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-        {filteredListings.length > 0 ? (
-          <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {filteredListings.map((listing) => (
-              <div key={listing.id} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                <div className="flex items-start space-x-4">
-                  {/* Checkbox */}
-                  <input
-                    type="checkbox"
-                    checked={selectedListings.includes(listing.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedListings(prev => [...prev, listing.id]);
-                      } else {
-                        setSelectedListings(prev => prev.filter(id => id !== listing.id));
-                      }
-                    }}
-                    className="mt-1 rounded border-gray-300 text-red-600 focus:ring-red-500"
-                  />
+        {transformedListings.length > 0 ? (
+          <>
+            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+              {transformedListings.map((listing) => (
+                <div key={listing.id} className="p-6 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                  <div className="flex items-start space-x-4">
+                    {/* Checkbox */}
+                    <input
+                      type="checkbox"
+                      checked={selectedListings.includes(listing.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedListings(prev => [...prev, listing.id]);
+                        } else {
+                          setSelectedListings(prev => prev.filter(id => id !== listing.id));
+                        }
+                      }}
+                      className="mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    />
 
-                  {/* Image */}
-                  <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden flex-shrink-0">
-                    {listing.images && listing.images.length > 0 ? (
-                      <img
-                        src={listing.images[0]}
-                        alt={listing.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <BuildingOfficeIcon className="h-8 w-8 text-gray-400" />
-                      </div>
-                    )}
-                  </div>
+                    {/* Image */}
+                    <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden flex-shrink-0">
+                      {listing.images && listing.images.length > 0 ? (
+                        <img
+                          src={listing.images[0]}
+                          alt={listing.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.target.src = '/api/placeholder/96/96';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <BuildingOfficeIcon className="h-8 w-8 text-gray-400" />
+                        </div>
+                      )}
+                    </div>
 
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
-                          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
-                            {listing.title}
-                          </h3>
-                          
-                          {/* Priority Indicator */}
-                          <div className={`w-3 h-3 rounded-full ${getPriorityColor(listing.priority)}`} title={`${listing.priority} priority`}></div>
-                          
-                          {/* Flagged Indicator */}
-                          {listing.flagged && (
-                            <ExclamationTriangleIcon 
-                              className="h-5 w-5 text-red-500" 
-                              title={listing.flagReason || 'This listing has been flagged'}
-                            />
-                          )}
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3 mb-2">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
+                              {listing.title}
+                            </h3>
+                            
+                            {/* Priority Indicator */}
+                            <div 
+                              className={`w-3 h-3 rounded-full ${getPriorityColor(listing.priority)}`} 
+                              title={`${listing.priority} priority`}
+                            ></div>
+                            
+                            {/* Flagged Indicator */}
+                            {listing.flagged && (
+                              <ExclamationTriangleIcon 
+                                className="h-5 w-5 text-red-500" 
+                                title={listing.flagReason || 'This listing has been flagged'}
+                              />
+                            )}
+                          </div>
+
+                          <p className="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-2">
+                            {listing.description}
+                          </p>
+
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div className="flex items-center space-x-2">
+                              <CurrencyDollarIcon className="h-4 w-4 text-gray-400" />
+                              <span className="font-semibold text-gray-900 dark:text-gray-100">
+                                {formatCurrency(listing.price, listing.currency)}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                              <MapPinIcon className="h-4 w-4 text-gray-400" />
+                              <span className="text-gray-600 dark:text-gray-400">
+                                {listing.location.city}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                              <UserIcon className="h-4 w-4 text-gray-400" />
+                              <span className="text-gray-600 dark:text-gray-400">
+                                {listing.seller.name}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                              <CalendarIcon className="h-4 w-4 text-gray-400" />
+                              <span className="text-gray-600 dark:text-gray-400">
+                                {formatRelativeTime(listing.submittedAt)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Status and Additional Info */}
+                          <div className="flex items-center space-x-4 mt-3">
+                            <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(listing.status)}`}>
+                              {listing.status.charAt(0).toUpperCase() + listing.status.slice(1)}
+                            </span>
+
+                            <span className="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
+                              {listing.type}
+                            </span>
+
+                            {listing.listingType && (
+                              <span className="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">
+                                For {listing.listingType === 'sell' ? 'Sale' : 'Rent'}
+                              </span>
+                            )}
+
+                            {listing.seller.verified && (
+                              <span className="px-3 py-1 text-xs font-medium rounded-full bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300">
+                                Verified Seller
+                              </span>
+                            )}
+
+                            {listing.views > 0 && (
+                              <span className="px-3 py-1 text-xs font-medium rounded-full bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300">
+                                {listing.views} views
+                              </span>
+                            )}
+                          </div>
                         </div>
 
-                        <p className="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-2">
-                          {listing.description}
-                        </p>
+                        {/* Actions */}
+                        <div className="flex items-center space-x-2 ml-4">
+                          <button
+                            onClick={() => setSelectedListing(listing)}
+                            className="p-2 text-gray-400 hover:text-indigo-500 transition-colors"
+                            title="View details"
+                          >
+                            <EyeIcon className="h-5 w-5" />
+                          </button>
 
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          <div className="flex items-center space-x-2">
-                            <CurrencyDollarIcon className="h-4 w-4 text-gray-400" />
-                            <span className="font-semibold text-gray-900 dark:text-gray-100">
-                              {formatCurrency(listing.price, listing.currency)}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center space-x-2">
-                            <MapPinIcon className="h-4 w-4 text-gray-400" />
-                            <span className="text-gray-600 dark:text-gray-400">
-                              {listing.location.city}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center space-x-2">
-                            <UserIcon className="h-4 w-4 text-gray-400" />
-                            <span className="text-gray-600 dark:text-gray-400">
-                              {listing.seller.name}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center space-x-2">
-                            <CalendarIcon className="h-4 w-4 text-gray-400" />
-                            <span className="text-gray-600 dark:text-gray-400">
-                              {formatRelativeTime(listing.submittedAt)}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Status and Additional Info */}
-                        <div className="flex items-center space-x-4 mt-3">
-                          <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(listing.status)}`}>
-                            {listing.status.charAt(0).toUpperCase() + listing.status.slice(1)}
-                          </span>
-
-                          <span className="px-3 py-1 text-xs font-medium rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
-                            {listing.type}
-                          </span>
-
-                          <span className="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">
-                            {listing.category}
-                          </span>
-
-                          {listing.seller.verified && (
-                            <span className="px-3 py-1 text-xs font-medium rounded-full bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300">
-                              Verified Seller
-                            </span>
-                          )}
-
-                          {listing.views > 0 && (
-                            <span className="px-3 py-1 text-xs font-medium rounded-full bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300">
-                              {listing.views} views
-                            </span>
+                          {listing.status === 'pending' && (
+                            <>
+                              <button
+                                onClick={() => handleListingAction('approve', listing)}
+                                className="p-2 text-gray-400 hover:text-green-500 transition-colors"
+                                title="Approve listing"
+                              >
+                                <CheckIcon className="h-5 w-5" />
+                              </button>
+                              <button
+                                onClick={() => handleListingAction('reject', listing)}
+                                className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                                title="Reject listing"
+                              >
+                                <XMarkIcon className="h-5 w-5" />
+                              </button>
+                            </>
                           )}
                         </div>
-
-                        {/* Rejection/Approval Info */}
-                        {listing.status === 'rejected' && listing.rejectionReason && (
-                          <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                            <p className="text-sm text-red-800 dark:text-red-200">
-                              <span className="font-medium">Rejected:</span> {listing.rejectionReason}
-                            </p>
-                          </div>
-                        )}
-
-                        {listing.status === 'approved' && listing.approvedBy && (
-                          <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
-                            <p className="text-sm text-green-800 dark:text-green-200">
-                              Approved by {listing.approvedBy} • {formatRelativeTime(listing.approvedAt)}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center space-x-2 ml-4">
-                        <button
-                          onClick={() => setSelectedListing(listing)}
-                          className="p-2 text-gray-400 hover:text-blue-500 transition-colors"
-                          title="View details"
-                        >
-                          <EyeIcon className="h-5 w-5" />
-                        </button>
-
-                        {listing.status === 'pending' && (
-                          <>
-                            <button
-                              onClick={() => handleListingAction('approve', listing)}
-                              className="p-2 text-gray-400 hover:text-green-500 transition-colors"
-                              title="Approve listing"
-                            >
-                              <CheckIcon className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={() => handleListingAction('reject', listing)}
-                              className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                              title="Reject listing"
-                            >
-                              <XMarkIcon className="h-5 w-5" />
-                            </button>
-                          </>
-                        )}
                       </div>
                     </div>
                   </div>
                 </div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {pagination.totalPages > 1 && (
+              <div className="bg-white dark:bg-gray-800 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 sm:px-6">
+                <div className="flex-1 flex justify-between sm:hidden">
+                  <button
+                    onClick={() => handlePageChange(pagination.currentPage - 1)}
+                    disabled={pagination.currentPage === 1}
+                    className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => handlePageChange(pagination.currentPage + 1)}
+                    disabled={pagination.currentPage === pagination.totalPages}
+                    className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+                <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                      Showing <span className="font-medium">{((pagination.currentPage - 1) * 20) + 1}</span> to{' '}
+                      <span className="font-medium">
+                        {Math.min(pagination.currentPage * 20, pagination.totalProducts)}
+                      </span>{' '}
+                      of <span className="font-medium">{pagination.totalProducts}</span> results
+                    </p>
+                  </div>
+                  <div>
+                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                      <button
+                        onClick={() => handlePageChange(pagination.currentPage - 1)}
+                        disabled={pagination.currentPage === 1}
+                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        Previous
+                      </button>
+                      
+                      {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => {
+                        const page = i + 1;
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => handlePageChange(page)}
+                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                              page === pagination.currentPage
+                                ? 'z-10 bg-indigo-50 border-indigo-500 text-indigo-600'
+                                : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      })}
+                      
+                      <button
+                        onClick={() => handlePageChange(pagination.currentPage + 1)}
+                        disabled={pagination.currentPage === pagination.totalPages}
+                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        Next
+                      </button>
+                    </nav>
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         ) : (
           <div className="text-center py-12">
             <BuildingOfficeIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -749,75 +817,6 @@ const ListingModeration = () => {
             <p className="text-gray-600 dark:text-gray-400">
               Try adjusting your search or filter criteria
             </p>
-          </div>
-        )}
-
-        {/* Pagination */}
-        {pagination.totalPages > 1 && (
-          <div className="bg-white dark:bg-gray-800 px-4 py-3 flex items-center justify-between border-t border-gray-200 dark:border-gray-700 sm:px-6">
-            <div className="flex-1 flex justify-between sm:hidden">
-              <button
-                onClick={() => handlePageChange(pagination.currentPage - 1)}
-                disabled={pagination.currentPage === 1}
-                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <button
-                onClick={() => handlePageChange(pagination.currentPage + 1)}
-                disabled={pagination.currentPage === pagination.totalPages}
-                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-gray-700 dark:text-gray-300">
-                  Showing <span className="font-medium">{((pagination.currentPage - 1) * 20) + 1}</span> to{' '}
-                  <span className="font-medium">
-                    {Math.min(pagination.currentPage * 20, pagination.totalProducts)}
-                  </span>{' '}
-                  of <span className="font-medium">{pagination.totalProducts}</span> results
-                </p>
-              </div>
-              <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                  <button
-                    onClick={() => handlePageChange(pagination.currentPage - 1)}
-                    disabled={pagination.currentPage === 1}
-                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Previous
-                  </button>
-                  
-                  {Array.from({ length: Math.min(pagination.totalPages, 5) }, (_, i) => {
-                    const page = i + 1;
-                    return (
-                      <button
-                        key={page}
-                        onClick={() => handlePageChange(page)}
-                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                          page === pagination.currentPage
-                            ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                            : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                        }`}
-                      >
-                        {page}
-                      </button>
-                    );
-                  })}
-                  
-                  <button
-                    onClick={() => handlePageChange(pagination.currentPage + 1)}
-                    disabled={pagination.currentPage === pagination.totalPages}
-                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Next
-                  </button>
-                </nav>
-              </div>
-            </div>
           </div>
         )}
       </div>

@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import Input from '../../ui/Input';
-import { ETHIOPIAN_CITIES } from '../../../constants';
-import { PlusIcon, XMarkIcon, MapPinIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, XMarkIcon, HomeIcon, TruckIcon, ComputerDesktopIcon } from '@heroicons/react/24/outline';
 import Button from '../../ui/Button';
 
-const DetailsStep = ({ formData, errors, onChange }) => {
+const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
   const [newFeature, setNewFeature] = useState('');
   const [newAmenity, setNewAmenity] = useState('');
-  const [newCertification, setNewCertification] = useState('');
+  const [newSpecification, setNewSpecification] = useState({ name: '', value: '', group: '' });
 
   // Helper function to safely get nested values
   const getNestedValue = (obj, path) => {
@@ -19,42 +18,113 @@ const DetailsStep = ({ formData, errors, onChange }) => {
     }, obj);
   };
 
-  // Helper function to format area display
-  const formatArea = (area) => {
-    if (!area) return '';
-    if (typeof area === 'object') {
-      return `${area.value || ''} ${area.unit || 'sqm'}`;
-    }
-    return area;
-  };
-
-  // Ensure all arrays are initialized
+  // Ensure all nested objects are initialized
   const safeFormData = {
     ...formData,
-    realEstateDetails: {
+    propertyDetails: {
+      area: { value: '', unit: 'sqm' },
+      bedrooms: '',
+      bathrooms: '',
+      floors: '',
+      parkingSpaces: '',
+      balconies: '',
+      furnishingStatus: 'unfurnished',
+      yearBuilt: '',
       features: [],
       amenities: [],
-      ...formData.realEstateDetails,
-      location: {
-        landmarks: [],
-        ...formData.realEstateDetails?.location
-      }
+      utilities: {
+        electricity: false,
+        water: false,
+        internet: false,
+        gas: false,
+        sewerage: false,
+        garbage: false
+      },
+      landDetails: {
+        landUse: 'residential',
+        topography: 'flat',
+        soilType: '',
+        waterSource: 'none',
+        accessRoad: 'paved',
+        developmentPotential: ''
+      },
+      isProject: false,
+      projectDetails: {
+        projectName: '',
+        developer: '',
+        totalUnits: '',
+        availableUnits: '',
+        completionDate: '',
+        constructionStatus: 'planning',
+        paymentPlan: 'full-payment',
+        projectFeatures: []
+      },
+      ...formData.propertyDetails
     },
-    serviceDetails: {
-      languages: [],
-      certifications: [],
-      features: [],
-      ...formData.serviceDetails
+    vehicleDetails: {
+      make: '',
+      model: '',
+      year: '',
+      mileage: '',
+      fuelType: 'petrol',
+      transmission: 'manual',
+      color: '',
+      engineSize: '',
+      bodyType: '',
+      ...formData.vehicleDetails
+    },
+    equipmentDetails: {
+      manufacturer: '',
+      model: '',
+      year: '',
+      condition: '',
+      hoursUsed: '',
+      specifications: [],
+      ...formData.equipmentDetails
+    },
+    businessDetails: {
+      businessType: '',
+      annualRevenue: '',
+      employees: '',
+      establishedYear: '',
+      equipment: [],
+      licenses: [],
+      ...formData.businessDetails
+    },
+    specifications: formData.specifications || [],
+    warranty: {
+      duration: '',
+      unit: 'months',
+      type: 'manufacturer',
+      description: '',
+      ...formData.warranty
+    },
+    returnPolicy: {
+      returnable: false,
+      returnPeriod: 30,
+      conditions: [],
+      ...formData.returnPolicy
+    },
+    shipping: {
+      weight: '',
+      dimensions: { length: '', width: '', height: '' },
+      shippingClass: '',
+      freeShipping: false,
+      shippingCost: '',
+      ...formData.shipping
     }
   };
 
   const handleChange = (field, value) => {
     if (field.includes('.')) {
       const keys = field.split('.');
-      let updated = { ...safeFormData };
+      let updated = { ...formData };
       let current = updated;
 
       for (let i = 0; i < keys.length - 1; i++) {
+        if (!current[keys[i]]) {
+          current[keys[i]] = {};
+        }
         current = current[keys[i]] = { ...current[keys[i]] };
       }
       current[keys[keys.length - 1]] = value;
@@ -65,27 +135,43 @@ const DetailsStep = ({ formData, errors, onChange }) => {
     }
   };
 
+  const addSpecification = () => {
+    if (!newSpecification.name.trim() || !newSpecification.value.trim()) return;
+
+    const updatedSpecs = [...safeFormData.specifications, { ...newSpecification }];
+    onChange({ specifications: updatedSpecs });
+    setNewSpecification({ name: '', value: '', group: '' });
+  };
+
+  const removeSpecification = (index) => {
+    const updatedSpecs = safeFormData.specifications.filter((_, i) => i !== index);
+    onChange({ specifications: updatedSpecs });
+  };
+
   const addToArray = (arrayPath, value, setterFunction) => {
-    if (!value.trim()) return;
+    if (!value || (typeof value === 'string' && !value.trim())) return;
 
     const keys = arrayPath.split('.');
-    let updated = { ...safeFormData };
+    let updated = { ...formData };
     let current = updated;
 
     for (let i = 0; i < keys.length - 1; i++) {
+      if (!current[keys[i]]) {
+        current[keys[i]] = {};
+      }
       current = current[keys[i]] = { ...current[keys[i]] };
     }
 
     const currentArray = current[keys[keys.length - 1]] || [];
-    current[keys[keys.length - 1]] = [...currentArray, value.trim()];
+    current[keys[keys.length - 1]] = [...currentArray, typeof value === 'string' ? value.trim() : value];
 
     onChange(updated);
-    setterFunction('');
+    if (setterFunction) setterFunction('');
   };
 
   const removeFromArray = (arrayPath, index) => {
     const keys = arrayPath.split('.');
-    let updated = { ...safeFormData };
+    let updated = { ...formData };
     let current = updated;
 
     for (let i = 0; i < keys.length - 1; i++) {
@@ -98,616 +184,800 @@ const DetailsStep = ({ formData, errors, onChange }) => {
     onChange(updated);
   };
 
-  const propertyTypes = [
-    { value: 'apartment', label: 'Apartment' },
-    { value: 'villa', label: 'Villa' },
-    { value: 'house', label: 'House' },
-    { value: 'townhouse', label: 'Townhouse' },
-    { value: 'condo', label: 'Condominium' },
-    { value: 'studio', label: 'Studio' },
-    { value: 'penthouse', label: 'Penthouse' },
-    { value: 'commercial', label: 'Commercial' },
-    { value: 'office', label: 'Office' },
-    { value: 'retail', label: 'Retail' },
-    { value: 'warehouse', label: 'Warehouse' },
-    { value: 'land', label: 'Land' }
-  ];
-
-  const serviceTypes = [
-    { value: 'interior-design', label: 'Interior Design' },
-    { value: 'architecture', label: 'Architecture' },
-    { value: 'construction', label: 'Construction' },
-    { value: 'project-management', label: 'Project Management' },
-    { value: 'real-estate-consulting', label: 'Real Estate Consulting' },
-    { value: 'property-management', label: 'Property Management' },
-    { value: 'legal-services', label: 'Legal Services' },
-    { value: 'financial-services', label: 'Financial Services' },
-    { value: 'home-inspection', label: 'Home Inspection' },
-    { value: 'moving-services', label: 'Moving Services' }
-  ];
-
-  const commonFeatures = [
-    'Swimming Pool', 'Gym/Fitness Center', 'Parking', 'Garden', 'Balcony',
-    'Air Conditioning', 'Central Heating', 'Fireplace', 'Walk-in Closet',
-    'Laundry Room', 'Storage Room', 'Maid\'s Room', 'Guest Room'
-  ];
+  // Common features for different property types
+  const commonFeatures = {
+    homes: [
+      'Air Conditioning', 'Balcony', 'Garden', 'Parking', 'Swimming Pool', 
+      'Gym/Fitness Center', 'Security 24/7', 'Elevator', 'Generator', 
+      'Water Tank', 'Garage', 'Storage Room', "Maid's Room", 'Study Room'
+    ],
+    commercials: [
+      'Air Conditioning', 'Parking', 'Security 24/7', 'Elevator', 'Generator',
+      'Reception Area', 'Conference Room', 'Cafeteria', 'Loading Dock',
+      'Fire Safety', 'CCTV', 'Backup Power', 'High-Speed Internet'
+    ]
+  };
 
   const commonAmenities = [
-    'Security 24/7', 'Elevator', 'Generator', 'Water Tank', 'Garage',
-    'Playground', 'Community Center', 'Shopping Center Nearby',
-    'School Nearby', 'Hospital Nearby', 'Public Transport', 'Restaurant Nearby'
+    'Swimming Pool', 'Gym', 'Playground', 'Community Center', 'Security Gate',
+    'CCTV Surveillance', '24/7 Security', 'Landscaped Gardens', 'Walking Paths',
+    'Children Play Area', 'Basketball Court', 'Tennis Court', 'Clubhouse'
   ];
 
-  if (safeFormData.type === 'real-estate') {
+  // Render different content based on product type
+  if (['homes', 'plots', 'commercials'].includes(safeFormData.productType)) {
     return (
       <div className="space-y-6">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center">
+            <HomeIcon className="h-6 w-6 mr-2 text-primary-500" />
             Property Details
           </h2>
           <p className="text-gray-600 dark:text-gray-400">
-            Provide specific information about your property.
+            Provide specific information about your {formData.productType === 'plots' ? 'land' : 'property'}.
           </p>
         </div>
 
-        {/* Property Type and Listing Type */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Property Type *
-            </label>
-            <select
-              value={getNestedValue(safeFormData, 'realEstateDetails.propertyType') || ''}
-              onChange={(e) => handleChange('realEstateDetails.propertyType', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="">Select property type</option>
-              {propertyTypes.map(type => (
-                <option key={type.value} value={type.value}>
-                  {type.label}
-                </option>
-              ))}
-            </select>
-            {errors['realEstateDetails.propertyType'] && (
-              <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                {errors['realEstateDetails.propertyType']}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Listing Type
-            </label>
-            <select
-              value={getNestedValue(safeFormData, 'realEstateDetails.listingType') || 'sale'}
-              onChange={(e) => handleChange('realEstateDetails.listingType', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="sale">For Sale</option>
-              <option value="rental">For Rent</option>
-              <option value="both">Sale or Rent</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Basic Property Info */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Area */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
-            label="Bedrooms"
-            type="number"
-            min="0"
-            max="20"
-            value={getNestedValue(safeFormData, 'realEstateDetails.bedrooms') || ''}
-            onChange={(e) => handleChange('realEstateDetails.bedrooms', e.target.value)}
-            placeholder="0"
-          />
-          <Input
-            label="Bathrooms"
-            type="number"
-            min="0"
-            max="20"
-            step="0.5"
-            value={getNestedValue(safeFormData, 'realEstateDetails.bathrooms') || ''}
-            onChange={(e) => handleChange('realEstateDetails.bathrooms', e.target.value)}
-            placeholder="0"
-          />
-          <Input
-            label="Area"
+            label="Area *"
             type="number"
             min="1"
-            value={getNestedValue(safeFormData, 'realEstateDetails.area.value') || ''}
-            onChange={(e) => handleChange('realEstateDetails.area', {
-              ...getNestedValue(safeFormData, 'realEstateDetails.area'),
+            value={getNestedValue(safeFormData, 'propertyDetails.area.value') || ''}
+            onChange={(e) => handleChange('propertyDetails.area', {
+              ...getNestedValue(safeFormData, 'propertyDetails.area'),
               value: e.target.value
             })}
+            error={errors['propertyDetails.area.value']}
             placeholder="120"
+            className="text-base"
           />
-        </div>
-        <div className="mt-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Area Unit
-          </label>
-          <select
-            value={getNestedValue(safeFormData, 'realEstateDetails.area.unit') || 'sqm'}
-            onChange={(e) => handleChange('realEstateDetails.area', {
-              ...getNestedValue(safeFormData, 'realEstateDetails.area'),
-              unit: e.target.value
-            })}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          >
-            <option value="sqm">Square Meters</option>
-            <option value="sqft">Square Feet</option>
-            <option value="hectare">Hectares</option>
-            <option value="acre">Acres</option>
-          </select>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Area Unit
+            </label>
+            <select
+              value={getNestedValue(safeFormData, 'propertyDetails.area.unit') || 'sqm'}
+              onChange={(e) => handleChange('propertyDetails.area', {
+                ...getNestedValue(safeFormData, 'propertyDetails.area'),
+                unit: e.target.value
+              })}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
+            >
+              <option value="sqm">Square Meters (sqm)</option>
+              <option value="sqft">Square Feet (sqft)</option>
+              {safeFormData.productType === 'plots' && (
+                <>
+                  <option value="hectares">Hectares</option>
+                  <option value="acres">Acres</option>
+                </>
+              )}
+            </select>
+          </div>
         </div>
 
-        {/* Additional Property Details */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Property Specific Details */}
+        {safeFormData.productType !== 'plots' && (
+          <>
+            {/* Basic Property Info */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Input
+                label={safeFormData.subProductType === 'offices' ? 'Rooms' : 'Bedrooms'}
+                type="number"
+                min="0"
+                max="20"
+                value={getNestedValue(safeFormData, 'propertyDetails.bedrooms') || ''}
+                onChange={(e) => handleChange('propertyDetails.bedrooms', e.target.value)}
+                error={errors['propertyDetails.bedrooms']}
+                placeholder="0"
+                className="text-base"
+              />
+              <Input
+                label="Bathrooms"
+                type="number"
+                min="0"
+                max="20"
+                step="0.5"
+                value={getNestedValue(safeFormData, 'propertyDetails.bathrooms') || ''}
+                onChange={(e) => handleChange('propertyDetails.bathrooms', e.target.value)}
+                error={errors['propertyDetails.bathrooms']}
+                placeholder="0"
+                className="text-base"
+              />
+              <Input
+                label="Floors"
+                type="number"
+                min="1"
+                max="100"
+                value={getNestedValue(safeFormData, 'propertyDetails.floors') || ''}
+                onChange={(e) => handleChange('propertyDetails.floors', e.target.value)}
+                placeholder="1"
+                className="text-base"
+              />
+              <Input
+                label="Parking Spaces"
+                type="number"
+                min="0"
+                max="20"
+                value={getNestedValue(safeFormData, 'propertyDetails.parkingSpaces') || ''}
+                onChange={(e) => handleChange('propertyDetails.parkingSpaces', e.target.value)}
+                placeholder="0"
+                className="text-base"
+              />
+            </div>
+
+            {/* Additional Details */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Input
+                label="Year Built"
+                type="number"
+                min="1900"
+                max={new Date().getFullYear()}
+                value={getNestedValue(safeFormData, 'propertyDetails.yearBuilt') || ''}
+                onChange={(e) => handleChange('propertyDetails.yearBuilt', e.target.value)}
+                placeholder={new Date().getFullYear().toString()}
+                className="text-base"
+              />
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Furnishing Status
+                </label>
+                <select
+                  value={getNestedValue(safeFormData, 'propertyDetails.furnishingStatus') || ''}
+                  onChange={(e) => handleChange('propertyDetails.furnishingStatus', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
+                >
+                  <option value="unfurnished">Unfurnished</option>
+                  <option value="semi-furnished">Semi-Furnished</option>
+                  <option value="furnished">Fully Furnished</option>
+                  <option value="not-applicable">Not Applicable</option>
+                </select>
+              </div>
+
+              <Input
+                label="Balconies"
+                type="number"
+                min="0"
+                max="10"
+                value={getNestedValue(safeFormData, 'propertyDetails.balconies') || ''}
+                onChange={(e) => handleChange('propertyDetails.balconies', e.target.value)}
+                placeholder="0"
+                className="text-base"
+              />
+            </div>
+          </>
+        )}
+
+        {/* Land Details (for plots) */}
+        {safeFormData.productType === 'plots' && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Land Details</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Land Use *
+                </label>
+                <select
+                  value={getNestedValue(safeFormData, 'propertyDetails.landDetails.landUse') || ''}
+                  onChange={(e) => handleChange('propertyDetails.landDetails.landUse', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
+                >
+                  <option value="residential">Residential</option>
+                  <option value="commercial">Commercial</option>
+                  <option value="mixed-use">Mixed Use</option>
+                  <option value="agricultural">Agricultural</option>
+                  <option value="industrial">Industrial</option>
+                </select>
+                {errors['propertyDetails.landDetails.landUse'] && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                    {errors['propertyDetails.landDetails.landUse']}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Topography
+                </label>
+                <select
+                  value={getNestedValue(safeFormData, 'propertyDetails.landDetails.topography') || ''}
+                  onChange={(e) => handleChange('propertyDetails.landDetails.topography', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
+                >
+                  <option value="flat">Flat</option>
+                  <option value="sloped">Sloped</option>
+                  <option value="hilly">Hilly</option>
+                  <option value="mountainous">Mountainous</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Soil Type"
+                value={getNestedValue(safeFormData, 'propertyDetails.landDetails.soilType') || ''}
+                onChange={(e) => handleChange('propertyDetails.landDetails.soilType', e.target.value)}
+                placeholder="e.g., Clay, Sandy, Loam"
+                className="text-base"
+              />
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Water Source
+                </label>
+                <select
+                  value={getNestedValue(safeFormData, 'propertyDetails.landDetails.waterSource') || ''}
+                  onChange={(e) => handleChange('propertyDetails.landDetails.waterSource', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
+                >
+                  <option value="none">None</option>
+                  <option value="borehole">Borehole</option>
+                  <option value="well">Well</option>
+                  <option value="municipal">Municipal</option>
+                  <option value="river">River</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Access Road
+                </label>
+                <select
+                  value={getNestedValue(safeFormData, 'propertyDetails.landDetails.accessRoad') || ''}
+                  onChange={(e) => handleChange('propertyDetails.landDetails.accessRoad', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
+                >
+                  <option value="paved">Paved</option>
+                  <option value="gravel">Gravel</option>
+                  <option value="dirt">Dirt</option>
+                  <option value="no-access">No Access</option>
+                </select>
+              </div>
+
+              <Input
+                label="Development Potential"
+                value={getNestedValue(safeFormData, 'propertyDetails.landDetails.developmentPotential') || ''}
+                onChange={(e) => handleChange('propertyDetails.landDetails.developmentPotential', e.target.value)}
+                placeholder="Describe development possibilities"
+                className="text-base"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Features */}
+        {safeFormData.productType !== 'plots' && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Property Features</h3>
+
+            {/* Quick Add Features */}
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">Quick add common features:</p>
+              <div className="flex flex-wrap gap-2">
+                {(commonFeatures[safeFormData.productType] || commonFeatures.homes).map(feature => (
+                  <button
+                    key={feature}
+                    type="button"
+                    onClick={() => {
+                      if (!safeFormData.propertyDetails.features.includes(feature)) {
+                        addToArray('propertyDetails.features', feature, () => {});
+                      }
+                    }}
+                    disabled={safeFormData.propertyDetails.features.includes(feature)}
+                    className={`px-3 py-1 text-sm rounded-full border transition-colors ${
+                      safeFormData.propertyDetails.features.includes(feature)
+                        ? 'bg-green-100 border-green-300 text-green-700 cursor-not-allowed'
+                        : 'border-gray-300 hover:border-primary-500 hover:bg-primary-50'
+                    }`}
+                  >
+                    {feature}
+                    {safeFormData.propertyDetails.features.includes(feature) && ' ✓'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Features */}
+            <div className="flex gap-2">
+              <Input
+                placeholder="Add custom feature"
+                value={newFeature}
+                onChange={(e) => setNewFeature(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addToArray('propertyDetails.features', newFeature, setNewFeature);
+                  }
+                }}
+                className="text-base"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => addToArray('propertyDetails.features', newFeature, setNewFeature)}
+                disabled={!newFeature.trim()}
+              >
+                <PlusIcon className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Selected Features */}
+            {safeFormData.propertyDetails.features.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {safeFormData.propertyDetails.features.map((feature, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary-100 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300"
+                  >
+                    {feature}
+                    <button
+                      type="button"
+                      onClick={() => removeFromArray('propertyDetails.features', index)}
+                      className="ml-2 text-primary-500 hover:text-primary-700"
+                    >
+                      <XMarkIcon className="h-4 w-4" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Amenities */}
+        {safeFormData.productType !== 'plots' && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Amenities</h3>
+
+            {/* Quick Add Amenities */}
+            <div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">Quick add common amenities:</p>
+              <div className="flex flex-wrap gap-2">
+                {commonAmenities.map(amenity => (
+                  <button
+                    key={amenity}
+                    type="button"
+                    onClick={() => {
+                      if (!safeFormData.propertyDetails.amenities.includes(amenity)) {
+                        addToArray('propertyDetails.amenities', amenity, () => {});
+                      }
+                    }}
+                    disabled={safeFormData.propertyDetails.amenities.includes(amenity)}
+                    className={`px-3 py-1 text-sm rounded-full border transition-colors ${
+                      safeFormData.propertyDetails.amenities.includes(amenity)
+                        ? 'bg-green-100 border-green-300 text-green-700 cursor-not-allowed'
+                        : 'border-gray-300 hover:border-primary-500 hover:bg-primary-50'
+                    }`}
+                  >
+                    {amenity}
+                    {safeFormData.propertyDetails.amenities.includes(amenity) && ' ✓'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Amenities */}
+            <div className="flex gap-2">
+              <Input
+                placeholder="Add custom amenity"
+                value={newAmenity}
+                onChange={(e) => setNewAmenity(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addToArray('propertyDetails.amenities', newAmenity, setNewAmenity);
+                  }
+                }}
+                className="text-base"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => addToArray('propertyDetails.amenities', newAmenity, setNewAmenity)}
+                disabled={!newAmenity.trim()}
+              >
+                <PlusIcon className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Selected Amenities */}
+            {safeFormData.propertyDetails.amenities.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {safeFormData.propertyDetails.amenities.map((amenity, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+                  >
+                    {amenity}
+                    <button
+                      type="button"
+                      onClick={() => removeFromArray('propertyDetails.amenities', index)}
+                      className="ml-2 text-blue-500 hover:text-blue-700"
+                    >
+                      <XMarkIcon className="h-4 w-4" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Utilities */}
+        {safeFormData.productType !== 'plots' && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Utilities & Services</h3>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {Object.entries(safeFormData.propertyDetails.utilities).map(([utility, checked]) => (
+                <label
+                  key={utility}
+                  className="flex items-center space-x-3 p-3 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => handleChange(`propertyDetails.utilities.${utility}`, e.target.checked)}
+                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300 capitalize">
+                    {utility.replace(/([A-Z])/g, ' $1')}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Project Details (for companies) */}
+        {formData.sellerType === 'company' && (
+          <div className="space-y-4">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="isProject"
+                checked={safeFormData.propertyDetails.isProject}
+                onChange={(e) => handleChange('propertyDetails.isProject', e.target.checked)}
+                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <label htmlFor="isProject" className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                This is part of a development project
+              </label>
+            </div>
+
+            {safeFormData.propertyDetails.isProject && (
+              <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <h4 className="font-medium text-gray-900 dark:text-gray-100">Project Details</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    label="Project Name"
+                    value={getNestedValue(safeFormData, 'propertyDetails.projectDetails.projectName') || ''}
+                    onChange={(e) => handleChange('propertyDetails.projectDetails.projectName', e.target.value)}
+                    placeholder="e.g., Sunshine Residence"
+                    className="text-base"
+                  />
+                  <Input
+                    label="Developer"
+                    value={getNestedValue(safeFormData, 'propertyDetails.projectDetails.developer') || ''}
+                    onChange={(e) => handleChange('propertyDetails.projectDetails.developer', e.target.value)}
+                    placeholder="Developer company name"
+                    className="text-base"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Input
+                    label="Total Units"
+                    type="number"
+                    value={getNestedValue(safeFormData, 'propertyDetails.projectDetails.totalUnits') || ''}
+                    onChange={(e) => handleChange('propertyDetails.projectDetails.totalUnits', e.target.value)}
+                    placeholder="100"
+                    className="text-base"
+                  />
+                  <Input
+                    label="Available Units"
+                    type="number"
+                    value={getNestedValue(safeFormData, 'propertyDetails.projectDetails.availableUnits') || ''}
+                    onChange={(e) => handleChange('propertyDetails.projectDetails.availableUnits', e.target.value)}
+                    placeholder="50"
+                    className="text-base"
+                  />
+                  <Input
+                    label="Completion Date"
+                    type="date"
+                    value={getNestedValue(safeFormData, 'propertyDetails.projectDetails.completionDate') || ''}
+                    onChange={(e) => handleChange('propertyDetails.projectDetails.completionDate', e.target.value)}
+                    className="text-base"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Construction Status
+                    </label>
+                    <select
+                      value={getNestedValue(safeFormData, 'propertyDetails.projectDetails.constructionStatus') || ''}
+                      onChange={(e) => handleChange('propertyDetails.projectDetails.constructionStatus', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
+                    >
+                      <option value="planning">Planning</option>
+                      <option value="under-construction">Under Construction</option>
+                      <option value="completed">Completed</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Payment Plan
+                    </label>
+                    <select
+                      value={getNestedValue(safeFormData, 'propertyDetails.projectDetails.paymentPlan') || ''}
+                      onChange={(e) => handleChange('propertyDetails.projectDetails.paymentPlan', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
+                    >
+                      <option value="full-payment">Full Payment</option>
+                      <option value="installment">Installment</option>
+                      <option value="both">Both Options</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Vehicle Details (for others -> vehicles)
+  if (safeFormData.productType === 'others' && safeFormData.subProductType === 'vehicles') {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center">
+            <TruckIcon className="h-6 w-6 mr-2 text-primary-500" />
+            Vehicle Details
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            Provide specific information about your vehicle.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
-            label="Year Built"
+            label="Make *"
+            value={safeFormData.vehicleDetails.make}
+            onChange={(e) => handleChange('vehicleDetails.make', e.target.value)}
+            error={errors['vehicleDetails.make']}
+            placeholder="e.g., Toyota, BMW, Mercedes"
+            className="text-base"
+          />
+          <Input
+            label="Model"
+            value={safeFormData.vehicleDetails.model}
+            onChange={(e) => handleChange('vehicleDetails.model', e.target.value)}
+            placeholder="e.g., Camry, X5, C-Class"
+            className="text-base"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Input
+            label="Year *"
+            type="number"
+            min="1900"
+            max={new Date().getFullYear() + 1}
+            value={safeFormData.vehicleDetails.year}
+            onChange={(e) => handleChange('vehicleDetails.year', e.target.value)}
+            error={errors['vehicleDetails.year']}
+            placeholder="2020"
+            className="text-base"
+          />
+          <Input
+            label="Mileage (km)"
+            type="number"
+            min="0"
+            value={safeFormData.vehicleDetails.mileage}
+            onChange={(e) => handleChange('vehicleDetails.mileage', e.target.value)}
+            placeholder="50000"
+            className="text-base"
+          />
+          <Input
+            label="Color"
+            value={safeFormData.vehicleDetails.color}
+            onChange={(e) => handleChange('vehicleDetails.color', e.target.value)}
+            placeholder="e.g., White, Black, Silver"
+            className="text-base"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Fuel Type
+            </label>
+            <select
+              value={safeFormData.vehicleDetails.fuelType}
+              onChange={(e) => handleChange('vehicleDetails.fuelType', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
+            >
+              <option value="petrol">Petrol</option>
+              <option value="diesel">Diesel</option>
+              <option value="electric">Electric</option>
+              <option value="hybrid">Hybrid</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Transmission
+            </label>
+            <select
+              value={safeFormData.vehicleDetails.transmission}
+              onChange={(e) => handleChange('vehicleDetails.transmission', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
+            >
+              <option value="manual">Manual</option>
+              <option value="automatic">Automatic</option>
+            </select>
+          </div>
+
+          <Input
+            label="Engine Size"
+            value={safeFormData.vehicleDetails.engineSize}
+            onChange={(e) => handleChange('vehicleDetails.engineSize', e.target.value)}
+            placeholder="e.g., 2.0L, 3000cc"
+            className="text-base"
+          />
+        </div>
+
+        <Input
+          label="Body Type"
+          value={safeFormData.vehicleDetails.bodyType}
+          onChange={(e) => handleChange('vehicleDetails.bodyType', e.target.value)}
+          placeholder="e.g., Sedan, SUV, Hatchback"
+          className="text-base"
+        />
+      </div>
+    );
+  }
+
+  // Equipment Details (for others -> construction-equipment)
+  if (safeFormData.productType === 'others' && safeFormData.subProductType === 'construction-equipment') {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center">
+            <TruckIcon className="h-6 w-6 mr-2 text-primary-500" />
+            Equipment Details
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            Provide specific information about your construction equipment.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Manufacturer *"
+            value={safeFormData.equipmentDetails.manufacturer}
+            onChange={(e) => handleChange('equipmentDetails.manufacturer', e.target.value)}
+            error={errors['equipmentDetails.manufacturer']}
+            placeholder="e.g., Caterpillar, Komatsu, Volvo"
+            className="text-base"
+          />
+          <Input
+            label="Model"
+            value={safeFormData.equipmentDetails.model}
+            onChange={(e) => handleChange('equipmentDetails.model', e.target.value)}
+            placeholder="e.g., 320D, PC200, EC20"
+            className="text-base"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Input
+            label="Year"
             type="number"
             min="1900"
             max={new Date().getFullYear()}
-            value={getNestedValue(safeFormData, 'realEstateDetails.yearBuilt') || ''}
-            onChange={(e) => handleChange('realEstateDetails.yearBuilt', e.target.value)}
-            placeholder={new Date().getFullYear().toString()}
+            value={safeFormData.equipmentDetails.year}
+            onChange={(e) => handleChange('equipmentDetails.year', e.target.value)}
+            placeholder="2018"
+            className="text-base"
           />
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              Furnishing Status
-            </label>
-            <select
-              value={getNestedValue(safeFormData, 'realEstateDetails.furnishingStatus') || ''}
-              onChange={(e) => handleChange('realEstateDetails.furnishingStatus', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="">Select status</option>
-              <option value="unfurnished">Unfurnished</option>
-              <option value="semi-furnished">Semi-Furnished</option>
-              <option value="fully-furnished">Fully Furnished</option>
-            </select>
-          </div>
-
           <Input
-            label="Parking Spaces"
+            label="Hours Used"
             type="number"
             min="0"
-            max="10"
-            value={getNestedValue(safeFormData, 'realEstateDetails.parkingSpaces') || ''}
-            onChange={(e) => handleChange('realEstateDetails.parkingSpaces', e.target.value)}
-            placeholder="0"
-          />
-        </div>
-
-        {/* Floor Information */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Input
-            label="Floor Number"
-            type="number"
-            min="0"
-            max="100"
-            value={getNestedValue(safeFormData, 'realEstateDetails.floorNumber') || ''}
-            onChange={(e) => handleChange('realEstateDetails.floorNumber', e.target.value)}
-            placeholder="e.g., 3"
-            helper="Ground floor = 0"
+            value={safeFormData.equipmentDetails.hoursUsed}
+            onChange={(e) => handleChange('equipmentDetails.hoursUsed', e.target.value)}
+            placeholder="2500"
+            className="text-base"
           />
           <Input
-            label="Total Floors"
-            type="number"
-            min="1"
-            max="100"
-            value={getNestedValue(safeFormData, 'realEstateDetails.totalFloors') || ''}
-            onChange={(e) => handleChange('realEstateDetails.totalFloors', e.target.value)}
-            placeholder="e.g., 12"
+            label="Condition"
+            value={safeFormData.equipmentDetails.condition}
+            onChange={(e) => handleChange('equipmentDetails.condition', e.target.value)}
+            placeholder="e.g., Excellent, Good, Fair"
+            className="text-base"
           />
-        </div>
-
-        {/* Location */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center">
-            <MapPinIcon className="h-5 w-5 mr-2" />
-            Location
-          </h3>
-
-          <div>
-            <Input
-              label="Address *"
-              value={getNestedValue(safeFormData, 'realEstateDetails.location.address') || ''}
-              onChange={(e) => handleChange('realEstateDetails.location.address', e.target.value)}
-              error={errors['realEstateDetails.location.address']}
-              placeholder="e.g., Bole, near Edna Mall"
-              helper="Provide a specific address or area description"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                City
-              </label>
-              <select
-                value={getNestedValue(safeFormData, 'realEstateDetails.location.city') || ''}
-                onChange={(e) => handleChange('realEstateDetails.location.city', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              >
-                {ETHIOPIAN_CITIES.map(city => (
-                  <option key={city} value={city}>
-                    {city}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <Input
-              label="State/Region"
-              value={getNestedValue(safeFormData, 'realEstateDetails.location.state') || ''}
-              onChange={(e) => handleChange('realEstateDetails.location.state', e.target.value)}
-              placeholder="e.g., Addis Ababa"
-            />
-          </div>
-        </div>
-
-        {/* Features */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Features</h3>
-
-          {/* Quick Add Features */}
-          <div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">Quick add common features:</p>
-            <div className="flex flex-wrap gap-2">
-              {commonFeatures.map(feature => (
-                <button
-                  key={feature}
-                  type="button"
-                  onClick={() => {
-                    if (!safeFormData.realEstateDetails.features.includes(feature)) {
-                      addToArray('realEstateDetails.features', feature, () => {});
-                    }
-                  }}
-                  disabled={safeFormData.realEstateDetails.features.includes(feature)}
-                  className={`px-3 py-1 text-sm rounded-full border transition-colors ${safeFormData.realEstateDetails.features.includes(feature)
-                    ? 'bg-green-100 border-green-300 text-green-700 cursor-not-allowed'
-                    : 'border-gray-300 hover:border-primary-500 hover:bg-primary-50'
-                    }`}
-                >
-                  {feature}
-                  {safeFormData.realEstateDetails.features.includes(feature) && ' ✓'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Custom Features */}
-          <div className="flex gap-2">
-            <Input
-              placeholder="Add custom feature"
-              value={newFeature}
-              onChange={(e) => setNewFeature(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addToArray('realEstateDetails.features', newFeature, setNewFeature);
-                }
-              }}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => addToArray('realEstateDetails.features', newFeature, setNewFeature)}
-              disabled={!newFeature.trim()}
-            >
-              <PlusIcon className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {/* Selected Features */}
-          {safeFormData.realEstateDetails.features.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {safeFormData.realEstateDetails.features.map((feature, index) => (
-                <span
-                  key={index}
-                  className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary-100 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300"
-                >
-                  {feature}
-                  <button
-                    type="button"
-                    onClick={() => removeFromArray('realEstateDetails.features', index)}
-                    className="ml-2 text-primary-500 hover:text-primary-700"
-                  >
-                    <XMarkIcon className="h-4 w-4" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Amenities */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Amenities</h3>
-
-          {/* Quick Add Amenities */}
-          <div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">Quick add common amenities:</p>
-            <div className="flex flex-wrap gap-2">
-              {commonAmenities.map(amenity => (
-                <button
-                  key={amenity}
-                  type="button"
-                  onClick={() => {
-                    if (!safeFormData.realEstateDetails.amenities.includes(amenity)) {
-                      addToArray('realEstateDetails.amenities', amenity, () => {});
-                    }
-                  }}
-                  disabled={safeFormData.realEstateDetails.amenities.includes(amenity)}
-                  className={`px-3 py-1 text-sm rounded-full border transition-colors ${safeFormData.realEstateDetails.amenities.includes(amenity)
-                    ? 'bg-green-100 border-green-300 text-green-700 cursor-not-allowed'
-                    : 'border-gray-300 hover:border-primary-500 hover:bg-primary-50'
-                    }`}
-                >
-                  {amenity}
-                  {safeFormData.realEstateDetails.amenities.includes(amenity) && ' ✓'}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Custom Amenities */}
-          <div className="flex gap-2">
-            <Input
-              placeholder="Add custom amenity"
-              value={newAmenity}
-              onChange={(e) => setNewAmenity(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addToArray('realEstateDetails.amenities', newAmenity, setNewAmenity);
-                }
-              }}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => addToArray('realEstateDetails.amenities', newAmenity, setNewAmenity)}
-              disabled={!newAmenity.trim()}
-            >
-              <PlusIcon className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {/* Selected Amenities */}
-          {safeFormData.realEstateDetails.amenities.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {safeFormData.realEstateDetails.amenities.map((amenity, index) => (
-                <span
-                  key={index}
-                  className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300"
-                >
-                  {amenity}
-                  <button
-                    type="button"
-                    onClick={() => removeFromArray('realEstateDetails.amenities', index)}
-                    className="ml-2 text-green-500 hover:text-green-700"
-                  >
-                    <XMarkIcon className="h-4 w-4" />
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     );
   }
 
-  // Service Details
+  // General Product Details (for others category - electronics, furniture, etc.)
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-          Service Details
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center">
+          <ComputerDesktopIcon className="h-6 w-6 mr-2 text-primary-500" />
+          Product Details
         </h2>
         <p className="text-gray-600 dark:text-gray-400">
-          Provide specific information about your service.
+          Provide specific information about your product.
         </p>
       </div>
 
-      {/* Service Type */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Service Type *
-        </label>
-        <select
-          value={getNestedValue(safeFormData, 'serviceDetails.serviceType') || ''}
-          onChange={(e) => handleChange('serviceDetails.serviceType', e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-        >
-          <option value="">Select service type</option>
-          {serviceTypes.map(type => (
-            <option key={type.value} value={type.value}>
-              {type.label}
-            </option>
-          ))}
-        </select>
-        {errors['serviceDetails.serviceType'] && (
-          <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-            {errors['serviceDetails.serviceType']}
-          </p>
-        )}
-      </div>
-
-      {/* Service Area and Duration */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <Input
-            label="Service Area *"
-            value={getNestedValue(safeFormData, 'serviceDetails.serviceArea') || ''}
-            onChange={(e) => handleChange('serviceDetails.serviceArea', e.target.value)}
-            error={errors['serviceDetails.serviceArea']}
-            placeholder="e.g., Addis Ababa, Ethiopia"
-            helper="Where do you provide this service?"
-          />
-        </div>
-        <div>
-          <Input
-            label="Typical Duration"
-            value={getNestedValue(safeFormData, 'serviceDetails.duration.value') || ''}
-            onChange={(e) => handleChange('serviceDetails.duration', {
-              ...getNestedValue(safeFormData, 'serviceDetails.duration'),
-              value: e.target.value
-            })}
-            placeholder="e.g., 2-4 hours, 1-2 weeks"
-            helper="How long does this service typically take?"
-          />
-        </div>
-      </div>
-      <div className="mt-2">
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Duration Unit
-        </label>
-        <select
-          value={getNestedValue(safeFormData, 'serviceDetails.duration.unit') || 'hours'}
-          onChange={(e) => handleChange('serviceDetails.duration', {
-            ...getNestedValue(safeFormData, 'serviceDetails.duration'),
-            unit: e.target.value
-          })}
-          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-        >
-          <option value="hours">Hours</option>
-          <option value="days">Days</option>
-          <option value="weeks">Weeks</option>
-          <option value="months">Months</option>
-        </select>
-      </div>
-
-      {/* Experience and Team */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Experience Level
-          </label>
-          <select
-            value={getNestedValue(safeFormData, 'serviceDetails.experienceLevel') || ''}
-            onChange={(e) => handleChange('serviceDetails.experienceLevel', e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          >
-            <option value="">Select experience level</option>
-            <option value="entry">Entry Level (0-2 years)</option>
-            <option value="intermediate">Intermediate (2-5 years)</option>
-            <option value="experienced">Experienced (5-10 years)</option>
-            <option value="expert">Expert (10+ years)</option>
-          </select>
-        </div>
-
-        <Input
-          label="Team Size"
-          value={getNestedValue(safeFormData, 'serviceDetails.teamSize') || ''}
-          onChange={(e) => handleChange('serviceDetails.teamSize', e.target.value)}
-          placeholder="e.g., 1-3 people, 5-10 people"
-          helper="How many people are involved in delivering this service?"
-        />
-      </div>
-
-      {/* Availability */}
-      <div>
-        <Input
-          label="Availability"
-          value={getNestedValue(safeFormData, 'serviceDetails.availability') || ''}
-          onChange={(e) => handleChange('serviceDetails.availability', e.target.value)}
-          placeholder="e.g., Monday-Friday 9AM-6PM, Weekends available"
-          helper="When are you available to provide this service?"
-        />
-      </div>
-
-      {/* Languages */}
+      {/* Specifications */}
       <div className="space-y-4">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Languages</h3>
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Specifications</h3>
 
-        <div className="flex flex-wrap gap-2 mb-3">
-          {['English', 'Amharic', 'Oromo', 'Tigrinya', 'Arabic', 'French'].map(language => (
-            <button
-              key={language}
-              type="button"
-              onClick={() => {
-                if (!safeFormData.serviceDetails.languages.includes(language)) {
-                  addToArray('serviceDetails.languages', language, () => {});
-                }
-              }}
-              disabled={safeFormData.serviceDetails.languages.includes(language)}
-              className={`px-3 py-1 text-sm rounded-full border transition-colors ${safeFormData.serviceDetails.languages.includes(language)
-                ? 'bg-green-100 border-green-300 text-green-700 cursor-not-allowed'
-                : 'border-gray-300 hover:border-primary-500 hover:bg-primary-50'
-                }`}
-            >
-              {language}
-              {safeFormData.serviceDetails.languages.includes(language) && ' ✓'}
-            </button>
-          ))}
-        </div>
-
-        {/* Selected Languages */}
-        {safeFormData.serviceDetails.languages.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {safeFormData.serviceDetails.languages.map((language, index) => (
-              <span
-                key={index}
-                className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-              >
-                {language}
-                <button
-                  type="button"
-                  onClick={() => removeFromArray('serviceDetails.languages', index)}
-                  className="ml-2 text-blue-500 hover:text-blue-700"
-                >
-                  <XMarkIcon className="h-4 w-4" />
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Certifications */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Certifications</h3>
-
-        <div className="flex gap-2">
+        {/* Add New Specification */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
           <Input
-            placeholder="Add certification or qualification"
-            value={newCertification}
-            onChange={(e) => setNewCertification(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                addToArray('serviceDetails.certifications', newCertification, setNewCertification);
-              }
-            }}
+            placeholder="Specification name"
+            value={newSpecification.name}
+            onChange={(e) => setNewSpecification({...newSpecification, name: e.target.value})}
+            className="text-base"
+          />
+          <Input
+            placeholder="Value"
+            value={newSpecification.value}
+            onChange={(e) => setNewSpecification({...newSpecification, value: e.target.value})}
+            className="text-base"
+          />
+          <Input
+            placeholder="Group (optional)"
+            value={newSpecification.group}
+            onChange={(e) => setNewSpecification({...newSpecification, group: e.target.value})}
+            className="text-base"
           />
           <Button
             type="button"
             variant="outline"
-            onClick={() => addToArray('serviceDetails.certifications', newCertification, setNewCertification)}
-            disabled={!newCertification.trim()}
+            onClick={addSpecification}
+            disabled={!newSpecification.name.trim() || !newSpecification.value.trim()}
           >
             <PlusIcon className="h-4 w-4" />
           </Button>
         </div>
 
-        {/* Selected Certifications */}
-        {safeFormData.serviceDetails.certifications.length > 0 && (
+        {/* Existing Specifications */}
+        {safeFormData.specifications.length > 0 && (
           <div className="space-y-2">
-            {safeFormData.serviceDetails.certifications.map((cert, index) => (
+            {safeFormData.specifications.map((spec, index) => (
               <div
                 key={index}
                 className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg"
               >
-                <span className="text-sm text-gray-900 dark:text-gray-100">{cert}</span>
+                <div className="flex-1">
+                  <span className="font-medium text-gray-900 dark:text-gray-100">{spec.name}: </span>
+                  <span className="text-gray-600 dark:text-gray-400">{spec.value}</span>
+                  {spec.group && (
+                    <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">({spec.group})</span>
+                  )}
+                </div>
                 <button
                   type="button"
-                  onClick={() => removeFromArray('serviceDetails.certifications', index)}
+                  onClick={() => removeSpecification(index)}
                   className="text-red-500 hover:text-red-700"
                 >
                   <XMarkIcon className="h-4 w-4" />
@@ -718,66 +988,188 @@ const DetailsStep = ({ formData, errors, onChange }) => {
         )}
       </div>
 
-      {/* Service Features */}
+      {/* Warranty */}
       <div className="space-y-4">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Service Features</h3>
-
-        <div className="flex gap-2">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Warranty</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Input
-            placeholder="Add service feature (e.g., Free consultation, 24/7 support)"
-            value={newFeature}
-            onChange={(e) => setNewFeature(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                addToArray('serviceDetails.features', newFeature, setNewFeature);
-              }
-            }}
+            label="Duration"
+            type="number"
+            min="0"
+            value={safeFormData.warranty.duration}
+            onChange={(e) => handleChange('warranty.duration', e.target.value)}
+            placeholder="12"
+            className="text-base"
           />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => addToArray('serviceDetails.features', newFeature, setNewFeature)}
-            disabled={!newFeature.trim()}
-          >
-            <PlusIcon className="h-4 w-4" />
-          </Button>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Unit
+            </label>
+            <select
+              value={safeFormData.warranty.unit}
+              onChange={(e) => handleChange('warranty.unit', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
+            >
+              <option value="days">Days</option>
+              <option value="months">Months</option>
+              <option value="years">Years</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Type
+            </label>
+            <select
+              value={safeFormData.warranty.type}
+              onChange={(e) => handleChange('warranty.type', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
+            >
+              <option value="manufacturer">Manufacturer</option>
+              <option value="seller">Seller</option>
+              <option value="none">No Warranty</option>
+            </select>
+          </div>
         </div>
 
-        {/* Selected Features */}
-        {safeFormData.serviceDetails.features.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {safeFormData.serviceDetails.features.map((feature, index) => (
-              <span
-                key={index}
-                className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-100 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300"
-              >
-                {feature}
-                <button
-                  type="button"
-                  onClick={() => removeFromArray('serviceDetails.features', index)}
-                  className="ml-2 text-purple-500 hover:text-purple-700"
-                >
-                  <XMarkIcon className="h-4 w-4" />
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Warranty Description
+          </label>
+          <textarea
+            value={safeFormData.warranty.description}
+            onChange={(e) => handleChange('warranty.description', e.target.value)}
+            rows={3}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base resize-none"
+            placeholder="Describe what the warranty covers..."
+          />
+        </div>
       </div>
 
-      {/* Instant Booking */}
-      <div className="flex items-center">
-        <input
-          type="checkbox"
-          id="instantBooking"
-          checked={getNestedValue(safeFormData, 'serviceDetails.instantBooking') || false}
-          onChange={(e) => handleChange('serviceDetails.instantBooking', e.target.checked)}
-          className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-        />
-        <label htmlFor="instantBooking" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-          Allow instant booking (customers can book immediately without approval)
-        </label>
+      {/* Shipping Information */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Shipping Information</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Input
+            label="Weight (kg)"
+            type="number"
+            min="0"
+            step="0.1"
+            value={safeFormData.shipping.weight}
+            onChange={(e) => handleChange('shipping.weight', e.target.value)}
+            placeholder="0.5"
+            className="text-base"
+          />
+
+          <Input
+            label="Shipping Class"
+            value={safeFormData.shipping.shippingClass}
+            onChange={(e) => handleChange('shipping.shippingClass', e.target.value)}
+            placeholder="Standard"
+            className="text-base"
+          />
+
+          <Input
+            label="Shipping Cost (ETB)"
+            type="number"
+            min="0"
+            value={safeFormData.shipping.shippingCost}
+            onChange={(e) => handleChange('shipping.shippingCost', e.target.value)}
+            placeholder="100"
+            className="text-base"
+          />
+        </div>
+
+        <div>
+          <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Dimensions (cm)
+          </h4>
+          <div className="grid grid-cols-3 gap-4">
+            <Input
+              label="Length"
+              type="number"
+              min="0"
+              value={safeFormData.shipping.dimensions.length}
+              onChange={(e) => handleChange('shipping.dimensions', {
+                ...safeFormData.shipping.dimensions,
+                length: e.target.value
+              })}
+              placeholder="10"
+              className="text-base"
+            />
+            <Input
+              label="Width"
+              type="number"
+              min="0"
+              value={safeFormData.shipping.dimensions.width}
+              onChange={(e) => handleChange('shipping.dimensions', {
+                ...safeFormData.shipping.dimensions,
+                width: e.target.value
+              })}
+              placeholder="10"
+              className="text-base"
+            />
+            <Input
+              label="Height"
+              type="number"
+              min="0"
+              value={safeFormData.shipping.dimensions.height}
+              onChange={(e) => handleChange('shipping.dimensions', {
+                ...safeFormData.shipping.dimensions,
+                height: e.target.value
+              })}
+              placeholder="10"
+              className="text-base"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            id="freeShipping"
+            checked={safeFormData.shipping.freeShipping}
+            onChange={(e) => handleChange('shipping.freeShipping', e.target.checked)}
+            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          />
+          <label htmlFor="freeShipping" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+            Free shipping available
+          </label>
+        </div>
+      </div>
+
+      {/* Return Policy */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Return Policy</h3>
+        
+        <div className="flex items-center mb-4">
+          <input
+            type="checkbox"
+            id="returnable"
+            checked={safeFormData.returnPolicy.returnable}
+            onChange={(e) => handleChange('returnPolicy.returnable', e.target.checked)}
+            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          />
+          <label htmlFor="returnable" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+            Returns accepted
+          </label>
+        </div>
+
+        {safeFormData.returnPolicy.returnable && (
+          <Input
+            label="Return Period (days)"
+            type="number"
+            min="1"
+            max="365"
+            value={safeFormData.returnPolicy.returnPeriod}
+            onChange={(e) => handleChange('returnPolicy.returnPeriod', e.target.value)}
+            placeholder="30"
+            className="text-base"
+          />
+        )}
       </div>
     </div>
   );

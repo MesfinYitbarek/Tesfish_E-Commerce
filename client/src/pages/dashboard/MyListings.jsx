@@ -1,3 +1,4 @@
+// pages/dashboard/MyListings.jsx
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
@@ -7,7 +8,9 @@ import {
   AdjustmentsHorizontalIcon,
   EyeIcon,
   Squares2X2Icon,
-  ListBulletIcon
+  ListBulletIcon,
+  HomeIcon,
+  BuildingOfficeIcon
 } from '@heroicons/react/24/outline';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -23,26 +26,21 @@ import {
   setViewMode,
   deleteProduct
 } from '../../store/slices/productSlice';
-import {
-  selectProducts,
-  selectProductLoading,
-  selectPagination,
-  selectFilters,
-  selectViewMode,
-  selectProductError
-} from '../../store/selectors/productSelectors';
 
 const MyListings = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const dispatch = useDispatch();
 
   // Select data from Redux store
-  const products = useSelector(selectProducts);
-  const isLoading = useSelector(selectProductLoading);
-  const error = useSelector(selectProductError);
-  const pagination = useSelector(selectPagination);
-  const reduxFilters = useSelector(selectFilters);
-  const viewMode = useSelector(selectViewMode);
+  const { 
+    products = [], 
+    isLoading = false, 
+    error = null, 
+    pagination = {}, 
+    filters: reduxFilters = {}, 
+    viewMode = 'grid',
+    stats = {}
+  } = useSelector((state) => state.products || {});
 
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, product: null });
@@ -53,10 +51,12 @@ const MyListings = () => {
   const [filters, setLocalFilters] = useState({
     search: searchParams.get('search') || reduxFilters.search || '',
     status: searchParams.get('status') || 'all',
-    type: searchParams.get('type') || reduxFilters.type || 'all',
+    productType: searchParams.get('productType') || reduxFilters.productType || 'all',
+    subProductType: searchParams.get('subProductType') || 'all',
+    listingType: searchParams.get('listingType') || 'all',
     sort: searchParams.get('sort') || reduxFilters.sort || 'newest',
     page: parseInt(searchParams.get('page')) || pagination.currentPage || 1,
-    limit: parseInt(searchParams.get('limit')) || pagination.limit || 10
+    limit: parseInt(searchParams.get('limit')) || pagination.limit || 12
   });
 
   useEffect(() => {
@@ -69,9 +69,10 @@ const MyListings = () => {
     // Dispatch fetchProducts action with current filters
     const fetchParams = {
       ...filters,
-      sellerOnly: true, // Only fetch current user's products
       status: filters.status !== 'all' ? filters.status : undefined,
-      productType: filters.type !== 'all' ? filters.type : undefined
+      productType: filters.productType !== 'all' ? filters.productType : undefined,
+      subProductType: filters.subProductType !== 'all' ? filters.subProductType : undefined,
+      listingType: filters.listingType !== 'all' ? filters.listingType : undefined
     };
     
     dispatch(fetchMyProducts(fetchParams));
@@ -147,8 +148,9 @@ const MyListings = () => {
       all: pagination.totalProducts || 0,
       active: productsArray.filter(p => p?.status === 'active').length,
       draft: productsArray.filter(p => p?.status === 'draft').length,
-      pending: productsArray.filter(p => p?.status === 'pending').length,
+      'pending-approval': productsArray.filter(p => p?.status === 'pending-approval').length,
       sold: productsArray.filter(p => p?.status === 'sold').length,
+      rented: productsArray.filter(p => p?.status === 'rented').length,
       'out-of-stock': productsArray.filter(p => p?.status === 'out-of-stock').length,
       discontinued: productsArray.filter(p => p?.status === 'discontinued').length
     };
@@ -160,8 +162,9 @@ const MyListings = () => {
     { key: 'all', label: 'All', count: statusCounts.all },
     { key: 'active', label: 'Active', count: statusCounts.active },
     { key: 'draft', label: 'Drafts', count: statusCounts.draft },
-    { key: 'pending', label: 'Pending', count: statusCounts.pending },
+    { key: 'pending-approval', label: 'Pending', count: statusCounts['pending-approval'] },
     { key: 'sold', label: 'Sold', count: statusCounts.sold },
+    { key: 'rented', label: 'Rented', count: statusCounts.rented },
     { key: 'out-of-stock', label: 'Out of Stock', count: statusCounts['out-of-stock'] },
     { key: 'discontinued', label: 'Discontinued', count: statusCounts.discontinued }
   ];
@@ -171,17 +174,39 @@ const MyListings = () => {
     { value: 'oldest', label: 'Oldest First' },
     { value: 'views', label: 'Most Viewed' },
     { value: 'price-high', label: 'Price: High to Low' },
-    { value: 'price-low', label: 'Price: Low to High' }
+    { value: 'price-low', label: 'Price: Low to High' },
+    { value: 'inquiries', label: 'Most Inquiries' }
   ];
 
   const productTypeOptions = [
     { value: 'all', label: 'All Types' },
-    { value: 'physical', label: 'Physical Products' },
-    { value: 'digital', label: 'Digital Products' },
-    { value: 'service', label: 'Services' },
-    { value: 'real-estate', label: 'Real Estate' },
-    { value: 'rental', label: 'Rentals' }
+    { value: 'homes', label: 'Homes' },
+    { value: 'plots', label: 'Plots & Land' },
+    { value: 'commercials', label: 'Commercial Properties' },
+    { value: 'others', label: 'Other Products' }
   ];
+
+  const listingTypeOptions = [
+    { value: 'all', label: 'All Listings' },
+    { value: 'sell', label: 'For Sale' },
+    { value: 'rent', label: 'For Rent' }
+  ];
+
+  // Calculate stats from current products
+  const calculateStats = () => {
+    const productsArray = Array.isArray(products) ? products : [];
+    
+    return {
+      totalViews: productsArray.reduce((sum, p) => sum + (p.views || 0), 0),
+      totalInquiries: productsArray.reduce((sum, p) => sum + (p.totalInquiries || 0), 0),
+      avgRating: productsArray.length > 0 
+        ? (productsArray.reduce((sum, p) => sum + (p.reviews?.average || 0), 0) / productsArray.length).toFixed(1)
+        : 0,
+      responseRate: stats?.responseRate || 95 // Mock response rate
+    };
+  };
+
+  const currentStats = calculateStats();
 
   return (
     <div className="space-y-6">
@@ -192,14 +217,14 @@ const MyListings = () => {
             My Listings
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Manage your property and service listings
+            Manage your property and product listings
           </p>
         </div>
 
         <div className="flex items-center space-x-3">
-          <Link to="/dashboard/products/create">
+          <Link to="/dashboard/listings/create">
             <Button leftIcon={<PlusIcon className="h-4 w-4" />}>
-              Add New Listing
+              Create New Listing
             </Button>
           </Link>
         </div>
@@ -216,7 +241,7 @@ const MyListings = () => {
               </p>
             </div>
             <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
-              <Squares2X2Icon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <HomeIcon className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
           </div>
         </div>
@@ -226,7 +251,7 @@ const MyListings = () => {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Total Views</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {products.reduce((sum, p) => sum + (p.views || 0), 0).toLocaleString()}
+                {currentStats.totalViews.toLocaleString()}
               </p>
             </div>
             <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-lg flex items-center justify-center">
@@ -238,14 +263,14 @@ const MyListings = () => {
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow border border-gray-200 dark:border-gray-800 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Total Sales</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Total Inquiries</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {products.reduce((sum, p) => sum + (p.totalSales || 0), 0)}
+                {currentStats.totalInquiries}
               </p>
             </div>
             <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center">
               <svg className="h-5 w-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
               </svg>
             </div>
           </div>
@@ -254,16 +279,14 @@ const MyListings = () => {
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow border border-gray-200 dark:border-gray-800 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Rating</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400">Response Rate</p>
               <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {products.length > 0 
-                  ? (products.reduce((sum, p) => sum + (p.reviews?.average || 0), 0) / products.length).toFixed(1)
-                  : 0}/5
+                {currentStats.responseRate}%
               </p>
             </div>
             <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/20 rounded-lg flex items-center justify-center">
               <svg className="h-5 w-5 text-orange-600 dark:text-orange-400" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
               </svg>
             </div>
           </div>
@@ -280,7 +303,7 @@ const MyListings = () => {
                 onClick={() => handleFilterChange({ status: tab.key })}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
                   filters.status === tab.key
-                    ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                    ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
                     : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
                 }`}
               >
@@ -288,7 +311,7 @@ const MyListings = () => {
                 {tab.count > 0 && (
                   <span className={`ml-2 px-2 py-1 text-xs rounded-full ${
                     filters.status === tab.key
-                      ? 'bg-primary-100 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
+                      ? 'bg-indigo-100 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400'
                       : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
                   }`}>
                     {tab.count}
@@ -310,13 +333,14 @@ const MyListings = () => {
                   value={filters.search}
                   onChange={(e) => handleFilterChange({ search: e.target.value })}
                   leftIcon={<MagnifyingGlassIcon className="h-4 w-4" />}
+                  className="text-base"
                 />
               </div>
 
               <select
-                value={filters.type}
-                onChange={(e) => handleFilterChange({ type: e.target.value })}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                value={filters.productType}
+                onChange={(e) => handleFilterChange({ productType: e.target.value })}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
               >
                 {productTypeOptions.map(option => (
                   <option key={option.value} value={option.value}>
@@ -326,9 +350,21 @@ const MyListings = () => {
               </select>
 
               <select
+                value={filters.listingType}
+                onChange={(e) => handleFilterChange({ listingType: e.target.value })}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
+              >
+                {listingTypeOptions.map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+
+              <select
                 value={filters.sort}
                 onChange={(e) => handleFilterChange({ sort: e.target.value })}
-                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
               >
                 {sortOptions.map(option => (
                   <option key={option.value} value={option.value}>
@@ -365,7 +401,7 @@ const MyListings = () => {
                   onClick={() => handleViewModeChange('table')}
                   className={`p-2 rounded-md transition-colors ${
                     viewMode === 'table'
-                      ? 'bg-white dark:bg-gray-700 text-primary-500 shadow-sm'
+                      ? 'bg-white dark:bg-gray-700 text-indigo-500 shadow-sm'
                       : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
                   }`}
                 >
@@ -375,7 +411,7 @@ const MyListings = () => {
                   onClick={() => handleViewModeChange('grid')}
                   className={`p-2 rounded-md transition-colors ${
                     viewMode === 'grid'
-                      ? 'bg-white dark:bg-gray-700 text-primary-500 shadow-sm'
+                      ? 'bg-white dark:bg-gray-700 text-indigo-500 shadow-sm'
                       : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
                   }`}
                 >
@@ -423,19 +459,19 @@ const MyListings = () => {
           ) : (
             <div className="text-center py-12">
               <div className="w-24 h-24 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Squares2X2Icon className="h-12 w-12 text-gray-400" />
+                <BuildingOfficeIcon className="h-12 w-12 text-gray-400" />
               </div>
               <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
                 No listings found
               </h3>
               <p className="text-gray-600 dark:text-gray-400 mb-6">
-                {filters.search || filters.status !== 'all' || filters.type !== 'all'
+                {filters.search || filters.status !== 'all' || filters.productType !== 'all'
                   ? 'Try adjusting your search criteria or filters.'
                   : 'Get started by creating your first listing.'}
               </p>
-              <Link to="/dashboard/products/create">
+              <Link to="/dashboard/listings/create">
                 <Button leftIcon={<PlusIcon className="h-4 w-4" />}>
-                  Add Your First Listing
+                  Create Your First Listing
                 </Button>
               </Link>
             </div>

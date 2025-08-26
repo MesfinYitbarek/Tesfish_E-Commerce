@@ -1,3 +1,4 @@
+// components/admin/ListingDetailsModal.jsx
 import { useState } from 'react';
 import { 
   XMarkIcon,
@@ -13,11 +14,43 @@ import {
   EnvelopeIcon,
   EyeIcon,
   ChevronLeftIcon,
-  ChevronRightIcon
+  ChevronRightIcon,
+  HomeIcon,
+  TagIcon
 } from '@heroicons/react/24/outline';
 import Button from '../ui/Button';
-import Input from '../ui/Input';
-import { formatCurrency, formatRelativeTime, formatDate } from '../../utils/helpers';
+
+// Helper functions
+const formatCurrency = (amount, currency = 'ETB') => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency === 'ETB' ? 'USD' : currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount).replace('$', currency === 'ETB' ? 'ETB ' : '$');
+};
+
+const formatRelativeTime = (date) => {
+  const now = new Date();
+  const diffInSeconds = Math.floor((now - new Date(date)) / 1000);
+  
+  if (diffInSeconds < 60) return 'Just now';
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+  
+  return new Date(date).toLocaleDateString();
+};
+
+const formatDate = (date) => {
+  return new Date(date).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
 
 const ListingDetailsModal = ({ listing, onClose, onListingAction }) => {
   const [activeTab, setActiveTab] = useState('details');
@@ -28,7 +61,8 @@ const ListingDetailsModal = ({ listing, onClose, onListingAction }) => {
   const tabs = [
     { id: 'details', label: 'Listing Details', icon: BuildingOfficeIcon },
     { id: 'seller', label: 'Seller Info', icon: UserIcon },
-    { id: 'images', label: 'Images', icon: EyeIcon }
+    { id: 'images', label: 'Images', icon: EyeIcon },
+    { id: 'raw', label: 'Raw Data', icon: TagIcon }
   ];
 
   const getStatusColor = (status) => {
@@ -55,15 +89,19 @@ const ListingDetailsModal = ({ listing, onClose, onListingAction }) => {
   };
 
   const nextImage = () => {
-    setActiveImageIndex((prev) => 
-      prev === listing.images.length - 1 ? 0 : prev + 1
-    );
+    if (listing.images && listing.images.length > 0) {
+      setActiveImageIndex((prev) => 
+        prev === listing.images.length - 1 ? 0 : prev + 1
+      );
+    }
   };
 
   const prevImage = () => {
-    setActiveImageIndex((prev) => 
-      prev === 0 ? listing.images.length - 1 : prev - 1
-    );
+    if (listing.images && listing.images.length > 0) {
+      setActiveImageIndex((prev) => 
+        prev === 0 ? listing.images.length - 1 : prev - 1
+      );
+    }
   };
 
   const rejectionReasons = [
@@ -74,7 +112,9 @@ const ListingDetailsModal = ({ listing, onClose, onListingAction }) => {
     'Duplicate listing',
     'Missing documentation',
     'Suspicious activity',
-    'Violation of terms'
+    'Violation of terms',
+    'Misleading information',
+    'Contact details invalid'
   ];
 
   return (
@@ -97,6 +137,9 @@ const ListingDetailsModal = ({ listing, onClose, onListingAction }) => {
                     src={listing.images[0]}
                     alt={listing.title}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src = '/api/placeholder/48/48';
+                    }}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
@@ -114,6 +157,9 @@ const ListingDetailsModal = ({ listing, onClose, onListingAction }) => {
                   </span>
                   <span className="text-sm text-gray-500 dark:text-gray-400">
                     ID: {listing.id}
+                  </span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {listing.type}
                   </span>
                   {listing.flagged && (
                     <div className="flex items-center space-x-1 text-red-600 dark:text-red-400">
@@ -222,7 +268,7 @@ const ListingDetailsModal = ({ listing, onClose, onListingAction }) => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                     activeTab === tab.id
-                      ? 'border-red-500 text-red-600 dark:text-red-400'
+                      ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
                       : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
                   }`}
                 >
@@ -250,18 +296,32 @@ const ListingDetailsModal = ({ listing, onClose, onListingAction }) => {
                       <p className="mt-1 text-gray-900 dark:text-gray-100">{listing.title}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Type</label>
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Product Type</label>
                       <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">{listing.type}</p>
                     </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Category</label>
-                      <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">{listing.category}</p>
-                    </div>
+                    {listing.subType && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Sub Type</label>
+                        <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">{listing.subType}</p>
+                      </div>
+                    )}
+                    {listing.listingType && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Listing Type</label>
+                        <p className="mt-1 text-gray-900 dark:text-gray-100 capitalize">
+                          For {listing.listingType === 'sell' ? 'Sale' : 'Rent'}
+                        </p>
+                      </div>
+                    )}
                     <div>
                       <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Price</label>
                       <p className="mt-1 text-gray-900 dark:text-gray-100 font-semibold">
                         {formatCurrency(listing.price, listing.currency)}
                       </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Views</label>
+                      <p className="mt-1 text-gray-900 dark:text-gray-100">{listing.views}</p>
                     </div>
                   </div>
                 </div>
@@ -285,11 +345,14 @@ const ListingDetailsModal = ({ listing, onClose, onListingAction }) => {
                     <MapPinIcon className="h-5 w-5 text-gray-400 mt-0.5" />
                     <div>
                       <p className="text-gray-900 dark:text-gray-100 font-medium">
-                        {listing.location.city}, {listing.location.subcity}
+                        {listing.location.city}
+                        {listing.location.subcity && `, ${listing.location.subcity}`}
                       </p>
-                      <p className="text-gray-600 dark:text-gray-400 text-sm">
-                        {listing.location.address}
-                      </p>
+                      {listing.location.address && (
+                        <p className="text-gray-600 dark:text-gray-400 text-sm">
+                          {listing.location.address}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -304,7 +367,7 @@ const ListingDetailsModal = ({ listing, onClose, onListingAction }) => {
                       {listing.features.map((feature, index) => (
                         <span
                           key={index}
-                          className="px-3 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-sm rounded-full"
+                          className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 text-sm rounded-full"
                         >
                           {feature}
                         </span>
@@ -314,7 +377,7 @@ const ListingDetailsModal = ({ listing, onClose, onListingAction }) => {
                 )}
 
                 {/* Specifications */}
-                {listing.specifications && (
+                {listing.specifications && Object.keys(listing.specifications).length > 0 && (
                   <div>
                     <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
                       Specifications
@@ -365,10 +428,10 @@ const ListingDetailsModal = ({ listing, onClose, onListingAction }) => {
                       {listing.seller.name}
                     </h4>
                     <p className="text-gray-600 dark:text-gray-400 capitalize">
-                      {listing.seller.type}
+                      {listing.seller.type} Seller
                     </p>
                     {listing.seller.verified && (
-                      <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-full mt-2">
+                      <span className="inline-flex items-center px-2 py-1 text-xs font-medium bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-full mt-2">
                         <CheckIcon className="h-3 w-3 mr-1" />
                         Verified
                       </span>
@@ -399,27 +462,27 @@ const ListingDetailsModal = ({ listing, onClose, onListingAction }) => {
                   </div>
                 </div>
 
-                {/* Seller Statistics */}
+                {/* Performance Metrics */}
                 <div>
                   <h5 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-3">
-                    Seller Statistics
+                    Performance Metrics
                   </h5>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Total Listings</p>
-                      <p className="text-xl font-bold text-gray-900 dark:text-gray-100">12</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Views</p>
+                      <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{listing.views}</p>
                     </div>
                     <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Active Listings</p>
-                      <p className="text-xl font-bold text-gray-900 dark:text-gray-100">8</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Inquiries</p>
+                      <p className="text-xl font-bold text-gray-900 dark:text-gray-100">{listing.inquiries}</p>
                     </div>
                     <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Member Since</p>
-                      <p className="text-xl font-bold text-gray-900 dark:text-gray-100">2023</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Priority</p>
+                      <p className="text-xl font-bold text-gray-900 dark:text-gray-100 capitalize">{listing.priority}</p>
                     </div>
                     <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
-                      <p className="text-sm text-gray-600 dark:text-gray-400">Response Rate</p>
-                      <p className="text-xl font-bold text-gray-900 dark:text-gray-100">95%</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Status</p>
+                      <p className="text-xl font-bold text-gray-900 dark:text-gray-100 capitalize">{listing.status}</p>
                     </div>
                   </div>
                 </div>
@@ -436,6 +499,9 @@ const ListingDetailsModal = ({ listing, onClose, onListingAction }) => {
                         src={listing.images[activeImageIndex]}
                         alt={`${listing.title} - Image ${activeImageIndex + 1}`}
                         className="w-full h-64 object-cover rounded-lg"
+                        onError={(e) => {
+                          e.target.src = '/api/placeholder/600/256';
+                        }}
                       />
                       
                       {listing.images.length > 1 && (
@@ -468,13 +534,16 @@ const ListingDetailsModal = ({ listing, onClose, onListingAction }) => {
                             key={index}
                             onClick={() => setActiveImageIndex(index)}
                             className={`relative aspect-square rounded-lg overflow-hidden ${
-                              index === activeImageIndex ? 'ring-2 ring-red-500' : ''
+                              index === activeImageIndex ? 'ring-2 ring-indigo-500' : ''
                             }`}
                           >
                             <img
                               src={image}
                               alt={`Thumbnail ${index + 1}`}
                               className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = '/api/placeholder/100/100';
+                              }}
                             />
                           </button>
                         ))}
@@ -489,12 +558,26 @@ const ListingDetailsModal = ({ listing, onClose, onListingAction }) => {
                 )}
               </div>
             )}
+
+            {activeTab === 'raw' && (
+              <div className="space-y-4">
+                <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                  Raw Product Data
+                </h4>
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 overflow-auto">
+                  <pre className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                    {JSON.stringify(listing.originalProduct, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Footer */}
           <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800 flex justify-between items-center">
             <div className="text-sm text-gray-500 dark:text-gray-400">
-              Submitted on {formatDate(listing.submittedAt)}
+              <div>Submitted: {formatDate(listing.submittedAt)}</div>
+              <div>Updated: {formatDate(listing.updatedAt)}</div>
             </div>
             <Button variant="outline" onClick={onClose}>
               Close

@@ -4,172 +4,152 @@ import {
   VideoCameraIcon, 
   DocumentIcon,
   XMarkIcon,
-  ArrowUpTrayIcon,
   EyeIcon,
-  TrashIcon,
-  CheckCircleIcon,
-  ExclamationCircleIcon
+  StarIcon,
+  CloudArrowUpIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import Button from '../../ui/Button';
-import { formatFileSize } from '../../../utils/helpers';
 
 const MediaStep = ({ formData, errors, onChange }) => {
   const [uploadProgress, setUploadProgress] = useState({});
-  const [dragOver, setDragOver] = useState(false);
-  const imageInputRef = useRef(null);
+  const [dragActive, setDragActive] = useState(false);
+  const fileInputRef = useRef(null);
   const videoInputRef = useRef(null);
   const documentInputRef = useRef(null);
 
+  const isRealEstate = ['homes', 'plots', 'commercials'].includes(formData.productType);
+
+  // Safe media object
+  const safeMedia = {
+    images: [],
+    videos: [],
+    documents: [],
+    virtualTour: '',
+    ...formData.media
+  };
+
   const handleChange = (field, value) => {
-    if (field.includes('.')) {
-      const [parent, child] = field.split('.');
-      onChange({
-        [parent]: {
-          ...formData[parent],
-          [child]: value
-        }
-      });
-    } else {
-      onChange({ [field]: value });
+    onChange({
+      media: {
+        ...safeMedia,
+        [field]: value
+      }
+    });
+  };
+
+  // Drag and drop handlers
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
     }
   };
 
-  // Show custom notification instead of alert()
-  const showNotification = (message, type = 'error') => {
-    const notification = document.createElement('div');
-    notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
-      type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
-    }`;
-    notification.textContent = message;
-    document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 5000);
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      const files = Array.from(e.dataTransfer.files);
+      handleFiles(files, 'images');
+    }
   };
 
-  const handleFileUpload = async (files, type) => {
-    const fileArray = Array.from(files);
-    const currentMedia = formData.media[type] || [];
-    
-    // Check file count limits
-    const maxFiles = type === 'images' ? 10 : 5;
-    if (currentMedia.length + fileArray.length > maxFiles) {
-      showNotification(`Maximum ${maxFiles} ${type} allowed`);
-      return;
-    }
-    
-    // Validate file types and sizes
-    const validFiles = fileArray.filter(file => {
+  // File handling
+  const handleFiles = async (files, type = 'images') => {
+    const validFiles = files.filter(file => {
       if (type === 'images') {
-        return file.type.startsWith('image/') && file.size <= 10 * 1024 * 1024; // 10MB
+        return file.type.startsWith('image/');
       } else if (type === 'videos') {
-        return file.type.startsWith('video/') && file.size <= 100 * 1024 * 1024; // 100MB
+        return file.type.startsWith('video/');
       } else if (type === 'documents') {
-        return ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.type) && file.size <= 20 * 1024 * 1024; // 20MB
+        return file.type === 'application/pdf' || 
+               file.type.startsWith('application/') ||
+               file.type.startsWith('text/');
       }
       return false;
     });
 
-    if (validFiles.length !== fileArray.length) {
-      const rejectedCount = fileArray.length - validFiles.length;
-      showNotification(`${rejectedCount} file(s) were rejected. Please check file types and sizes.`);
+    if (validFiles.length === 0) {
+      alert(`No valid ${type} files selected`);
+      return;
     }
 
-    if (validFiles.length === 0) return;
-
-    // Process valid files - store files for later upload
-    const processedFiles = validFiles.map((file) => {
+    // Simulate file upload (replace with actual upload logic)
+    for (const file of validFiles) {
       const fileId = Date.now() + Math.random();
-      
-      return {
-        id: fileId,
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        url: URL.createObjectURL(file), // Preview URL
-        file: file, // Store original file for backend upload
-        uploadedAt: new Date().toISOString(),
-        status: 'pending', // pending, uploading, uploaded, error
-        cloudinaryUrl: null, // Will be set after successful upload
-        publicId: null, // Cloudinary public ID
-        isPrimary: type === 'images' && currentMedia.length === 0 // First image is primary
-      };
-    });
+      setUploadProgress(prev => ({ ...prev, [fileId]: 0 }));
 
-    // Update form data immediately for UI responsiveness
-    handleChange(`media.${type}`, [...currentMedia, ...processedFiles]);
-  };
+      // Simulate upload progress
+      const uploadSimulation = setInterval(() => {
+        setUploadProgress(prev => {
+          const currentProgress = prev[fileId] || 0;
+          if (currentProgress >= 100) {
+            clearInterval(uploadSimulation);
+            
+            // Add file to media array
+            const newFile = {
+              id: fileId,
+              name: file.name,
+              size: file.size,
+              type: file.type,
+              url: URL.createObjectURL(file), // In production, this would be the uploaded file URL
+              file: file, // Keep reference for actual upload
+              isPrimary: type === 'images' && safeMedia.images.length === 0
+            };
 
-  const removeFile = (type, fileId) => {
-    const currentMedia = formData.media[type] || [];
-    const updatedMedia = currentMedia.filter(file => file.id !== fileId);
-    
-    // If we removed the primary image, make the first remaining image primary
-    if (type === 'images' && updatedMedia.length > 0) {
-      const hasPrimary = updatedMedia.some(file => file.isPrimary);
-      if (!hasPrimary) {
-        updatedMedia[0].isPrimary = true;
-      }
+            handleChange(type, [...safeMedia[type], newFile]);
+            
+            // Remove from progress tracking
+            setUploadProgress(prev => {
+              const newProgress = { ...prev };
+              delete newProgress[fileId];
+              return newProgress;
+            });
+            
+            return prev;
+          }
+          return { ...prev, [fileId]: currentProgress + 10 };
+        });
+      }, 100);
     }
-    
-    handleChange(`media.${type}`, updatedMedia);
   };
 
-  const setPrimaryImage = (fileId) => {
-    const currentMedia = formData.media.images || [];
-    const updatedMedia = currentMedia.map(file => ({
-      ...file,
-      isPrimary: file.id === fileId
+  const removeFile = (type, index) => {
+    const updatedFiles = safeMedia[type].filter((_, i) => i !== index);
+    handleChange(type, updatedFiles);
+  };
+
+  const setPrimaryImage = (index) => {
+    const updatedImages = safeMedia.images.map((img, i) => ({
+      ...img,
+      isPrimary: i === index
     }));
-    handleChange('media.images', updatedMedia);
+    handleChange('images', updatedImages);
   };
 
-  const reorderFiles = (type, fromIndex, toIndex) => {
-    const currentMedia = [...(formData.media[type] || [])];
-    const [movedFile] = currentMedia.splice(fromIndex, 1);
-    currentMedia.splice(toIndex, 0, movedFile);
-    handleChange(`media.${type}`, currentMedia);
-  };
-
-  const handleDrop = (e, type) => {
-    e.preventDefault();
-    setDragOver(false);
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-      handleFileUpload(files, type);
-    }
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setDragOver(false);
-  };
-
-  // Get file status icon
-  const getFileStatusIcon = (status) => {
-    switch (status) {
-      case 'uploaded':
-        return <CheckCircleIcon className="h-4 w-4 text-green-500" />;
-      case 'error':
-        return <ExclamationCircleIcon className="h-4 w-4 text-red-500" />;
-      case 'uploading':
-        return <ArrowUpTrayIcon className="h-4 w-4 text-blue-500 animate-spin" />;
-      default:
-        return null;
-    }
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-          Media Upload
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center">
+          <PhotoIcon className="h-6 w-6 mr-2 text-primary-500" />
+          Media & Documentation
         </h2>
         <p className="text-gray-600 dark:text-gray-400">
-          Add photos, videos, and documents to showcase your {formData.productType === 'real-estate' ? 'property' : 'service'}.
+          Upload photos, videos, and documents to showcase your {isRealEstate ? 'property' : 'product'}.
         </p>
       </div>
 
@@ -180,121 +160,134 @@ const MediaStep = ({ formData, errors, onChange }) => {
             <PhotoIcon className="h-5 w-5 mr-2" />
             Photos *
           </h3>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => imageInputRef.current?.click()}
-          >
-            Add Photos
-          </Button>
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            {safeMedia.images.length}/20 images
+          </span>
         </div>
-
-        <input
-          ref={imageInputRef}
-          type="file"
-          multiple
-          accept="image/*"
-          onChange={(e) => handleFileUpload(e.target.files, 'images')}
-          className="hidden"
-        />
 
         {/* Upload Area */}
         <div
-          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-            dragOver
+          className={`relative border-2 border-dashed rounded-lg p-6 transition-colors ${
+            dragActive
               ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
               : 'border-gray-300 dark:border-gray-600 hover:border-primary-400'
           }`}
-          onDrop={(e) => handleDrop(e, 'images')}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
+          onDragEnter={handleDrag}
+          onDragLeave={handleDrag}
+          onDragOver={handleDrag}
+          onDrop={handleDrop}
         >
-          <PhotoIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-            Drag and drop images here
-          </p>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">
-            or click "Add Photos" to select files
-          </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Supports: JPG, PNG, GIF up to 10MB each (Max 10 files)
-          </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={(e) => handleFiles(Array.from(e.target.files), 'images')}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          />
+          
+          <div className="text-center">
+            <CloudArrowUpIcon className="mx-auto h-12 w-12 text-gray-400" />
+            <div className="mt-4">
+              <p className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                Drop images here or click to upload
+              </p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                PNG, JPG, JPEG up to 10MB each. Maximum 20 images.
+              </p>
+            </div>
+          </div>
         </div>
 
         {errors['media.images'] && (
-          <p className="text-sm text-red-600 dark:text-red-400">{errors['media.images']}</p>
+          <p className="text-sm text-red-600 dark:text-red-400 flex items-center">
+            <ExclamationTriangleIcon className="h-4 w-4 mr-1" />
+            {errors['media.images']}
+          </p>
         )}
 
-        {/* Image Preview Grid */}
-        {formData.media.images && formData.media.images.length > 0 && (
+        {/* Image Grid */}
+        {safeMedia.images.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {formData.media.images.map((image, index) => (
-              <div key={image.id} className="relative group">
-                <div className="aspect-w-1 aspect-h-1 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
+            {safeMedia.images.map((image, index) => (
+              <div key={image.id || index} className="relative group">
+                <div className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden">
                   <img
                     src={image.url}
                     alt={image.name}
                     className="w-full h-full object-cover"
                   />
-                  {uploadProgress[image.id] !== undefined && (
-                    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-                      <div className="text-white text-sm">
-                        {uploadProgress[image.id]}%
-                      </div>
-                    </div>
-                  )}
                 </div>
-
+                
                 {/* Image Controls */}
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="flex space-x-1">
-                    {!image.isPrimary && (
-                      <button
-                        onClick={() => setPrimaryImage(image.id)}
-                        className="p-1 bg-blue-500 bg-opacity-80 text-white rounded hover:bg-opacity-100"
-                        title="Set as primary"
-                      >
-                        <EyeIcon className="h-4 w-4" />
-                      </button>
-                    )}
+                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-opacity rounded-lg flex items-center justify-center">
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity flex space-x-2">
                     <button
-                      onClick={() => removeFile('images', image.id)}
-                      className="p-1 bg-red-500 bg-opacity-80 text-white rounded hover:bg-opacity-100"
+                      type="button"
+                      onClick={() => setPrimaryImage(index)}
+                      className={`p-2 rounded-full ${
+                        image.isPrimary
+                          ? 'bg-yellow-500 text-white'
+                          : 'bg-white text-gray-700 hover:bg-yellow-500 hover:text-white'
+                      }`}
+                      title={image.isPrimary ? 'Primary image' : 'Set as primary'}
+                    >
+                      <StarIcon className="h-4 w-4" />
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => window.open(image.url, '_blank')}
+                      className="p-2 bg-white text-gray-700 rounded-full hover:bg-gray-100"
+                      title="View full size"
+                    >
+                      <EyeIcon className="h-4 w-4" />
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => removeFile('images', index)}
+                      className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600"
                       title="Remove image"
                     >
-                      <TrashIcon className="h-4 w-4" />
+                      <XMarkIcon className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
-
-                {/* Status and Primary Badge */}
-                <div className="absolute bottom-2 left-2 flex items-center space-x-2">
-                  {image.isPrimary && (
-                    <div className="bg-primary-500 text-white text-xs px-2 py-1 rounded">
+                
+                {/* Primary Badge */}
+                {image.isPrimary && (
+                  <div className="absolute top-2 left-2">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-500 text-white">
+                      <StarIcon className="h-3 w-3 mr-1" />
                       Primary
-                    </div>
-                  )}
-                  {getFileStatusIcon(image.status)}
-                </div>
-
-                {/* Image Info */}
-                <div className="mt-2">
-                  <p className="text-sm text-gray-900 dark:text-gray-100 truncate">
-                    {image.name}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {formatFileSize(image.size)}
-                  </p>
-                </div>
+                    </span>
+                  </div>
+                )}
+                
+                <p className="mt-1 text-xs text-gray-600 dark:text-gray-400 truncate">
+                  {image.name}
+                </p>
               </div>
             ))}
           </div>
         )}
 
-        {formData.media.images && formData.media.images.length > 0 && (
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            The primary image will be used as the main thumbnail. Click the eye icon to set a different primary image.
-          </p>
+        {/* Upload Progress */}
+        {Object.keys(uploadProgress).length > 0 && (
+          <div className="space-y-2">
+            {Object.entries(uploadProgress).map(([fileId, progress]) => (
+              <div key={fileId} className="flex items-center space-x-3">
+                <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                  <div
+                    className="bg-primary-500 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <span className="text-sm text-gray-600 dark:text-gray-400">{progress}%</span>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 
@@ -303,73 +296,59 @@ const MediaStep = ({ formData, errors, onChange }) => {
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center">
             <VideoCameraIcon className="h-5 w-5 mr-2" />
-            Videos (Optional)
+            Videos
           </h3>
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            {safeMedia.videos.length}/5 videos
+          </span>
+        </div>
+
+        <div className="flex space-x-3">
           <Button
+            type="button"
             variant="outline"
-            size="sm"
             onClick={() => videoInputRef.current?.click()}
+            disabled={safeMedia.videos.length >= 5}
+            leftIcon={<VideoCameraIcon className="h-4 w-4" />}
           >
-            Add Videos
+            Upload Videos
           </Button>
+          <input
+            ref={videoInputRef}
+            type="file"
+            multiple
+            accept="video/*"
+            onChange={(e) => handleFiles(Array.from(e.target.files), 'videos')}
+            className="hidden"
+          />
         </div>
 
-        <input
-          ref={videoInputRef}
-          type="file"
-          multiple
-          accept="video/*"
-          onChange={(e) => handleFileUpload(e.target.files, 'videos')}
-          className="hidden"
-        />
-
-        {/* Video Upload Area */}
-        <div
-          className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-primary-400 transition-colors"
-          onDrop={(e) => handleDrop(e, 'videos')}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-        >
-          <VideoCameraIcon className="h-10 w-10 text-gray-400 mx-auto mb-3" />
-          <p className="text-gray-600 dark:text-gray-400 mb-2">
-            Add videos to give customers a better view
-          </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Supports: MP4, MOV, AVI up to 100MB each (Max 5 files)
-          </p>
-        </div>
-
-        {/* Video List */}
-        {formData.media.videos && formData.media.videos.length > 0 && (
-          <div className="space-y-3">
-            {formData.media.videos.map((video) => (
-              <div key={video.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <VideoCameraIcon className="h-8 w-8 text-gray-400" />
+        {safeMedia.videos.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {safeMedia.videos.map((video, index) => (
+              <div key={video.id || index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                <div className="aspect-video bg-gray-100 dark:bg-gray-800 rounded-lg mb-3 overflow-hidden">
+                  <video
+                    src={video.url}
+                    controls
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                       {video.name}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
                       {formatFileSize(video.size)}
                     </p>
                   </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  {getFileStatusIcon(video.status)}
                   <button
-                    onClick={() => window.open(video.url, '_blank')}
-                    className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    title="Preview video"
+                    type="button"
+                    onClick={() => removeFile('videos', index)}
+                    className="text-red-500 hover:text-red-700"
                   >
-                    <EyeIcon className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => removeFile('videos', video.id)}
-                    className="p-2 text-red-400 hover:text-red-600"
-                    title="Remove video"
-                  >
-                    <TrashIcon className="h-4 w-4" />
+                    <XMarkIcon className="h-4 w-4" />
                   </button>
                 </div>
               </div>
@@ -377,82 +356,114 @@ const MediaStep = ({ formData, errors, onChange }) => {
           </div>
         )}
       </div>
+
+      {/* Virtual Tour (for real estate) */}
+      {isRealEstate && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center">
+            <EyeIcon className="h-5 w-5 mr-2" />
+            Virtual Tour
+          </h3>
+
+          <div className="space-y-3">
+            <input
+              type="url"
+              value={safeMedia.virtualTour}
+              onChange={(e) => handleChange('virtualTour', e.target.value)}
+              placeholder="https://example.com/virtual-tour"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
+            />
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Add a link to a 360° virtual tour, Matterport scan, or video walkthrough
+            </p>
+
+            {safeMedia.virtualTour && (
+              <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  ✓ Virtual tour link added: 
+                  <a 
+                    href={safeMedia.virtualTour} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="ml-1 underline hover:no-underline"
+                  >
+                    View Tour
+                  </a>
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Documents Section */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center">
             <DocumentIcon className="h-5 w-5 mr-2" />
-            Documents (Optional)
+            Documents
           </h3>
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            {safeMedia.documents.length}/10 documents
+          </span>
+        </div>
+
+        <div className="flex space-x-3">
           <Button
+            type="button"
             variant="outline"
-            size="sm"
             onClick={() => documentInputRef.current?.click()}
+            disabled={safeMedia.documents.length >= 10}
+            leftIcon={<DocumentIcon className="h-4 w-4" />}
           >
-            Add Documents
+            Upload Documents
           </Button>
+          <input
+            ref={documentInputRef}
+            type="file"
+            multiple
+            accept=".pdf,.doc,.docx,.txt"
+            onChange={(e) => handleFiles(Array.from(e.target.files), 'documents')}
+            className="hidden"
+          />
         </div>
 
-        <input
-          ref={documentInputRef}
-          type="file"
-          multiple
-          accept=".pdf,.doc,.docx"
-          onChange={(e) => handleFileUpload(e.target.files, 'documents')}
-          className="hidden"
-        />
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          {isRealEstate 
+            ? 'Upload property documents, legal papers, floor plans, etc. (PDF, DOC, TXT)'
+            : 'Upload product manuals, warranties, certificates, etc. (PDF, DOC, TXT)'
+          }
+        </p>
 
-        {/* Document Upload Area */}
-        <div
-          className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center hover:border-primary-400 transition-colors"
-          onDrop={(e) => handleDrop(e, 'documents')}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-        >
-          <DocumentIcon className="h-10 w-10 text-gray-400 mx-auto mb-3" />
-          <p className="text-gray-600 dark:text-gray-400 mb-2">
-            {formData.productType === 'real-estate' 
-              ? 'Add property documents, floor plans, certificates'
-              : 'Add portfolios, certifications, contracts'
-            }
-          </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Supports: PDF, DOC, DOCX up to 20MB each (Max 5 files)
-          </p>
-        </div>
-
-        {/* Document List */}
-        {formData.media.documents && formData.media.documents.length > 0 && (
-          <div className="space-y-3">
-            {formData.media.documents.map((doc) => (
-              <div key={doc.id} className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+        {safeMedia.documents.length > 0 && (
+          <div className="space-y-2">
+            {safeMedia.documents.map((doc, index) => (
+              <div key={doc.id || index} className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg">
                 <div className="flex items-center space-x-3">
-                  <DocumentIcon className="h-8 w-8 text-gray-400" />
+                  <DocumentIcon className="h-5 w-5 text-gray-400" />
                   <div>
                     <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                       {doc.name}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {formatFileSize(doc.size)} • {doc.type.split('/')[1].toUpperCase()}
+                      {formatFileSize(doc.size)}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                  {getFileStatusIcon(doc.status)}
                   <button
+                    type="button"
                     onClick={() => window.open(doc.url, '_blank')}
-                    className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    title="View document"
+                    className="text-primary-500 hover:text-primary-700"
                   >
                     <EyeIcon className="h-4 w-4" />
                   </button>
                   <button
-                    onClick={() => removeFile('documents', doc.id)}
-                    className="p-2 text-red-400 hover:text-red-600"
-                    title="Remove document"
+                    type="button"
+                    onClick={() => removeFile('documents', index)}
+                    className="text-red-500 hover:text-red-700"
                   >
-                    <TrashIcon className="h-4 w-4" />
+                    <XMarkIcon className="h-4 w-4" />
                   </button>
                 </div>
               </div>
@@ -461,49 +472,61 @@ const MediaStep = ({ formData, errors, onChange }) => {
         )}
       </div>
 
-      {/* Media Guidelines */}
+      {/* Media Tips */}
       <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-        <div className="flex items-start">
-          <PhotoIcon className="h-5 w-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
-          <div>
-            <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
-              Media Guidelines
-            </h4>
-            <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-              <li>• Use high-quality, well-lit photos that showcase key features</li>
-              <li>• Include multiple angles and different rooms/areas</li>
-              <li>• Videos should be stable and provide a walkthrough experience</li>
-              <li>• Ensure all media files are relevant and professional</li>
-              <li>• The primary image will be used as the main thumbnail</li>
-              <li>• Avoid including personal information in images</li>
-            </ul>
-          </div>
-        </div>
+        <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+          📸 Media Guidelines
+        </h4>
+        <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+          <li>• Use high-resolution images (at least 1024x768 pixels)</li>
+          <li>• Take photos in good lighting conditions</li>
+          <li>• Include multiple angles and close-up shots</li>
+          {isRealEstate ? (
+            <>
+              <li>• Show exterior, interior, and key features</li>
+              <li>• Include neighborhood and nearby amenities</li>
+              <li>• Virtual tours increase engagement by 40%</li>
+            </>
+          ) : (
+            <>
+              <li>• Show the product from different angles</li>
+              <li>• Include packaging and accessories if applicable</li>
+              <li>• Add videos to demonstrate functionality</li>
+            </>
+          )}
+          <li>• Keep file sizes reasonable for faster loading</li>
+        </ul>
       </div>
 
       {/* Upload Summary */}
       <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-          Upload Summary
+        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          Media Summary
         </h4>
-        <div className="grid grid-cols-3 gap-4 text-sm">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div className="text-center">
-            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              {formData.media.images?.length || 0}
+            <p className="text-gray-500 dark:text-gray-400">Images</p>
+            <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              {safeMedia.images.length}
             </p>
-            <p className="text-gray-600 dark:text-gray-400">Photos</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              {formData.media.videos?.length || 0}
+            <p className="text-gray-500 dark:text-gray-400">Videos</p>
+            <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              {safeMedia.videos.length}
             </p>
-            <p className="text-gray-600 dark:text-gray-400">Videos</p>
           </div>
           <div className="text-center">
-            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              {formData.media.documents?.length || 0}
+            <p className="text-gray-500 dark:text-gray-400">Documents</p>
+            <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              {safeMedia.documents.length}
             </p>
-            <p className="text-gray-600 dark:text-gray-400">Documents</p>
+          </div>
+          <div className="text-center">
+            <p className="text-gray-500 dark:text-gray-400">Virtual Tour</p>
+            <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              {safeMedia.virtualTour ? '✓' : '✗'}
+            </p>
           </div>
         </div>
       </div>

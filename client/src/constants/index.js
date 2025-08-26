@@ -12,6 +12,7 @@ export const FEATURES = {
   CHAT: import.meta.env.VITE_ENABLE_CHAT === 'true',
   PAYMENTS: import.meta.env.VITE_ENABLE_PAYMENTS === 'true',
   NOTIFICATIONS: import.meta.env.VITE_ENABLE_NOTIFICATIONS === 'true',
+  APPOINTMENTS: import.meta.env.VITE_ENABLE_APPOINTMENTS !== 'false', // Default enabled
 };
 
 // Validation Rules
@@ -32,141 +33,62 @@ export const STORAGE_KEYS = {
   THEME: 'citilights_theme',
   LANGUAGE: 'citilights_language',
   CART: 'citilights_cart',
+  APPOINTMENT_DRAFT: 'citilights_appointment_draft',
 };
 
-// Payment Methods
-export const PAYMENT_METHODS = {
-  STRIPE: 'stripe',
-  PAYPAL: 'paypal',
-  TELEBIRR: 'telebirr',
-  MOBILE_TRANSFER: 'mobile_transfer',
-  BANK_TRANSFER: 'bank_transfer',
-  CREDIT_CARD: 'credit_card',
-  DEBIT_CARD: 'debit_card',
+// Appointment Types
+export const APPOINTMENT_TYPES = {
+  PROPERTY_VIEWING: 'property-viewing',
+  CONSULTATION: 'consultation',
+  SITE_VISIT: 'site-visit',
+  CONTRACT_SIGNING: 'contract-signing',
+  HANDOVER: 'handover',
+  MAINTENANCE: 'maintenance',
+  OTHER: 'other'
 };
 
-// Coupon Types
-export const COUPON_TYPES = {
-  PERCENTAGE: 'percentage',
-  FIXED: 'fixed',
-  FREE_SHIPPING: 'free_shipping',
-  BUNDLE_DISCOUNT: 'bundle_discount',
-  BOGO: 'buy_one_get_one',
-  CATEGORY_DISCOUNT: 'category_discount',
-};
-
-// Cart Item Status
-export const CART_ITEM_STATUS = {
-  AVAILABLE: 'available',
-  OUT_OF_STOCK: 'out_of_stock',
-  LIMITED_STOCK: 'limited_stock',
-  DISCONTINUED: 'discontinued',
-  BACKORDER: 'backorder',
-};
-
-// Shipping Methods
-export const SHIPPING_METHODS = {
-  STANDARD: 'standard',
-  EXPRESS: 'express',
-  OVERNIGHT: 'overnight',
-  PICKUP: 'pickup',
-  DIGITAL_DELIVERY: 'digital_delivery',
-  NO_SHIPPING: 'no_shipping',
-};
-
-// User Types
-export const USER_TYPES = {
-  CUSTOMER: 'customer',
-  INDIVIDUAL: 'individual',
-  COMPANY: 'company',
-  ADMIN: 'admin'
-};
-
-// Product Types
-export const PRODUCT_TYPES = {
-  PHYSICAL: 'physical',
-  DIGITAL: 'digital',
-  SERVICE: 'service',
-  REAL_ESTATE: 'real-estate',
-  RENTAL: 'rental'
-};
-
-// Property Types
-export const PROPERTY_TYPES = {
-  APARTMENT: 'apartment',
-  VILLA: 'villa',
-  COMMERCIAL: 'commercial',
-  LAND: 'land',
-  OFFICE: 'office',
-  WAREHOUSE: 'warehouse'
-};
-
-// Order Status
-export const ORDER_STATUS = {
-  PENDING: 'pending',
-  CONFIRMED: 'confirmed',
-  PROCESSING: 'processing',
-  SHIPPED: 'shipped',
-  DELIVERED: 'delivered',
-  CANCELLED: 'cancelled',
-  REFUNDED: 'refunded'
-};
-
-// Payment Status
-export const PAYMENT_STATUS = {
-  PENDING: 'pending',
-  PAID: 'paid',
-  FAILED: 'failed',
-  REFUNDED: 'refunded',
-  PARTIALLY_REFUNDED: 'partially-refunded'
-};
-
-// Booking Status
-export const BOOKING_STATUS = {
+// Appointment Status
+export const APPOINTMENT_STATUS = {
   PENDING: 'pending',
   CONFIRMED: 'confirmed',
   CANCELLED: 'cancelled',
   COMPLETED: 'completed',
+  RESCHEDULED: 'rescheduled',
   NO_SHOW: 'no-show'
 };
 
-// Service Types
-export const SERVICE_TYPES = {
-  PROJECT_MANAGEMENT: 'project-management',
-  ENGINEERING_DESIGN: 'engineering-design',
-  INTERIOR_DESIGN: 'interior-design',
-  CONSULTANCY: 'consultancy',
-  OTHER: 'other'
+// Meeting Types
+export const MEETING_TYPES = {
+  IN_PERSON: 'in-person',
+  VIRTUAL: 'virtual',
+  PHONE_CALL: 'phone-call',
+  VIDEO_CALL: 'video-call'
 };
 
-// Notification Types
-export const NOTIFICATION_TYPES = {
-  ORDER: 'order',
-  PAYMENT: 'payment',
-  BOOKING: 'booking',
-  CHAT: 'chat',
-  REVIEW: 'review',
-  SYSTEM: 'system',
-  PROMOTION: 'promotion'
-};
+// Time Slots
+export const TIME_SLOTS = [
+  { value: '09:00', label: '9:00 AM' },
+  { value: '10:00', label: '10:00 AM' },
+  { value: '11:00', label: '11:00 AM' },
+  { value: '12:00', label: '12:00 PM' },
+  { value: '13:00', label: '1:00 PM' },
+  { value: '14:00', label: '2:00 PM' },
+  { value: '15:00', label: '3:00 PM' },
+  { value: '16:00', label: '4:00 PM' },
+  { value: '17:00', label: '5:00 PM' },
+  { value: '18:00', label: '6:00 PM' }
+];
 
-// Routes
-export const ROUTES = {
-  HOME: '/',
-  LOGIN: '/login',
-  REGISTER: '/register',
-  DASHBOARD: '/dashboard',
-  PRODUCTS: '/products',
-  PRODUCT_DETAIL: '/product/:id',
-  CART: '/cart',
-  CHECKOUT: '/checkout',
-  ORDERS: '/orders',
-  PROFILE: '/profile',
-  CHAT: '/chat',
-  BOOKINGS: '/bookings',
-  SERVICES: '/services',
-  ADMIN: '/admin'
-};
+// Days of Week
+export const DAYS_OF_WEEK = [
+  { value: 0, label: 'Sunday', short: 'Sun' },
+  { value: 1, label: 'Monday', short: 'Mon' },
+  { value: 2, label: 'Tuesday', short: 'Tue' },
+  { value: 3, label: 'Wednesday', short: 'Wed' },
+  { value: 4, label: 'Thursday', short: 'Thu' },
+  { value: 5, label: 'Friday', short: 'Fri' },
+  { value: 6, label: 'Saturday', short: 'Sat' }
+];
 
 // API Endpoints
 export const API_ENDPOINTS = {
@@ -186,7 +108,8 @@ export const API_ENDPOINTS = {
     CREATE: '/products',
     UPDATE: '/products',
     DELETE: '/products',
-    MY_PRODUCTS: '/products/seller/my-products'
+    MY_PRODUCTS: '/products/seller/my-products',
+    ADMIN: '/products/admin'
   },
   ORDERS: {
     LIST: '/orders',
@@ -209,6 +132,19 @@ export const API_ENDPOINTS = {
     GET_COUPONS: '/orders/cart/coupons',
     CHECK_INVENTORY: '/orders/cart/check-inventory',
     CALCULATE_SHIPPING: '/orders/cart/calculate-shipping'
+  },
+  // NEW: Appointment endpoints
+  APPOINTMENTS: {
+    LIST: '/appointments',
+    CREATE: '/appointments',
+    DETAIL: '/appointments',
+    MY_APPOINTMENTS: '/appointments/my-appointments',
+    SELLER_APPOINTMENTS: '/appointments/seller-appointments',
+    UPDATE_STATUS: '/appointments/:id/status',
+    RESCHEDULE: '/appointments/:id/reschedule',
+    CANCEL: '/appointments/:id/cancel',
+    AVAILABLE_SLOTS: '/appointments/available-slots',
+    STATS: '/appointments/stats'
   },
   CHAT: {
     LIST: '/chat',
@@ -243,15 +179,40 @@ export const API_ENDPOINTS = {
   }
 };
 
-// Sort Options
-export const SORT_OPTIONS = [
-  { value: 'relevance', label: 'Most Relevant' },
-  { value: 'newest', label: 'Newest First' },
-  { value: 'price-low', label: 'Price: Low to High' },
-  { value: 'price-high', label: 'Price: High to Low' },
-  { value: 'popular', label: 'Most Popular' }
-];
+// Routes
+export const ROUTES = {
+  HOME: '/',
+  LOGIN: '/login',
+  REGISTER: '/register',
+  DASHBOARD: '/dashboard',
+  PRODUCTS: '/products',
+  PRODUCT_DETAIL: '/product/:id',
+  CART: '/cart',
+  CHECKOUT: '/checkout',
+  ORDERS: '/orders',
+  PROFILE: '/profile',
+  CHAT: '/chat',
+  BOOKINGS: '/bookings',
+  // NEW: Appointment routes
+  APPOINTMENTS: '/appointments',
+  MY_APPOINTMENTS: '/appointments/my-appointments',
+  SELLER_APPOINTMENTS: '/appointments/seller-appointments',
+  APPOINTMENT_DETAIL: '/appointments/:id',
+  BOOK_APPOINTMENT: '/appointments/book/:propertyId',
+  SERVICES: '/services',
+  ADMIN: '/admin'
+};
 
+// Rest of your existing constants...
+export const PAYMENT_METHODS = {
+  STRIPE: 'stripe',
+  PAYPAL: 'paypal',
+  TELEBIRR: 'telebirr',
+  MOBILE_TRANSFER: 'mobile_transfer',
+  BANK_TRANSFER: 'bank_transfer',
+  CREDIT_CARD: 'credit_card',
+  DEBIT_CARD: 'debit_card',
+};
 // Price Ranges
 export const PRICE_RANGES = [
   { min: 0, max: 100000, label: 'Under ETB 100,000' },
@@ -260,19 +221,57 @@ export const PRICE_RANGES = [
   { min: 1000000, max: 5000000, label: 'ETB 1M - 5M' },
   { min: 5000000, max: null, label: 'Over ETB 5M' }
 ];
+export const USER_TYPES = {
+  CUSTOMER: 'customer',
+  INDIVIDUAL: 'individual',
+  COMPANY: 'company',
+  ADMIN: 'admin'
+};
 
-// Error Messages
-export const ERROR_MESSAGES = {
-  REQUIRED_FIELD: 'This field is required',
-  INVALID_EMAIL: 'Please enter a valid email address',
-  PASSWORD_MIN_LENGTH: 'Password must be at least 6 characters',
-  PASSWORDS_DONT_MATCH: 'Passwords do not match',
-  INVALID_PHONE: 'Please enter a valid phone number',
-  FILE_TOO_LARGE: 'File size must be less than 10MB',
-  INVALID_FILE_TYPE: 'Invalid file type',
-  NETWORK_ERROR: 'Network error. Please try again.',
-  UNAUTHORIZED: 'You are not authorized to perform this action',
-  SERVER_ERROR: 'Something went wrong. Please try again later.'
+export const PRODUCT_TYPES = {
+  PHYSICAL: 'physical',
+  DIGITAL: 'digital',
+  SERVICE: 'service',
+  REAL_ESTATE: 'real-estate',
+  RENTAL: 'rental'
+};
+
+export const PROPERTY_TYPES = {
+  APARTMENT: 'apartment',
+  VILLA: 'villa',
+  COMMERCIAL: 'commercial',
+  LAND: 'land',
+  OFFICE: 'office',
+  WAREHOUSE: 'warehouse'
+};
+
+export const ORDER_STATUS = {
+  PENDING: 'pending',
+  CONFIRMED: 'confirmed',
+  PROCESSING: 'processing',
+  SHIPPED: 'shipped',
+  DELIVERED: 'delivered',
+  CANCELLED: 'cancelled',
+  REFUNDED: 'refunded'
+};
+
+export const PAYMENT_STATUS = {
+  PENDING: 'pending',
+  PAID: 'paid',
+  FAILED: 'failed',
+  REFUNDED: 'refunded',
+  PARTIALLY_REFUNDED: 'partially-refunded'
+};
+
+export const NOTIFICATION_TYPES = {
+  ORDER: 'order',
+  PAYMENT: 'payment',
+  BOOKING: 'booking',
+  APPOINTMENT: 'appointment', // NEW
+  CHAT: 'chat',
+  REVIEW: 'review',
+  SYSTEM: 'system',
+  PROMOTION: 'promotion'
 };
 
 export const ETHIOPIAN_CITIES = [
@@ -297,28 +296,26 @@ export const ETHIOPIAN_CITIES = [
   "Nekemte",
   "Debre Tabor"
 ];
-export const SERVICE_CATEGORIES = [
-  {
-    id: 'project-management',
-    name: 'Project Management',
-    description: 'Comprehensive project management services'
-  },
-  {
-    id: 'engineering-design',
-    name: 'Engineering & Design',
-    description: 'Professional engineering and architectural design'
-  },
-  {
-    id: 'interior-design',
-    name: 'Interior Design',
-    description: 'Creative interior design solutions'
-  },
-  {
-    id: 'consultancy',
-    name: 'Consultancy',
-    description: 'Expert consulting and advisory services'
-  }
-];
+
+// Error Messages
+export const ERROR_MESSAGES = {
+  REQUIRED_FIELD: 'This field is required',
+  INVALID_EMAIL: 'Please enter a valid email address',
+  PASSWORD_MIN_LENGTH: 'Password must be at least 6 characters',
+  PASSWORDS_DONT_MATCH: 'Passwords do not match',
+  INVALID_PHONE: 'Please enter a valid phone number',
+  FILE_TOO_LARGE: 'File size must be less than 10MB',
+  INVALID_FILE_TYPE: 'Invalid file type',
+  NETWORK_ERROR: 'Network error. Please try again.',
+  UNAUTHORIZED: 'You are not authorized to perform this action',
+  SERVER_ERROR: 'Something went wrong. Please try again later.',
+  // NEW: Appointment errors
+  APPOINTMENT_CONFLICT: 'The selected time conflicts with another appointment',
+  APPOINTMENT_PAST_DATE: 'Appointment date must be in the future',
+  PROPERTY_NOT_AVAILABLE: 'This property is not available for viewing',
+  SLOT_NOT_AVAILABLE: 'The selected time slot is not available'
+};
+
 // Success Messages
 export const SUCCESS_MESSAGES = {
   LOGIN: 'Successfully logged in',
@@ -330,5 +327,27 @@ export const SUCCESS_MESSAGES = {
   ORDER_PLACED: 'Order placed successfully',
   BOOKING_CREATED: 'Booking created successfully',
   MESSAGE_SENT: 'Message sent successfully',
-  REVIEW_SUBMITTED: 'Review submitted successfully'
+  REVIEW_SUBMITTED: 'Review submitted successfully',
+  // NEW: Appointment success messages
+  APPOINTMENT_BOOKED: 'Appointment booked successfully',
+  APPOINTMENT_CANCELLED: 'Appointment cancelled successfully',
+  APPOINTMENT_RESCHEDULED: 'Appointment rescheduled successfully',
+  APPOINTMENT_CONFIRMED: 'Appointment confirmed successfully',
+  APPOINTMENT_COMPLETED: 'Appointment marked as completed'
+};
+
+export default {
+  APP_CONFIG,
+  FEATURES,
+  VALIDATION,
+  STORAGE_KEYS,
+  API_ENDPOINTS,
+  ROUTES,
+  APPOINTMENT_TYPES,
+  APPOINTMENT_STATUS,
+  MEETING_TYPES,
+  TIME_SLOTS,
+  DAYS_OF_WEEK,
+  ERROR_MESSAGES,
+  SUCCESS_MESSAGES
 };

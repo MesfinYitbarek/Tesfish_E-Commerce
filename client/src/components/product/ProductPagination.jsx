@@ -1,14 +1,15 @@
+// components/product/ProductPagination.jsx
 import { motion } from 'framer-motion';
 import { ChevronLeftIcon, ChevronRightIcon, EllipsisHorizontalIcon } from '@heroicons/react/24/outline';
 
 const ProductPagination = ({ 
-  currentPage, 
-  totalPages, 
+  currentPage = 1, 
+  totalPages = 1, 
   onPageChange, 
-  hasNext, 
-  hasPrev,
-  totalItems = 0,
-  itemsPerPage = 10
+  hasNext = false, 
+  hasPrev = false,
+  totalProducts = 0,
+  limit = 12
 }) => {
   const getVisiblePages = () => {
     const visiblePages = [];
@@ -60,17 +61,25 @@ const ProductPagination = ({
   };
 
   const getPageRange = () => {
-    const start = (currentPage - 1) * itemsPerPage + 1;
-    const end = Math.min(currentPage * itemsPerPage, totalItems);
+    const start = (currentPage - 1) * limit + 1;
+    const end = Math.min(currentPage * limit, totalProducts);
     return { start, end };
   };
 
-  if (totalPages <= 1) {
+  // Don't render if there's only one page or no products
+  if (totalPages <= 1 || totalProducts === 0) {
     return null;
   }
 
   const visiblePages = getVisiblePages();
   const { start, end } = getPageRange();
+
+  // Safe page change handler
+  const handlePageChange = (page) => {
+    if (page >= 1 && page <= totalPages && page !== currentPage) {
+      onPageChange(page);
+    }
+  };
 
   return (
     <motion.div 
@@ -85,16 +94,16 @@ const ProductPagination = ({
             Showing {start.toLocaleString()} to {end.toLocaleString()}
           </span>
           <span className="mx-1">of</span>
-          <span className="font-medium">{totalItems.toLocaleString()}</span>
-          <span className="ml-1">results</span>
+          <span className="font-medium">{totalProducts.toLocaleString()}</span>
+          <span className="ml-1">properties</span>
         </div>
 
-        {/* Mobile pagination - enhanced */}
+        {/* Mobile pagination */}
         <div className="flex lg:hidden w-full justify-between items-center">
           <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => onPageChange(currentPage - 1)}
+            whileHover={{ scale: hasPrev ? 1.05 : 1 }}
+            whileTap={{ scale: hasPrev ? 0.95 : 1 }}
+            onClick={() => handlePageChange(currentPage - 1)}
             disabled={!hasPrev}
             className="flex items-center space-x-2 px-6 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
           >
@@ -104,16 +113,16 @@ const ProductPagination = ({
           
           <div className="flex items-center space-x-2">
             <span className="text-sm text-gray-500 dark:text-gray-400">Page</span>
-            <div className="px-3 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg font-bold min-w-[3rem] text-center">
+            <div className="px-3 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg font-bold min-w-[3rem] text-center">
               {currentPage}
             </div>
             <span className="text-sm text-gray-500 dark:text-gray-400">of {totalPages}</span>
           </div>
           
           <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => onPageChange(currentPage + 1)}
+            whileHover={{ scale: hasNext ? 1.05 : 1 }}
+            whileTap={{ scale: hasNext ? 0.95 : 1 }}
+            onClick={() => handlePageChange(currentPage + 1)}
             disabled={!hasNext}
             className="flex items-center space-x-2 px-6 py-3 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-600 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
           >
@@ -122,14 +131,14 @@ const ProductPagination = ({
           </motion.button>
         </div>
 
-        {/* Desktop pagination - enhanced */}
+        {/* Desktop pagination */}
         <div className="hidden lg:flex items-center justify-center">
           <nav className="flex items-center space-x-2" aria-label="Pagination">
             {/* Previous button */}
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => onPageChange(currentPage - 1)}
+              whileHover={{ scale: hasPrev ? 1.05 : 1 }}
+              whileTap={{ scale: hasPrev ? 0.95 : 1 }}
+              onClick={() => handlePageChange(currentPage - 1)}
               disabled={!hasPrev}
               className="flex items-center space-x-2 px-4 py-2 rounded-xl border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
             >
@@ -158,11 +167,11 @@ const ProductPagination = ({
                     key={page}
                     whileHover={{ scale: isCurrentPage ? 1 : 1.1 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => onPageChange(page)}
+                    onClick={() => handlePageChange(page)}
                     className={`w-12 h-12 rounded-xl text-sm font-bold transition-all duration-300 ${
                       isCurrentPage
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-110'
-                        : 'bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-blue-300 dark:hover:border-blue-600 shadow-md'
+                        ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg transform scale-110'
+                        : 'bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-indigo-300 dark:hover:border-indigo-600 shadow-md'
                     }`}
                   >
                     {page}
@@ -173,9 +182,9 @@ const ProductPagination = ({
 
             {/* Next button */}
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => onPageChange(currentPage + 1)}
+              whileHover={{ scale: hasNext ? 1.05 : 1 }}
+              whileTap={{ scale: hasNext ? 0.95 : 1 }}
+              onClick={() => handlePageChange(currentPage + 1)}
               disabled={!hasNext}
               className="flex items-center space-x-2 px-4 py-2 rounded-xl border-2 border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg"
             >
@@ -192,14 +201,18 @@ const ProductPagination = ({
             type="number"
             min="1"
             max={totalPages}
-            value={currentPage}
-            onChange={(e) => {
-              const page = parseInt(e.target.value);
-              if (page >= 1 && page <= totalPages) {
-                onPageChange(page);
+            defaultValue={currentPage}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                const page = parseInt(e.target.value);
+                handlePageChange(page);
               }
             }}
-            className="w-16 px-3 py-2 text-sm font-medium text-center border-2 border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 transition-all duration-200"
+            onBlur={(e) => {
+              const page = parseInt(e.target.value);
+              handlePageChange(page);
+            }}
+            className="w-16 px-3 py-2 text-sm font-medium text-center border-2 border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 transition-all duration-200"
           />
         </div>
       </div>
@@ -210,7 +223,7 @@ const ProductPagination = ({
           initial={{ width: 0 }}
           animate={{ width: `${(currentPage / totalPages) * 100}%` }}
           transition={{ duration: 0.5 }}
-          className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"
+          className="h-full bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full"
         />
       </div>
     </motion.div>

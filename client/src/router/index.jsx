@@ -149,7 +149,7 @@ export const router = createBrowserRouter([
       { index: true, element: <LazyWrapper><DashboardOverview /></LazyWrapper> },
       { path: 'products', element: <LazyWrapper><MyListings /></LazyWrapper> },
       { path: 'products/:id/edit', element: <LazyWrapper><EditProduct /></LazyWrapper> },
-      { path: 'products/create', element: <LazyWrapper><CreateProduct /></LazyWrapper> },
+      { path: 'listings/create', element: <LazyWrapper><CreateProduct /></LazyWrapper> },
       { path: 'analytics', element: <LazyWrapper><Analytics /></LazyWrapper> },
       { path: 'notifications', element: <LazyWrapper><NotificationPanel /></LazyWrapper> },
       { path: 'messages', element: <LazyWrapper><Messages /></LazyWrapper> },

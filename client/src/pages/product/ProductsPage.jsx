@@ -1,3 +1,4 @@
+// pages/products/ProductsPage.jsx
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
@@ -14,10 +15,13 @@ import {
   ExclamationTriangleIcon,
   AdjustmentsHorizontalIcon,
   SparklesIcon,
-  HomeIcon
+  ShoppingBagIcon,
+  HomeIcon,
+  MapIcon,
+  BuildingOfficeIcon,
+  DevicePhoneMobileIcon
 } from '@heroicons/react/24/outline';
-import { fetchProducts, fetchCategories, setFilters, clearFilters } from '../../store/slices/productSlice';
-import { setLoading } from '../../store/slices/uiSlice';
+import { fetchProducts, fetchCategories, fetchPropertyTypes, setFilters, clearFilters } from '../../store/slices/productSlice';
 
 const ProductsPage = () => {
   const dispatch = useDispatch();
@@ -32,7 +36,9 @@ const ProductsPage = () => {
     pagination,
     filters,
     viewMode,
-    categories
+    categories,
+    propertyTypes,
+    aggregatedFilters
   } = useSelector((state) => state.products);
 
   // Initialize filters from URL params
@@ -48,9 +54,10 @@ const ProductsPage = () => {
     setIsInitialized(true);
   }, [searchParams, dispatch]);
 
-  // Fetch categories on mount
+  // Fetch initial data on mount
   useEffect(() => {
     dispatch(fetchCategories());
+    dispatch(fetchPropertyTypes());
   }, [dispatch]);
 
   // Fetch products when filters change
@@ -58,9 +65,7 @@ const ProductsPage = () => {
     if (!isInitialized) return;
 
     const fetchData = async () => {
-      dispatch(setLoading({ key: 'products', value: true }));
       await dispatch(fetchProducts(filters));
-      dispatch(setLoading({ key: 'products', value: false }));
     };
 
     fetchData();
@@ -72,7 +77,7 @@ const ProductsPage = () => {
 
     const params = new URLSearchParams();
     Object.keys(filters).forEach(key => {
-      if (filters[key] && filters[key] !== '') {
+      if (filters[key] && filters[key] !== '' && filters[key] !== 1) {
         params.set(key, filters[key]);
       }
     });
@@ -86,6 +91,119 @@ const ProductsPage = () => {
   const handleClearFilters = () => {
     dispatch(clearFilters());
     setSearchParams({});
+  };
+
+  const getProductTypeIcon = (type) => {
+    if (!type) return <ShoppingBagIcon className="h-5 w-5" />;
+    
+    const icons = {
+      homes: <HomeIcon className="h-5 w-5" />,
+      plots: <MapIcon className="h-5 w-5" />,
+      commercials: <BuildingOfficeIcon className="h-5 w-5" />,
+      others: <DevicePhoneMobileIcon className="h-5 w-5" />
+    };
+    return icons[type] || <ShoppingBagIcon className="h-5 w-5" />;
+  };
+
+  const getProductTypeStats = () => {
+    // Add comprehensive null checks
+    if (!aggregatedFilters?.propertyTypes || !Array.isArray(aggregatedFilters.propertyTypes)) {
+      return [];
+    }
+    
+    return aggregatedFilters.propertyTypes
+      .filter(type => type && type._id && typeof type._id === 'string') // Filter out null/undefined items
+      .map(type => ({
+        ...type,
+        _id: type._id,
+        count: type.count || 0,
+        icon: getProductTypeIcon(type._id),
+        label: type._id.charAt(0).toUpperCase() + type._id.slice(1)
+      }));
+  };
+
+  const renderQuickFilters = () => {
+    const quickFilters = [
+      { key: 'productType', value: 'homes', label: 'Homes', icon: <HomeIcon className="h-4 w-4" /> },
+      { key: 'productType', value: 'plots', label: 'Plots', icon: <MapIcon className="h-4 w-4" /> },
+      { key: 'productType', value: 'commercials', label: 'Commercial', icon: <BuildingOfficeIcon className="h-4 w-4" /> },
+      { key: 'productType', value: 'others', label: 'Others', icon: <DevicePhoneMobileIcon className="h-4 w-4" /> },
+      { key: 'listingType', value: 'sell', label: 'For Sale', icon: <ShoppingBagIcon className="h-4 w-4" /> },
+      { key: 'listingType', value: 'rent', label: 'For Rent', icon: <HomeIcon className="h-4 w-4" /> },
+      { key: 'featured', value: 'true', label: 'Featured', icon: <SparklesIcon className="h-4 w-4" /> }
+    ];
+
+    return (
+      <div className="mb-6">
+        <div className="flex flex-wrap gap-2">
+          {quickFilters.map((filter) => (
+            <motion.button
+              key={`${filter.key}-${filter.value}`}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => handleFilterChange({ [filter.key]: filter.value })}
+              className={`inline-flex items-center space-x-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                filters[filter.key] === filter.value
+                  ? 'bg-indigo-500 text-white shadow-lg'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+              }`}
+            >
+              {filter.icon}
+              <span>{filter.label}</span>
+            </motion.button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderStatsBar = () => {
+    const stats = getProductTypeStats();
+    
+    if (stats.length === 0) return null;
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6 mb-6"
+      >
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+          Browse by Category
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {stats.map((stat) => (
+            <motion.button
+              key={stat._id}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => handleFilterChange({ productType: stat._id })}
+              className={`p-4 rounded-lg border transition-all duration-200 ${
+                filters.productType === stat._id
+                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                  : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+              }`}
+            >
+              <div className="flex items-center justify-center mb-2">
+                <div className={`p-2 rounded-full ${
+                  filters.productType === stat._id
+                    ? 'bg-indigo-500 text-white'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'
+                }`}>
+                  {stat.icon}
+                </div>
+              </div>
+              <h4 className="font-medium text-gray-900 dark:text-gray-100 text-sm">
+                {stat.label}
+              </h4>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {stat.count} listings
+              </p>
+            </motion.button>
+          ))}
+        </div>
+      </motion.div>
+    );
   };
 
   const renderProductView = () => {
@@ -128,7 +246,7 @@ const ProductsPage = () => {
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 leading-relaxed">{error}</p>
             <button
               onClick={() => dispatch(fetchProducts(filters))}
-              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg"
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg"
             >
               Try Again
             </button>
@@ -152,7 +270,9 @@ const ProductsPage = () => {
               case 'list':
                 return <ProductList products={products} />;
               case 'map':
-                return <ProductMap products={products} />;
+                return ['homes', 'plots', 'commercials'].includes(filters.productType) ? 
+                  <ProductMap products={products.filter(p => ['homes', 'plots', 'commercials'].includes(p.productType))} /> :
+                  <ProductGrid products={products} />;
               default:
                 return <ProductGrid products={products} />;
             }
@@ -168,7 +288,7 @@ const ProductsPage = () => {
       animate={{ opacity: 1, y: 0 }}
       className="text-center py-12"
     >
-      <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/20 dark:to-purple-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
+      <div className="w-24 h-24 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
         <MagnifyingGlassIcon className="w-12 h-12 text-gray-400" />
       </div>
       <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3">
@@ -187,10 +307,10 @@ const ProductsPage = () => {
           Clear all filters
         </button>
         <button
-          onClick={() => handleFilterChange({ category: 'real-estate' })}
-          className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg"
+          onClick={() => handleFilterChange({ productType: '', category: '' })}
+          className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg"
         >
-          <HomeIcon className="h-4 w-4 mr-2" />
+          <ShoppingBagIcon className="h-4 w-4 mr-2" />
           Browse all properties
         </button>
       </div>
@@ -201,8 +321,8 @@ const ProductsPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
       {/* Header */}
       <ProductHeader
-        totalProducts={pagination.totalProducts}
-        currentPage={pagination.currentPage}
+        totalProducts={pagination?.totalProducts || 0}
+        currentPage={pagination?.currentPage || 1}
         showFilters={showFilters}
         onToggleFilters={() => setShowFilters(!showFilters)}
         onClearFilters={handleClearFilters}
@@ -210,6 +330,12 @@ const ProductsPage = () => {
       />
 
       <div className="container mx-auto px-4 py-6">
+        {/* Stats Bar */}
+        {!filters.productType && renderStatsBar()}
+
+        {/* Quick Filters */}
+        {renderQuickFilters()}
+
         <div className="flex gap-6">
           {/* Filters Sidebar */}
           <AnimatePresence>
@@ -219,12 +345,14 @@ const ProductsPage = () => {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -300 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
-                className="w-full lg:w-72 flex-shrink-0"
+                className="w-full lg:w-80 flex-shrink-0"
               >
                 <div className="sticky top-20">
                   <ProductFilters
                     filters={filters}
-                    categories={categories}
+                    categories={categories || []}
+                    propertyTypes={propertyTypes || []}
+                    aggregatedFilters={aggregatedFilters || {}}
                     onFilterChange={handleFilterChange}
                     onClearFilters={handleClearFilters}
                   />
@@ -238,7 +366,7 @@ const ProductsPage = () => {
             {renderProductView()}
 
             {/* Pagination */}
-            {!isLoading && products.length > 0 && (
+            {!isLoading && products && products.length > 0 && (
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -246,17 +374,17 @@ const ProductsPage = () => {
                 className="mt-8"
               >
                 <ProductPagination
-                  currentPage={pagination.currentPage}
-                  totalPages={pagination.totalPages}
+                  currentPage={pagination?.currentPage || 1}
+                  totalPages={pagination?.totalPages || 1}
                   onPageChange={(page) => handleFilterChange({ page })}
-                  hasNext={pagination.hasNext}
-                  hasPrev={pagination.hasPrev}
+                  hasNext={pagination?.hasNext || false}
+                  hasPrev={pagination?.hasPrev || false}
                 />
               </motion.div>
             )}
 
             {/* Empty State */}
-            {!isLoading && products.length === 0 && renderEmptyState()}
+            {!isLoading && (!products || products.length === 0) && renderEmptyState()}
           </div>
         </div>
       </div>
@@ -271,7 +399,7 @@ const ProductsPage = () => {
             whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.9 }}
             onClick={() => setShowFilters(true)}
-            className="fixed bottom-4 right-4 z-50 w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-full shadow-2xl flex items-center justify-center lg:hidden"
+            className="fixed bottom-4 right-4 z-50 w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-full shadow-2xl flex items-center justify-center lg:hidden"
           >
             <AdjustmentsHorizontalIcon className="h-5 w-5" />
           </motion.button>

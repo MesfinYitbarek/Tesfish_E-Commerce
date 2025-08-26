@@ -27,7 +27,8 @@ import serviceInquiryRoutes from './routes/service/serviceInquiryRoutes.js';
 import adminRoutes from './routes/admin/adminRoutes.js';
 import userRoutes from './routes/user/userRoutes.js';
 import categoryRoutes from './routes/category/categoryRoutes.js';
-
+import propertyRegistrationRoutes from './routes/property/propertyRegistrationRoutes.js';
+import appointmentRoutes from './routes/property/appointmentRoutes.js';
 // Import middleware
 import { errorHandler, notFound } from './middleware/error/errorMiddleware.js';
 import { protect } from './middleware/auth/authMiddleware.js';
@@ -131,6 +132,8 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/service-inquiries', serviceInquiryRoutes);
 app.use('/api/admin', protect, adminRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/property-registrations', propertyRegistrationRoutes);
+app.use('/api/appointments', appointmentRoutes);
 // Static file serving for uploads
 app.use('/uploads', express.static('uploads'));
 

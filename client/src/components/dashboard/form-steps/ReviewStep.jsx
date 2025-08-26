@@ -1,359 +1,604 @@
-import { useState } from 'react';
 import { 
-  CheckCircleIcon, 
-  ExclamationTriangleIcon,
-  PencilIcon,
-  EyeIcon,
-  DocumentTextIcon
+  HomeIcon,
+  MapPinIcon,
+  CurrencyDollarIcon,
+  PhotoIcon,
+  PhoneIcon,
+  ClockIcon,
+  TagIcon,
+  TruckIcon,
+  ShieldCheckIcon,
+  DocumentCheckIcon
 } from '@heroicons/react/24/outline';
 import { formatCurrency } from '../../../utils/helpers';
-import Input from '../../ui/Input';
 
-const ReviewStep = ({ formData, errors, onChange }) => {
-  const [showTerms, setShowTerms] = useState(false);
+const ReviewStep = ({ formData, errors, productTypeConfig, onChange, isEditing = false }) => {
+  const isRealEstate = ['homes', 'plots', 'commercials'].includes(formData.productType);
+  const isRental = formData.listingType === 'rent';
+  const currentConfig = productTypeConfig[formData.productType];
 
-  const handleChange = (field, value) => {
-    onChange({ [field]: value });
+  // Helper function to get display value
+  const getDisplayValue = (value, fallback = 'Not specified') => {
+    if (value === null || value === undefined || value === '') return fallback;
+    return value;
   };
 
-  const getCompletionStatus = () => {
-    const checks = [
-      { label: 'Basic Information', completed: formData.title && formData.description && formData.category },
-      { label: 'Details', completed: formData.type === 'real-estate' 
-        ? formData.realEstateDetails?.propertyType && formData.realEstateDetails?.location?.address
-        : formData.serviceDetails?.serviceType && formData.serviceDetails?.serviceArea },
-      { label: 'Pricing', completed: formData.pricing?.basePrice > 0 },
-      { label: 'Media', completed: formData.media?.images && formData.media.images.length > 0 }
-    ];
-
-    const completedCount = checks.filter(check => check.completed).length;
-    const percentage = (completedCount / checks.length) * 100;
-
-    return { checks, completedCount, percentage };
+  // Helper function to format array values
+  const formatArray = (arr, fallback = 'None') => {
+    if (!arr || arr.length === 0) return fallback;
+    return arr.join(', ');
   };
 
-  const { checks, completedCount, percentage } = getCompletionStatus();
-
-  const getListingType = () => {
-    return formData.type === 'real-estate' ? 'Property' : 'Service';
-  };
-
-  // Helper function to format area display
-  const formatArea = (area) => {
-    if (!area) return '';
-    if (typeof area === 'object') {
-      return `${area.value} ${area.unit}`;
-    }
-    return area;
+  // Helper function to format boolean utilities
+  const formatUtilities = (utilities) => {
+    if (!utilities) return 'Not specified';
+    const available = Object.entries(utilities)
+      .filter(([key, value]) => value)
+      .map(([key]) => key.charAt(0).toUpperCase() + key.slice(1));
+    return available.length > 0 ? available.join(', ') : 'None specified';
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-          Review & Publish
+          Review Your Listing
         </h2>
         <p className="text-gray-600 dark:text-gray-400">
-          Review your listing details before publishing. You can always edit it later.
+          Please review all information before publishing your {isRealEstate ? 'property' : 'product'} listing.
         </p>
       </div>
 
-      {/* Completion Status */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-            Listing Completion
-          </h3>
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-            percentage === 100 
-              ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300'
-              : 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300'
-          }`}>
-            {percentage.toFixed(0)}% Complete
-          </span>
-        </div>
-
-        <div className="space-y-3">
-          {checks.map((check, index) => (
-            <div key={index} className="flex items-center">
-              <div className={`w-5 h-5 rounded-full flex items-center justify-center mr-3 ${
-                check.completed 
-                  ? 'bg-green-500 text-white'
-                  : 'bg-gray-300 dark:bg-gray-600'
-              }`}>
-                {check.completed && <CheckCircleIcon className="h-3 w-3" />}
-              </div>
-              <span className={`text-sm ${
-                check.completed 
-                  ? 'text-gray-900 dark:text-gray-100'
-                  : 'text-gray-500 dark:text-gray-400'
-              }`}>
-                {check.label}
+      {/* Listing Overview */}
+      <div className="bg-gradient-to-br from-primary-50 to-blue-50 dark:from-primary-900/20 dark:to-blue-900/20 border border-primary-200 dark:border-primary-800 rounded-xl p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center space-x-2 mb-2">
+              <TagIcon className="h-5 w-5 text-primary-500" />
+              <span className="text-sm font-medium text-primary-600 dark:text-primary-400">
+                {currentConfig?.label} - {currentConfig?.subTypes.find(st => st.value === formData.subProductType)?.label}
+                {formData.listingType && ` (${formData.listingType === 'sell' ? 'For Sale' : 'For Rent'})`}
               </span>
             </div>
-          ))}
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+              {formData.title || 'Untitled Listing'}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 line-clamp-3">
+              {formData.shortDescription || formData.description?.substring(0, 150) + '...'}
+            </p>
+          </div>
+          <div className="text-right ml-6">
+            {isRental && formData.pricing?.rentPrice?.monthly ? (
+              <div>
+                <p className="text-3xl font-bold text-primary-600 dark:text-primary-400">
+                  {formatCurrency(formData.pricing.rentPrice.monthly, 'ETB')}
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">per month</p>
+              </div>
+            ) : formData.pricing?.basePrice ? (
+              <div>
+                <p className="text-3xl font-bold text-primary-600 dark:text-primary-400">
+                  {formatCurrency(formData.pricing.salePrice || formData.pricing.basePrice, 'ETB')}
+                </p>
+                {formData.pricing.salePrice && (
+                  <p className="text-sm text-gray-500 line-through">
+                    {formatCurrency(formData.pricing.basePrice, 'ETB')}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-lg text-gray-500 dark:text-gray-400">Price not set</p>
+            )}
+            {formData.pricing?.isNegotiable && (
+              <span className="inline-block mt-1 px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full">
+                Negotiable
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Property/Product Details */}
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
+          <HomeIcon className="h-5 w-5 mr-2 text-primary-500" />
+          {isRealEstate ? 'Property Details' : 'Product Details'}
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Real Estate Details */}
+          {isRealEstate && (
+            <>
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Area</p>
+                <p className="text-gray-900 dark:text-gray-100">
+                  {formData.propertyDetails?.area?.value ? 
+                    `${formData.propertyDetails.area.value} ${formData.propertyDetails.area.unit}` : 
+                    'Not specified'
+                  }
+                </p>
+              </div>
+              
+              {formData.productType !== 'plots' && (
+                <>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {formData.subProductType === 'offices' ? 'Rooms' : 'Bedrooms'}
+                    </p>
+                    <p className="text-gray-900 dark:text-gray-100">
+                      {getDisplayValue(formData.propertyDetails?.bedrooms)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Bathrooms</p>
+                    <p className="text-gray-900 dark:text-gray-100">
+                      {getDisplayValue(formData.propertyDetails?.bathrooms)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Parking</p>
+                    <p className="text-gray-900 dark:text-gray-100">
+                      {getDisplayValue(formData.propertyDetails?.parkingSpaces, '0')} spaces
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Floors</p>
+                    <p className="text-gray-900 dark:text-gray-100">
+                      {getDisplayValue(formData.propertyDetails?.floors)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Year Built</p>
+                    <p className="text-gray-900 dark:text-gray-100">
+                      {getDisplayValue(formData.propertyDetails?.yearBuilt)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Furnishing</p>
+                    <p className="text-gray-900 dark:text-gray-100 capitalize">
+                      {getDisplayValue(formData.propertyDetails?.furnishingStatus)?.replace('-', ' ')}
+                    </p>
+                  </div>
+                </>
+              )}
+
+              {/* Land Details for plots */}
+              {formData.productType === 'plots' && (
+                <>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Land Use</p>
+                    <p className="text-gray-900 dark:text-gray-100 capitalize">
+                      {getDisplayValue(formData.propertyDetails?.landDetails?.landUse)?.replace('-', ' ')}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Topography</p>
+                    <p className="text-gray-900 dark:text-gray-100 capitalize">
+                      {getDisplayValue(formData.propertyDetails?.landDetails?.topography)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Access Road</p>
+                    <p className="text-gray-900 dark:text-gray-100 capitalize">
+                      {getDisplayValue(formData.propertyDetails?.landDetails?.accessRoad)?.replace('-', ' ')}
+                    </p>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {/* Vehicle Details */}
+          {formData.productType === 'others' && formData.subProductType === 'vehicles' && (
+            <>
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Make</p>
+                <p className="text-gray-900 dark:text-gray-100">
+                  {getDisplayValue(formData.vehicleDetails?.make)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Model</p>
+                <p className="text-gray-900 dark:text-gray-100">
+                  {getDisplayValue(formData.vehicleDetails?.model)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Year</p>
+                <p className="text-gray-900 dark:text-gray-100">
+                  {getDisplayValue(formData.vehicleDetails?.year)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Mileage</p>
+                <p className="text-gray-900 dark:text-gray-100">
+                  {formData.vehicleDetails?.mileage ? `${formData.vehicleDetails.mileage} km` : 'Not specified'}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Fuel Type</p>
+                <p className="text-gray-900 dark:text-gray-100 capitalize">
+                  {getDisplayValue(formData.vehicleDetails?.fuelType)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Transmission</p>
+                <p className="text-gray-900 dark:text-gray-100 capitalize">
+                  {getDisplayValue(formData.vehicleDetails?.transmission)}
+                </p>
+              </div>
+            </>
+          )}
+
+          {/* General Product Details */}
+          {formData.productType === 'others' && formData.subProductType !== 'vehicles' && (
+            <>
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Brand</p>
+                <p className="text-gray-900 dark:text-gray-100">
+                  {getDisplayValue(formData.brand)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Model</p>
+                <p className="text-gray-900 dark:text-gray-100">
+                  {getDisplayValue(formData.model)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Condition</p>
+                <p className="text-gray-900 dark:text-gray-100 capitalize">
+                  {getDisplayValue(formData.condition)?.replace('-', ' ')}
+                </p>
+              </div>
+            </>
+          )}
         </div>
 
-        {percentage < 100 && (
-          <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded">
-            <p className="text-sm text-yellow-700 dark:text-yellow-300">
-              Complete all sections to maximize your listing's visibility and effectiveness.
-            </p>
+        {/* Features and Amenities for Real Estate */}
+        {isRealEstate && formData.productType !== 'plots' && (
+          <div className="mt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Features</p>
+                <p className="text-gray-900 dark:text-gray-100">
+                  {formatArray(formData.propertyDetails?.features)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Amenities</p>
+                <p className="text-gray-900 dark:text-gray-100">
+                  {formatArray(formData.propertyDetails?.amenities)}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Utilities</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {formatUtilities(formData.propertyDetails?.utilities)}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Specifications for Others */}
+        {formData.productType === 'others' && formData.specifications?.length > 0 && (
+          <div className="mt-6">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Specifications</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {formData.specifications.map((spec, index) => (
+                <div key={index} className="text-sm">
+                  <span className="font-medium text-gray-900 dark:text-gray-100">{spec.name}:</span>
+                  <span className="text-gray-600 dark:text-gray-400 ml-1">{spec.value}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Listing Preview */}
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center">
-            <EyeIcon className="h-5 w-5 mr-2" />
-            Preview
+      {/* Location & Contact (for real estate) */}
+      {isRealEstate && (
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
+            <MapPinIcon className="h-5 w-5 mr-2 text-primary-500" />
+            Location
           </h3>
-        </div>
-
-        <div className="p-6">
-          {/* Preview Card */}
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-            {/* Image */}
-            <div className="aspect-w-16 aspect-h-9 bg-gray-200 dark:bg-gray-700">
-              {formData.media?.images && formData.media.images.length > 0 ? (
-                <img
-                  src={formData.media.images[0].url}
-                  alt={formData.title}
-                  className="w-full h-48 object-cover"
-                />
-              ) : (
-                <div className="flex items-center justify-center h-48">
-                  <p className="text-gray-500 dark:text-gray-400">No image available</p>
-                </div>
-              )}
-            </div>
-
-            {/* Content */}
-            <div className="p-4">
-              <div className="flex items-start justify-between mb-2">
-                <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 line-clamp-2">
-                  {formData.title || 'Untitled Listing'}
-                </h4>
-                {formData.featured && (
-                  <span className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 text-xs rounded-full">
-                    Featured
-                  </span>
-                )}
-              </div>
-
-              <p className="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-2">
-                {formData.description || 'No description provided'}
-              </p>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-2xl font-bold text-primary-500">
-                    {formData.pricing?.basePrice 
-                      ? formatCurrency(formData.pricing.basePrice, 'ETB')
-                      : 'Price not set'
-                    }
-                  </span>
-                  {formData.pricing?.priceType && formData.pricing.priceType !== 'sale' && (
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      /{formData.pricing.priceType}
-                    </span>
-                  )}
-                </div>
-
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  {getListingType()}
-                </div>
-              </div>
-
-              {/* Quick Stats */}
-              {formData.type === 'real-estate' && formData.realEstateDetails && (
-                <div className="flex items-center space-x-4 mt-3 text-sm text-gray-600 dark:text-gray-400">
-                  {formData.realEstateDetails.bedrooms && (
-                    <span>{formData.realEstateDetails.bedrooms} bed</span>
-                  )}
-                  {formData.realEstateDetails.bathrooms && (
-                    <span>{formData.realEstateDetails.bathrooms} bath</span>
-                  )}
-                  {formData.realEstateDetails.area && (
-                    <span>{formatArea(formData.realEstateDetails.area)}</span>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Summary Details */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Basic Info */}
-        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-          <h4 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-4">
-            Basic Information
-          </h4>
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-600 dark:text-gray-400">Type:</span>
-              <span className="text-gray-900 dark:text-gray-100 capitalize">
-                {formData.type?.replace('-', ' ')}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600 dark:text-gray-400">Category:</span>
-              <span className="text-gray-900 dark:text-gray-100 capitalize">
-                {formData.category?.replace('-', ' ')}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600 dark:text-gray-400">Condition:</span>
-              <span className="text-gray-900 dark:text-gray-100 capitalize">
-                {formData.condition}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Media Summary */}
-        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-          <h4 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-4">
-            Media Files
-          </h4>
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-600 dark:text-gray-400">Photos:</span>
-              <span className="text-gray-900 dark:text-gray-100">
-                {formData.media?.images?.length || 0}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600 dark:text-gray-400">Videos:</span>
-              <span className="text-gray-900 dark:text-gray-100">
-                {formData.media?.videos?.length || 0}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600 dark:text-gray-400">Documents:</span>
-              <span className="text-gray-900 dark:text-gray-100">
-                {formData.media?.documents?.length || 0}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Additional Options */}
-      <div className="space-y-6">
-        {/* Publishing Options */}
-        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-          <h4 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-4">
-            Publishing Options
-          </h4>
           
-          <div className="space-y-4">
-            {/* Featured Listing */}
-            <div className="flex items-start">
-              <input
-                type="checkbox"
-                id="featured"
-                checked={formData.featured}
-                onChange={(e) => handleChange('featured', e.target.checked)}
-                className="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-              />
-              <div className="ml-3">
-                <label htmlFor="featured" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Make this a featured listing
-                </label>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Featured listings get more visibility and appear at the top of search results (additional fee may apply)
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Address</p>
+              <p className="text-gray-900 dark:text-gray-100">
+                {getDisplayValue(formData.propertyDetails?.location?.address)}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">City</p>
+                <p className="text-gray-900 dark:text-gray-100">
+                  {getDisplayValue(formData.propertyDetails?.location?.city)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Region</p>
+                <p className="text-gray-900 dark:text-gray-100">
+                  {getDisplayValue(formData.propertyDetails?.location?.region)}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Country</p>
+                <p className="text-gray-900 dark:text-gray-100">
+                  {getDisplayValue(formData.propertyDetails?.location?.country)}
                 </p>
               </div>
             </div>
-
-            {/* Urgency */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Urgency Level
-              </label>
-              <select
-                value={formData.urgency}
-                onChange={(e) => handleChange('urgency', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="normal">Normal</option>
-                <option value="urgent">Urgent (quick sale/booking needed)</option>
-              </select>
-            </div>
+            
+            {formData.propertyDetails?.location?.landmarks?.length > 0 && (
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Landmarks</p>
+                <p className="text-gray-900 dark:text-gray-100">
+                  {formatArray(formData.propertyDetails.location.landmarks)}
+                </p>
+              </div>
+            )}
           </div>
         </div>
+      )}
 
-        {/* Terms and Conditions */}
-        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-md font-medium text-gray-900 dark:text-gray-100">
-              Terms & Conditions
-            </h4>
-            <button
-              type="button"
-              onClick={() => setShowTerms(!showTerms)}
-              className="text-primary-500 hover:text-primary-600 text-sm font-medium"
-            >
-              {showTerms ? 'Hide' : 'Add Custom Terms'}
-            </button>
-          </div>
-
-          {showTerms && (
-            <div>
-              <textarea
-                value={formData.terms || ''}
-                onChange={(e) => handleChange('terms', e.target.value)}
-                rows={4}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-                placeholder="Add any specific terms, conditions, or requirements for this listing..."
-              />
-            </div>
+      {/* Pricing Details */}
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
+          <CurrencyDollarIcon className="h-5 w-5 mr-2 text-primary-500" />
+          Pricing
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {isRental ? (
+            <>
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Monthly Rent</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  {formData.pricing?.rentPrice?.monthly ? 
+                    formatCurrency(formData.pricing.rentPrice.monthly, 'ETB') : 
+                    'Not set'
+                  }
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Security Deposit</p>
+                <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  {formData.pricing?.rentPrice?.deposit ? 
+                    formatCurrency(formData.pricing.rentPrice.deposit, 'ETB') : 
+                    'Not specified'
+                  }
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Price</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  {formData.pricing?.basePrice ? 
+                    formatCurrency(formData.pricing.basePrice, 'ETB') : 
+                    'Not set'
+                  }
+                </p>
+              </div>
+              {formData.pricing?.salePrice && (
+                <div>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Sale Price</p>
+                  <p className="text-lg font-semibold text-green-600 dark:text-green-400">
+                    {formatCurrency(formData.pricing.salePrice, 'ETB')}
+                  </p>
+                </div>
+              )}
+            </>
           )}
+          
+          <div>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Price Type</p>
+            <p className="text-gray-900 dark:text-gray-100 capitalize">
+              {getDisplayValue(formData.pricing?.priceType)?.replace('-', ' ')}
+            </p>
+          </div>
+          
+          <div>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Negotiable</p>
+            <p className="text-gray-900 dark:text-gray-100">
+              {formData.pricing?.isNegotiable ? 'Yes' : 'No'}
+            </p>
+          </div>
+        </div>
+      </div>
 
-          <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              By publishing this listing, you agree to CitiLights' 
-              <a href="#" className="text-primary-500 hover:text-primary-600 ml-1">Terms of Service</a> and 
-              <a href="#" className="text-primary-500 hover:text-primary-600 ml-1">Privacy Policy</a>.
+      {/* Contact Information */}
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
+          <PhoneIcon className="h-5 w-5 mr-2 text-primary-500" />
+          Contact Information
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Phone</p>
+            <p className="text-gray-900 dark:text-gray-100">
+              {getDisplayValue(formData.contactInfo?.phone)}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Email</p>
+            <p className="text-gray-900 dark:text-gray-100">
+              {getDisplayValue(formData.contactInfo?.email)}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">WhatsApp</p>
+            <p className="text-gray-900 dark:text-gray-100">
+              {getDisplayValue(formData.contactInfo?.whatsapp, 'Not provided')}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Preferred Contact</p>
+            <p className="text-gray-900 dark:text-gray-100 capitalize">
+              {getDisplayValue(formData.contactInfo?.preferredContactMethod)}
             </p>
           </div>
         </div>
 
-        {/* Additional Information */}
-        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-          <h4 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-4">
-            Additional Information
-          </h4>
-          <textarea
-            value={formData.additionalInfo || ''}
-            onChange={(e) => handleChange('additionalInfo', e.target.value)}
-            rows={3}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            placeholder="Any additional information you'd like to share with potential customers..."
-          />
-        </div>
+        {/* Viewing Details for Real Estate */}
+        {isRealEstate && formData.viewingDetails?.allowViewings && (
+          <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <h4 className="text-md font-medium text-gray-900 dark:text-gray-100 mb-3 flex items-center">
+              <ClockIcon className="h-4 w-4 mr-2" />
+              Viewing Schedule
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Available Days</p>
+                <p className="text-gray-900 dark:text-gray-100 capitalize">
+                  {formatArray(formData.viewingDetails.viewingDays, 'Not specified')}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Viewing Hours</p>
+                <p className="text-gray-900 dark:text-gray-100">
+                  {formData.viewingDetails.viewingHours ? 
+                    `${formData.viewingDetails.viewingHours.start} - ${formData.viewingDetails.viewingHours.end}` : 
+                    'Not specified'
+                  }
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Final Checklist */}
-      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
-        <div className="flex items-start">
-          <DocumentTextIcon className="h-5 w-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
-          <div>
-            <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
-              Pre-Publishing Checklist
-            </h4>
-            <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-              <li>• All information is accurate and up-to-date</li>
-              <li>• Photos are high-quality and properly represent the {getListingType().toLowerCase()}</li>
-              <li>• Price is competitive and clearly stated</li>
-              <li>• Contact information is correct</li>
-              <li>• You have the right to list this {getListingType().toLowerCase()}</li>
-            </ul>
+      {/* Media Summary */}
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
+          <PhotoIcon className="h-5 w-5 mr-2 text-primary-500" />
+          Media & Documentation
+        </h3>
+        
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <PhotoIcon className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              {formData.media?.images?.length || 0}
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Images</p>
+          </div>
+          <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <TruckIcon className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              {formData.media?.videos?.length || 0}
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Videos</p>
+          </div>
+          <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <DocumentCheckIcon className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              {formData.media?.documents?.length || 0}
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Documents</p>
+          </div>
+          <div className="text-center p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <ShieldCheckIcon className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+            <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              {formData.media?.virtualTour ? '✓' : '✗'}
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Virtual Tour</p>
+          </div>
+        </div>
+
+        {formData.media?.images?.length > 0 && (
+          <div className="mt-4">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Image Preview</p>
+            <div className="flex space-x-2 overflow-x-auto">
+              {formData.media.images.slice(0, 5).map((image, index) => (
+                <div key={index} className="relative flex-shrink-0">
+                  <img
+                    src={image.url}
+                    alt={`Preview ${index + 1}`}
+                    className="w-16 h-16 object-cover rounded-lg"
+                  />
+                  {image.isPrimary && (
+                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-500 rounded-full flex items-center justify-center">
+                      <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {formData.media.images.length > 5 && (
+                <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                  <span className="text-xs text-gray-600 dark:text-gray-400">
+                    +{formData.media.images.length - 5}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Additional Information */}
+      {(formData.tags?.length > 0 || formData.notes) && (
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+            Additional Information
+          </h3>
+          
+          {formData.tags?.length > 0 && (
+            <div className="mb-4">
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tags</p>
+              <div className="flex flex-wrap gap-2">
+                {formData.tags.map((tag, index) => (
+                  <span
+                    key={index}
+                    className="inline-block px-3 py-1 text-sm bg-primary-100 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 rounded-full"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {formData.notes && (
+            <div>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Internal Notes</p>
+              <p className="text-gray-900 dark:text-gray-100 text-sm bg-gray-50 dark:bg-gray-800 p-3 rounded-lg">
+                {formData.notes}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Final Check */}
+      <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-yellow-900 dark:text-yellow-100 mb-2">
+          Final Check
+        </h3>
+        <div className="space-y-2 text-sm text-yellow-800 dark:text-yellow-200">
+          <div className="flex items-center">
+            <input type="checkbox" className="rounded border-yellow-300 text-yellow-600 focus:ring-yellow-500 mr-2" />
+            <span>All information provided is accurate and up-to-date</span>
+          </div>
+          <div className="flex items-center">
+            <input type="checkbox" className="rounded border-yellow-300 text-yellow-600 focus:ring-yellow-500 mr-2" />
+            <span>Images and media represent the {isRealEstate ? 'property' : 'product'} correctly</span>
+          </div>
+          <div className="flex items-center">
+            <input type="checkbox" className="rounded border-yellow-300 text-yellow-600 focus:ring-yellow-500 mr-2" />
+            <span>Contact information is correct and accessible</span>
+          </div>
+          <div className="flex items-center">
+            <input type="checkbox" className="rounded border-yellow-300 text-yellow-600 focus:ring-yellow-500 mr-2" />
+            <span>I agree to the terms and conditions</span>
           </div>
         </div>
       </div>

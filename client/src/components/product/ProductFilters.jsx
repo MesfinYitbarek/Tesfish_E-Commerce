@@ -1,3 +1,4 @@
+// components/product/ProductFilters.jsx
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -9,17 +10,26 @@ import {
   XMarkIcon,
   SparklesIcon,
   BoltIcon,
-  FireIcon
+  FireIcon,
+  TagIcon,
+  AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline';
-import { PROPERTY_TYPES, PRICE_RANGES } from '../../constants';
 
-const ProductFilters = ({ filters, categories, onFilterChange, onClearFilters }) => {
+const ProductFilters = ({ 
+  filters, 
+  categories, 
+  propertyTypes, 
+  aggregatedFilters,
+  onFilterChange, 
+  onClearFilters 
+}) => {
   const [expandedSections, setExpandedSections] = useState({
     category: true,
     price: true,
     location: true,
     propertyType: true,
     features: false,
+    condition: false
   });
 
   const toggleSection = (section) => {
@@ -34,8 +44,10 @@ const ProductFilters = ({ filters, categories, onFilterChange, onClearFilters })
   };
 
   const handlePriceRangeChange = (range) => {
-    if (range.min !== null) onFilterChange({ minPrice: range.min });
-    if (range.max !== null) onFilterChange({ maxPrice: range.max });
+    const updates = {};
+    if (range.min !== null && range.min !== undefined) updates.minPrice = range.min;
+    if (range.max !== null && range.max !== undefined) updates.maxPrice = range.max;
+    onFilterChange(updates);
   };
 
   const clearSpecificFilter = (key) => {
@@ -43,33 +55,65 @@ const ProductFilters = ({ filters, categories, onFilterChange, onClearFilters })
   };
 
   const getActiveFiltersCount = () => {
-    return Object.values(filters).filter(value => value && value !== '').length;
+    return Object.values(filters).filter(value => 
+      value && value !== '' && value !== 'all'
+    ).length;
   };
 
-  const popularLocations = [
-    { name: 'Addis Ababa', count: 2840, trending: true },
-    { name: 'Bole', count: 850, trending: true },
-    { name: 'Kazanchis', count: 420, trending: false },
-    { name: 'Kirkos', count: 310, trending: false },
-    { name: 'Piazza', count: 200, trending: false },
-    { name: 'Megenagna', count: 180, trending: true },
-    { name: 'CMC', count: 160, trending: false },
-    { name: 'Old Airport', count: 140, trending: false }
+  // Property type options with icons
+  const propertyTypeOptions = [
+    { value: 'homes', label: 'Homes', icon: <HomeIcon className="h-4 w-4" />, count: aggregatedFilters?.propertyTypes?.find(p => p._id === 'homes')?.count || 0 },
+    { value: 'plots', label: 'Plots', icon: <MapPinIcon className="h-4 w-4" />, count: aggregatedFilters?.propertyTypes?.find(p => p._id === 'plots')?.count || 0 },
+    { value: 'commercials', label: 'Commercial', icon: <BuildingOfficeIcon className="h-4 w-4" />, count: aggregatedFilters?.propertyTypes?.find(p => p._id === 'commercials')?.count || 0 },
+    { value: 'others', label: 'Others', icon: <TagIcon className="h-4 w-4" />, count: aggregatedFilters?.propertyTypes?.find(p => p._id === 'others')?.count || 0 }
   ];
 
+  // Price ranges based on Ethiopian real estate market
+  const priceRanges = [
+    { label: 'Under 1M ETB', min: 0, max: 1000000 },
+    { label: '1M - 5M ETB', min: 1000000, max: 5000000 },
+    { label: '5M - 10M ETB', min: 5000000, max: 10000000 },
+    { label: '10M - 25M ETB', min: 10000000, max: 25000000 },
+    { label: '25M - 50M ETB', min: 25000000, max: 50000000 },
+    { label: 'Above 50M ETB', min: 50000000, max: null }
+  ];
+
+  // Popular Ethiopian cities
+  const popularCities = [
+    'Addis Ababa', 'Dire Dawa', 'Bahir Dar', 'Mekelle', 
+    'Adama', 'Awasa', 'Jimma', 'Dessie', 'Gondar', 'Harar'
+  ];
+
+  // Bedroom options
   const bedroomOptions = [
-    { value: '1', label: '1 Bedroom', count: 120 },
-    { value: '2', label: '2 Bedrooms', count: 340 },
-    { value: '3', label: '3 Bedrooms', count: 280 },
-    { value: '4', label: '4 Bedrooms', count: 150 },
-    { value: '5', label: '5+ Bedrooms', count: 80 },
+    { value: '1', label: '1 Bedroom' },
+    { value: '2', label: '2 Bedrooms' },
+    { value: '3', label: '3 Bedrooms' },
+    { value: '4', label: '4 Bedrooms' },
+    { value: '5', label: '5+ Bedrooms' }
   ];
 
+  // Bathroom options
   const bathroomOptions = [
-    { value: '1', label: '1 Bathroom', count: 200 },
-    { value: '2', label: '2 Bathrooms', count: 450 },
-    { value: '3', label: '3 Bathrooms', count: 250 },
-    { value: '4', label: '4+ Bathrooms', count: 100 },
+    { value: '1', label: '1 Bathroom' },
+    { value: '2', label: '2 Bathrooms' },
+    { value: '3', label: '3 Bathrooms' },
+    { value: '4', label: '4+ Bathrooms' }
+  ];
+
+  // Condition options
+  const conditionOptions = [
+    { value: 'new', label: 'Brand New' },
+    { value: 'excellent', label: 'Excellent' },
+    { value: 'good', label: 'Good' },
+    { value: 'fair', label: 'Fair' },
+    { value: 'needs-work', label: 'Needs Work' }
+  ];
+
+  // Listing type options
+  const listingTypeOptions = [
+    { value: 'sell', label: 'For Sale' },
+    { value: 'rent', label: 'For Rent' }
   ];
 
   return (
@@ -79,11 +123,11 @@ const ProductFilters = ({ filters, categories, onFilterChange, onClearFilters })
       className="bg-white dark:bg-gray-900 rounded-xl shadow-xl border border-gray-200 dark:border-gray-800 overflow-hidden"
     >
       {/* Header */}
-      <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-b border-gray-200 dark:border-gray-700">
+      <div className="p-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-              <SparklesIcon className="h-3 w-3 text-white" />
+            <div className="w-6 h-6 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <AdjustmentsHorizontalIcon className="h-3 w-3 text-white" />
             </div>
             <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
               Filters
@@ -104,39 +148,53 @@ const ProductFilters = ({ filters, categories, onFilterChange, onClearFilters })
       </div>
 
       <div className="p-4 space-y-4 max-h-[calc(100vh-8rem)] overflow-y-auto">
-        {/* Category Filter */}
+        {/* Property Type Filter */}
         <FilterSection
-          title="Category"
-          icon={BuildingOfficeIcon}
+          title="Property Type"
+          icon={HomeIcon}
+          isExpanded={expandedSections.propertyType}
+          onToggle={() => toggleSection('propertyType')}
+        >
+          <div className="grid grid-cols-2 gap-2">
+            {propertyTypeOptions.map((option) => (
+              <FilterButton
+                key={option.value}
+                active={filters.productType === option.value}
+                onClick={() => handleFilterChange('productType', option.value)}
+                className="text-center p-3"
+              >
+                <div className="flex flex-col items-center space-y-1">
+                  <div className={`${
+                    filters.productType === option.value
+                      ? 'text-white'
+                      : 'text-gray-400'
+                  }`}>
+                    {option.icon}
+                  </div>
+                  <span className="text-xs font-medium">{option.label}</span>
+                  <span className="text-xs text-gray-400">{option.count}</span>
+                </div>
+              </FilterButton>
+            ))}
+          </div>
+        </FilterSection>
+
+        {/* Listing Type Filter */}
+        <FilterSection
+          title="Listing Type"
+          icon={TagIcon}
           isExpanded={expandedSections.category}
           onToggle={() => toggleSection('category')}
-          count={categories.length}
         >
-          <div className="space-y-1">
-            <FilterButton
-              active={!filters.category}
-              onClick={() => handleFilterChange('category', '')}
-              icon={SparklesIcon}
-            >
-              <div className="flex justify-between items-center w-full">
-                <span>All Categories</span>
-                <span className="text-xs text-gray-400">All</span>
-              </div>
-            </FilterButton>
-            {categories.map((category) => (
+          <div className="grid grid-cols-2 gap-2">
+            {listingTypeOptions.map((option) => (
               <FilterButton
-                key={category._id}
-                active={filters.category === category.slug}
-                onClick={() => handleFilterChange('category', category.slug)}
+                key={option.value}
+                active={filters.listingType === option.value}
+                onClick={() => handleFilterChange('listingType', option.value)}
+                className="text-center"
               >
-                <div className="flex justify-between items-center w-full">
-                  <span className="capitalize">{category.name}</span>
-                  {category.productCount && (
-                    <span className="text-xs text-gray-400">
-                      {category.productCount}
-                    </span>
-                  )}
-                </div>
+                <span className="text-sm font-medium">{option.label}</span>
               </FilterButton>
             ))}
           </div>
@@ -151,17 +209,21 @@ const ProductFilters = ({ filters, categories, onFilterChange, onClearFilters })
         >
           <div className="space-y-4">
             {/* Quick Price Ranges */}
-            <div className="space-y-1">
+            <div className="space-y-2">
               <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
                 Popular Ranges
               </div>
-              {PRICE_RANGES.map((range, index) => (
+              {priceRanges.map((range, index) => (
                 <FilterButton
                   key={index}
-                  active={filters.minPrice == range.min && filters.maxPrice == range.max}
+                  active={
+                    filters.minPrice == range.min && 
+                    (range.max === null ? !filters.maxPrice : filters.maxPrice == range.max)
+                  }
                   onClick={() => handlePriceRangeChange(range)}
+                  className="w-full text-left"
                 >
-                  {range.label}
+                  <span className="text-sm">{range.label}</span>
                 </FilterButton>
               ))}
             </div>
@@ -177,14 +239,14 @@ const ProductFilters = ({ filters, categories, onFilterChange, onClearFilters })
                   placeholder="Min price"
                   value={filters.minPrice || ''}
                   onChange={(e) => handleFilterChange('minPrice', e.target.value)}
-                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-gray-600 rounded-lg text-xs bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+                  className="w-full px-3 py-2 text-base border-2 border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-200"
                 />
                 <input
                   type="number"
                   placeholder="Max price"
                   value={filters.maxPrice || ''}
                   onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
-                  className="w-full px-3 py-2 border-2 border-gray-200 dark:border-gray-600 rounded-lg text-xs bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+                  className="w-full px-3 py-2 text-base border-2 border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-200"
                 />
               </div>
             </div>
@@ -202,32 +264,30 @@ const ProductFilters = ({ filters, categories, onFilterChange, onClearFilters })
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search location..."
-                value={filters.location || ''}
-                onChange={(e) => handleFilterChange('location', e.target.value)}
-                className="w-full px-3 py-2 pl-8 border-2 border-gray-200 dark:border-gray-600 rounded-lg text-xs bg-white dark:bg-gray-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all duration-200"
+                placeholder="Search city or area..."
+                value={filters.city || ''}
+                onChange={(e) => handleFilterChange('city', e.target.value)}
+                className="w-full px-3 py-2 pl-8 text-base border-2 border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-200"
               />
-              <MapPinIcon className="absolute left-2 top-2.5 h-3 w-3 text-gray-400" />
+              <MapPinIcon className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
             </div>
             
             <div className="space-y-1">
               <div className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">
-                Popular Locations
+                Popular Cities
               </div>
-              {popularLocations.map((location) => (
+              {popularCities.map((city) => (
                 <FilterButton
-                  key={location.name}
-                  active={filters.location === location.name}
-                  onClick={() => handleFilterChange('location', location.name)}
+                  key={city}
+                  active={filters.city === city}
+                  onClick={() => handleFilterChange('city', city)}
+                  className="w-full text-left"
                 >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center space-x-1">
-                      <span>{location.name}</span>
-                      {location.trending && (
-                        <FireIcon className="h-2 w-2 text-orange-500" />
-                      )}
-                    </div>
-                    <span className="text-xs text-gray-400">{location.count}</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">{city}</span>
+                    {city === 'Addis Ababa' && (
+                      <FireIcon className="h-3 w-3 text-orange-500" />
+                    )}
                   </div>
                 </FilterButton>
               ))}
@@ -235,113 +295,120 @@ const ProductFilters = ({ filters, categories, onFilterChange, onClearFilters })
           </div>
         </FilterSection>
 
-        {/* Property Type Filter */}
-        {(filters.category === 'real-estate' || !filters.category) && (
-          <FilterSection
-            title="Property Type"
-            icon={HomeIcon}
-            isExpanded={expandedSections.propertyType}
-            onToggle={() => toggleSection('propertyType')}
-          >
-            <div className="grid grid-cols-2 gap-1">
-              {Object.entries(PROPERTY_TYPES).map(([key, value]) => (
-                <FilterButton
-                  key={key}
-                  active={filters.propertyType === value}
-                  onClick={() => handleFilterChange('propertyType', value)}
-                  className="text-center"
-                >
-                  <span className="capitalize text-xs">{value.replace('-', ' ')}</span>
-                </FilterButton>
-              ))}
-            </div>
-          </FilterSection>
-        )}
-
         {/* Property Features */}
-        {(filters.category === 'real-estate' || !filters.category) && (
-          <FilterSection
-            title="Property Features"
-            icon={BoltIcon}
-            isExpanded={expandedSections.features}
-            onToggle={() => toggleSection('features')}
-          >
-            <div className="space-y-4">
-              {/* Bedrooms */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Bedrooms
-                </label>
-                <div className="grid grid-cols-2 gap-1">
-                  {bedroomOptions.map((option) => (
-                    <FilterButton
-                      key={option.value}
-                      active={filters.bedrooms === option.value}
-                      onClick={() => handleFilterChange('bedrooms', option.value)}
-                      className="text-center"
-                    >
-                      <div>
-                        <div className="text-xs font-medium">{option.label.split(' ')[0]}</div>
-                        <div className="text-xs text-gray-400">{option.count}</div>
-                      </div>
-                    </FilterButton>
-                  ))}
-                </div>
-              </div>
-
-              {/* Bathrooms */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Bathrooms
-                </label>
-                <div className="grid grid-cols-2 gap-1">
-                  {bathroomOptions.map((option) => (
-                    <FilterButton
-                      key={option.value}
-                      active={filters.bathrooms === option.value}
-                      onClick={() => handleFilterChange('bathrooms', option.value)}
-                      className="text-center"
-                    >
-                      <div>
-                        <div className="text-xs font-medium">{option.label.split(' ')[0]}</div>
-                        <div className="text-xs text-gray-400">{option.count}</div>
-                      </div>
-                    </FilterButton>
-                  ))}
-                </div>
-              </div>
-
-              {/* Listing Type */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                  Listing Type
-                </label>
-                <div className="grid grid-cols-2 gap-1">
+        <FilterSection
+          title="Property Features"
+          icon={BoltIcon}
+          isExpanded={expandedSections.features}
+          onToggle={() => toggleSection('features')}
+        >
+          <div className="space-y-4">
+            {/* Bedrooms */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                Bedrooms
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {bedroomOptions.map((option) => (
                   <FilterButton
-                    active={filters.type === 'sale'}
-                    onClick={() => handleFilterChange('type', 'sale')}
-                    className="text-center"
+                    key={option.value}
+                    active={filters.bedrooms === option.value}
+                    onClick={() => handleFilterChange('bedrooms', option.value)}
+                    className="text-center text-xs"
                   >
-                    <div>
-                      <div className="text-xs font-medium">For Sale</div>
-                      <div className="text-xs text-gray-400">Own it</div>
-                    </div>
+                    {option.value}
                   </FilterButton>
-                  <FilterButton
-                    active={filters.type === 'rental'}
-                    onClick={() => handleFilterChange('type', 'rental')}
-                    className="text-center"
-                  >
-                    <div>
-                      <div className="text-xs font-medium">For Rent</div>
-                      <div className="text-xs text-gray-400">Lease it</div>
-                    </div>
-                  </FilterButton>
-                </div>
+                ))}
               </div>
             </div>
-          </FilterSection>
-        )}
+
+            {/* Bathrooms */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                Bathrooms
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {bathroomOptions.map((option) => (
+                  <FilterButton
+                    key={option.value}
+                    active={filters.bathrooms === option.value}
+                    onClick={() => handleFilterChange('bathrooms', option.value)}
+                    className="text-center text-xs"
+                  >
+                    {option.value}
+                  </FilterButton>
+                ))}
+              </div>
+            </div>
+
+            {/* Area Range */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                Area (sqm)
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="number"
+                  placeholder="Min area"
+                  value={filters.minArea || ''}
+                  onChange={(e) => handleFilterChange('minArea', e.target.value)}
+                  className="w-full px-3 py-2 text-base border-2 border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-200"
+                />
+                <input
+                  type="number"
+                  placeholder="Max area"
+                  value={filters.maxArea || ''}
+                  onChange={(e) => handleFilterChange('maxArea', e.target.value)}
+                  className="w-full px-3 py-2 text-base border-2 border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all duration-200"
+                />
+              </div>
+            </div>
+
+            {/* Furnishing Status */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                Furnishing
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <FilterButton
+                  active={filters.furnishingStatus === 'furnished'}
+                  onClick={() => handleFilterChange('furnishingStatus', 'furnished')}
+                  className="text-center text-xs"
+                >
+                  Furnished
+                </FilterButton>
+                <FilterButton
+                  active={filters.furnishingStatus === 'unfurnished'}
+                  onClick={() => handleFilterChange('furnishingStatus', 'unfurnished')}
+                  className="text-center text-xs"
+                >
+                  Unfurnished
+                </FilterButton>
+              </div>
+            </div>
+          </div>
+        </FilterSection>
+
+        {/* Condition Filter */}
+        <FilterSection
+          title="Condition"
+          icon={SparklesIcon}
+          isExpanded={expandedSections.condition}
+          onToggle={() => toggleSection('condition')}
+        >
+          <div className="space-y-1">
+            {conditionOptions.map((option) => (
+              <FilterButton
+                key={option.value}
+                active={filters.condition === option.value}
+                onClick={() => handleFilterChange('condition', option.value)}
+                className="w-full text-left"
+              >
+                <span className="text-sm">{option.label}</span>
+              </FilterButton>
+            ))}
+          </div>
+        </FilterSection>
 
         {/* Active Filters Display */}
         {getActiveFiltersCount() > 0 && (
@@ -351,21 +418,21 @@ const ProductFilters = ({ filters, categories, onFilterChange, onClearFilters })
             </div>
             <div className="space-y-2">
               {Object.entries(filters).map(([key, value]) => {
-                if (!value || value === '') return null;
+                if (!value || value === '' || value === 'all') return null;
                 return (
                   <motion.div
                     key={key}
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded-lg border border-blue-200 dark:border-blue-800"
+                    className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800"
                   >
-                    <span className="text-xs text-blue-700 dark:text-blue-300 font-medium capitalize">
+                    <span className="text-xs text-indigo-700 dark:text-indigo-300 font-medium capitalize">
                       {key.replace(/([A-Z])/g, ' $1').trim()}: {value}
                     </span>
                     <button
                       onClick={() => clearSpecificFilter(key)}
-                      className="text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-200 transition-colors"
+                      className="text-indigo-500 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-200 transition-colors"
                     >
                       <XMarkIcon className="h-3 w-3" />
                     </button>
@@ -385,13 +452,13 @@ const FilterSection = ({ title, icon: Icon, isExpanded, onToggle, children, coun
   return (
     <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
       <motion.button
-        whileHover={{ backgroundColor: 'rgba(59, 130, 246, 0.05)' }}
+        whileHover={{ backgroundColor: 'rgba(99, 102, 241, 0.05)' }}
         onClick={onToggle}
         className="w-full flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 transition-all duration-200"
       >
         <div className="flex items-center space-x-2">
           {Icon && (
-            <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <div className="w-6 h-6 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
               <Icon className="h-3 w-3 text-white" />
             </div>
           )}
@@ -432,7 +499,7 @@ const FilterSection = ({ title, icon: Icon, isExpanded, onToggle, children, coun
 };
 
 // Filter Button Component
-const FilterButton = ({ active, onClick, children, icon: Icon, className = '' }) => {
+const FilterButton = ({ active, onClick, children, className = '' }) => {
   return (
     <motion.button
       whileHover={{ scale: 1.02 }}
@@ -440,14 +507,11 @@ const FilterButton = ({ active, onClick, children, icon: Icon, className = '' })
       onClick={onClick}
       className={`w-full text-left px-3 py-2 rounded-lg transition-all duration-200 ${
         active
-          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg transform scale-105'
+          ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg'
           : 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'
       } ${className}`}
     >
-      <div className="flex items-center space-x-1">
-        {Icon && <Icon className="h-3 w-3" />}
-        <div className="flex-1 text-xs">{children}</div>
-      </div>
+      {children}
     </motion.button>
   );
 };

@@ -1,0 +1,47 @@
+import { motion } from 'framer-motion';
+
+const Badge = ({ 
+  children, 
+  variant = 'default', 
+  size = 'md', 
+  className = '',
+  icon,
+  ...props 
+}) => {
+  const variants = {
+    default: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+    primary: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300',
+    secondary: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
+    success: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+    warning: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+    error: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+    info: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+    featured: 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white',
+    promoted: 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
+  };
+
+  const sizes = {
+    sm: 'px-2 py-0.5 text-xs',
+    md: 'px-2.5 py-1 text-sm',
+    lg: 'px-3 py-1.5 text-base'
+  };
+
+  const baseClasses = 'inline-flex items-center font-medium rounded-full transition-all duration-200';
+  const variantClasses = variants[variant] || variants.default;
+  const sizeClasses = sizes[size] || sizes.md;
+
+  return (
+    <motion.span
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.2 }}
+      className={`${baseClasses} ${variantClasses} ${sizeClasses} ${className}`}
+      {...props}
+    >
+      {icon && <span className="mr-1">{icon}</span>}
+      {children}
+    </motion.span>
+  );
+};
+
+export default Badge;

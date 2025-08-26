@@ -1,3 +1,4 @@
+// services/productService.js
 import api from './api';
 import { API_ENDPOINTS } from '../constants';
 
@@ -93,8 +94,8 @@ const productService = {
     return response.data;
   },
 
-  toggleProductStatus: async (id) => {
-    const response = await api.patch(`${API_ENDPOINTS.PRODUCTS.TOGGLE_STATUS}/${id}`);
+  updateProductStatus: async (id, status) => {
+    const response = await api.put(`${API_ENDPOINTS.PRODUCTS.UPDATE_STATUS}/${id}/status`, { status });
     return response.data;
   },
 
@@ -108,8 +109,14 @@ const productService = {
     return response.data;
   },
 
+  // New: Get property types with counts
+  getPropertyTypes: async () => {
+    const response = await api.get(`${API_ENDPOINTS.PRODUCTS.LIST}/property-types`);
+    return response.data;
+  },
+
   getFeaturedProducts: async (limit = 8) => {
-    const response = await api.get(`${API_ENDPOINTS.PRODUCTS.FEATURED}?limit=${limit}`);
+    const response = await api.get(`${API_ENDPOINTS.PRODUCTS.LIST}/featured?limit=${limit}`);
     return response.data;
   },
 
@@ -151,6 +158,159 @@ const productService = {
     const response = await api.post(`${API_ENDPOINTS.PRODUCTS.REPORT}/${productId}`, {
       reason,
       description
+    });
+    return response.data;
+  },
+
+  // Admin specific functions
+  getProductsForAdmin: async (params = {}) => {
+    const queryParams = new URLSearchParams(params);
+    const response = await api.get(`${API_ENDPOINTS.PRODUCTS.ADMIN}/all?${queryParams}`);
+    return response.data;
+  },
+
+  getProductStats: async () => {
+    const response = await api.get(`${API_ENDPOINTS.PRODUCTS.ADMIN}/stats`);
+    return response.data;
+  },
+
+  bulkUpdateProducts: async (productIds, updates) => {
+    const response = await api.patch(API_ENDPOINTS.PRODUCTS.BULK_UPDATE, {
+      productIds,
+      updates
+    });
+    return response.data;
+  },
+
+  bulkDeleteProducts: async (productIds) => {
+    const response = await api.delete(API_ENDPOINTS.PRODUCTS.BULK_DELETE, {
+      data: { productIds }
+    });
+    return response.data;
+  }
+};
+
+// Property Registration Services
+export const propertyRegistrationService = {
+  submitRegistration: async (registrationData) => {
+    const response = await api.post('/property-registrations', registrationData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  getMyRegistrations: async (params = {}) => {
+    const queryParams = new URLSearchParams(params);
+    const response = await api.get(`/property-registrations/my-registrations?${queryParams}`);
+    return response.data;
+  },
+
+  getCompanyRegistrations: async (params = {}) => {
+    const queryParams = new URLSearchParams(params);
+    const response = await api.get(`/property-registrations/company-registrations?${queryParams}`);
+    return response.data;
+  },
+
+  updateRegistrationStatus: async (id, status, adminNotes) => {
+    const response = await api.put(`/property-registrations/${id}/status`, {
+      status,
+      adminNotes
+    });
+    return response.data;
+  },
+
+  verifyPayment: async (id, paymentData) => {
+    const response = await api.post(`/property-registrations/${id}/verify-payment`, paymentData);
+    return response.data;
+  },
+
+  exportRegistrationsCSV: async () => {
+    const response = await api.get('/property-registrations/export-csv', {
+      responseType: 'blob'
+    });
+    return response.data;
+  }
+};
+
+// Appointment Services
+export const appointmentService = {
+  bookAppointment: async (appointmentData) => {
+    const response = await api.post('/appointments', appointmentData);
+    return response.data;
+  },
+
+  getMyAppointments: async (params = {}) => {
+    const queryParams = new URLSearchParams(params);
+    const response = await api.get(`/appointments/my-appointments?${queryParams}`);
+    return response.data;
+  },
+
+  getSellerAppointments: async (params = {}) => {
+    const queryParams = new URLSearchParams(params);
+    const response = await api.get(`/appointments/seller-appointments?${queryParams}`);
+    return response.data;
+  },
+
+  updateAppointmentStatus: async (id, status, sellerNotes, outcome) => {
+    const response = await api.put(`/appointments/${id}/status`, {
+      status,
+      sellerNotes,
+      outcome
+    });
+    return response.data;
+  },
+
+  rescheduleAppointment: async (id, newDateTime, reason) => {
+    const response = await api.put(`/appointments/${id}/reschedule`, {
+      newDateTime,
+      reason
+    });
+    return response.data;
+  }
+};
+
+// Chat Services
+export const chatService = {
+  startChat: async (recipientId, propertyId, initialMessage) => {
+    const response = await api.post('/chats/start', {
+      recipientId,
+      propertyId,
+      initialMessage
+    });
+    return response.data;
+  },
+
+  getUserChats: async (params = {}) => {
+    const queryParams = new URLSearchParams(params);
+    const response = await api.get(`/chats?${queryParams}`);
+    return response.data;
+  },
+
+  getChatMessages: async (chatId, params = {}) => {
+    const queryParams = new URLSearchParams(params);
+    const response = await api.get(`/chats/${chatId}/messages?${queryParams}`);
+    return response.data;
+  },
+
+  sendMessage: async (chatId, messageData) => {
+    const formData = new FormData();
+    
+    Object.keys(messageData).forEach(key => {
+      if (key !== 'file') {
+        formData.append(key, messageData[key]);
+      }
+    });
+
+    if (messageData.file) {
+      formData.append('file', messageData.file);
+    }
+
+    const response = await api.post(`/chats/${chatId}/messages`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
     return response.data;
   }
