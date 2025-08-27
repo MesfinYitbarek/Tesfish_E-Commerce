@@ -17,7 +17,10 @@ import {
   ClipboardDocumentListIcon,
   CurrencyDollarIcon,
   CalendarIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  MagnifyingGlassIcon,
+  SunIcon,
+  MoonIcon
 } from '@heroicons/react/24/outline';
 import { logout } from '../../store/slices/authSlice';
 
@@ -29,6 +32,7 @@ const CustomerDashboardLayout = () => {
   const { myInquiries } = useSelector((state) => state.serviceInquiry);
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Calculate service inquiry counts
   const pendingQuotes = myInquiries?.filter(inquiry => 
@@ -39,6 +43,9 @@ const CustomerDashboardLayout = () => {
   const activeProjects = myInquiries?.filter(inquiry => 
     ['accepted', 'in-progress'].includes(inquiry.status)
   ).length || 0;
+
+  const unreadMessages = 3; // This should come from your messages state
+  const unreadNotifications = 5; // This should come from your notifications state
 
   const navigationItems = [
     { 
@@ -76,7 +83,7 @@ const CustomerDashboardLayout = () => {
       href: '/customer/messages', 
       icon: ChatBubbleLeftRightIcon,
       description: 'Communication with providers',
-      badge: 3
+      badge: unreadMessages > 0 ? unreadMessages : null
     },
     { 
       name: 'Saved Properties', 
@@ -89,7 +96,7 @@ const CustomerDashboardLayout = () => {
       href: '/customer/notifications', 
       icon: BellIcon,
       description: 'Updates and alerts',
-      badge: 5
+      badge: unreadNotifications > 0 ? unreadNotifications : null
     },
     { 
       name: 'Profile', 
@@ -102,6 +109,11 @@ const CustomerDashboardLayout = () => {
   const handleLogout = () => {
     dispatch(logout());
     navigate('/');
+  };
+
+  const toggleDarkMode = () => {
+    setIsDarkMode(!isDarkMode);
+    // You can dispatch this to your theme slice if you have one
   };
 
   const isActive = (path) => {
@@ -134,15 +146,15 @@ const CustomerDashboardLayout = () => {
           }`}
         >
           <div className="flex items-center space-x-3">
-            <item.icon className="h-5 w-5" />
-            <div>
-              <p className="font-medium">{item.name}</p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">
+            <item.icon className="h-5 w-5 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="font-medium truncate">{item.name}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block truncate">
                 {item.description}
               </p>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 flex-shrink-0">
             {item.badge && (
               <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[20px] text-center">
                 {item.badge}
@@ -176,9 +188,9 @@ const CustomerDashboardLayout = () => {
                     : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
-                <span>{subItem.name}</span>
+                <span className="truncate">{subItem.name}</span>
                 {subItem.badge && subItem.badge > 0 && (
-                  <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 min-w-[18px] text-center">
+                  <span className="bg-red-500 text-white text-xs rounded-full px-2 py-0.5 min-w-[18px] text-center flex-shrink-0 ml-2">
                     {subItem.badge}
                   </span>
                 )}
@@ -192,6 +204,140 @@ const CustomerDashboardLayout = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Custom Scrollbar Styles */}
+      <style>{`
+        .scrollbar-thin {
+          scrollbar-width: thin;
+        }
+        .scrollbar-thin::-webkit-scrollbar {
+          width: 6px;
+        }
+        .scrollbar-thin::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb {
+          background-color: rgb(156 163 175);
+          border-radius: 3px;
+        }
+        .dark .scrollbar-thin::-webkit-scrollbar-thumb {
+          background-color: rgb(75 85 99);
+        }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+          background-color: rgb(107 114 128);
+        }
+        .dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+          background-color: rgb(55 65 81);
+        }
+      `}</style>
+
+      {/* Navbar for Desktop */}
+      <nav className="hidden lg:block fixed top-0 left-0 right-0 z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+        <div className="pl-64"> {/* Account for sidebar width */}
+          <div className="flex items-center justify-between h-16 px-6">
+            {/* Left Side - Breadcrumbs/Page Title */}
+            <div className="flex items-center space-x-4">
+              <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                {(() => {
+                  switch (location.pathname) {
+                    case '/customer':
+                    case '/customer/dashboard':
+                      return 'Dashboard';
+                    case '/customer/dashboard/inquiries':
+                      return 'Service Inquiries';
+                    case '/customer/registrations':
+                      return 'My Registrations';
+                    case '/customer/payments':
+                      return 'Payment History';
+                    case '/customer/messages':
+                      return 'Messages';
+                    case '/customer/favorites':
+                      return 'Saved Properties';
+                    case '/customer/notifications':
+                      return 'Notifications';
+                    case '/customer/profile':
+                      return 'Profile';
+                    default:
+                      return 'Customer Portal';
+                  }
+                })()}
+              </h1>
+            </div>
+
+            {/* Right Side - Search, Notifications, Profile */}
+            <div className="flex items-center space-x-4">
+              {/* Search Bar */}
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MagnifyingGlassIcon className="h-4 w-4 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  className="w-64 pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-gray-900 dark:text-gray-100"
+                />
+              </div>
+
+              {/* Dark Mode Toggle */}
+              <button
+                onClick={toggleDarkMode}
+                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                {isDarkMode ? (
+                  <SunIcon className="h-5 w-5" />
+                ) : (
+                  <MoonIcon className="h-5 w-5" />
+                )}
+              </button>
+
+              {/* Notifications */}
+              <button className="relative p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                <BellIcon className="h-5 w-5" />
+                {unreadNotifications > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                  </span>
+                )}
+              </button>
+
+              {/* Messages */}
+              <Link
+                to="/customer/messages"
+                className="relative p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                <ChatBubbleLeftRightIcon className="h-5 w-5" />
+                {unreadMessages > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {unreadMessages > 9 ? '9+' : unreadMessages}
+                  </span>
+                )}
+              </Link>
+
+              {/* Profile Dropdown */}
+              <div className="relative">
+                <button className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                  <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center">
+                    <span className="text-white font-semibold text-sm">
+                      {user?.customerProfile?.firstName?.charAt(0) || user?.firstName?.charAt(0) || 'C'}
+                    </span>
+                  </div>
+                  <div className="hidden xl:block text-left">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {user?.customerProfile?.firstName 
+                        ? `${user.customerProfile.firstName} ${user.customerProfile.lastName}` 
+                        : user?.firstName 
+                        ? `${user.firstName} ${user.lastName}`
+                        : 'Customer User'
+                      }
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Customer</p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </nav>
+
       {/* Mobile sidebar overlay */}
       {isSidebarOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
@@ -202,22 +348,22 @@ const CustomerDashboardLayout = () => {
       {/* Sidebar */}
       <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 lg:translate-x-0 ${
         isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      } lg:static lg:inset-0`}>
+      } flex flex-col h-full`}>
         
         {/* Sidebar Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-primary-500 rounded-lg flex items-center justify-center">
               <UserIcon className="h-6 w-6 text-white" />
             </div>
-            <div>
+            <Link to="/">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 Customer Portal
               </h2>
               <p className="text-sm text-gray-600 dark:text-gray-400">
                 Welcome back!
               </p>
-            </div>
+            </Link>
           </div>
           
           <button
@@ -229,7 +375,7 @@ const CustomerDashboardLayout = () => {
         </div>
 
         {/* User Profile */}
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <div className="flex items-center space-x-3">
             <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center">
               <span className="text-white font-semibold text-lg">
@@ -254,7 +400,7 @@ const CustomerDashboardLayout = () => {
 
         {/* Quick Stats */}
         {(pendingQuotes > 0 || activeProjects > 0) && (
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
             <div className="grid grid-cols-2 gap-3">
               {pendingQuotes > 0 && (
                 <Link
@@ -289,15 +435,17 @@ const CustomerDashboardLayout = () => {
           </div>
         )}
 
-        {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          {navigationItems.map((item) => (
-            <NavItem key={item.name} item={item} />
-          ))}
-        </nav>
+        {/* Navigation - Scrollable Area */}
+        <div className="flex-1 overflow-hidden min-h-0">
+          <nav className="h-full p-4 space-y-2 overflow-y-auto scrollbar-thin">
+            {navigationItems.map((item) => (
+              <NavItem key={item.name} item={item} />
+            ))}
+          </nav>
+        </div>
 
         {/* Sidebar Footer */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
           <div className="space-y-2">
             <Link
               to="/customer/settings"
@@ -317,42 +465,35 @@ const CustomerDashboardLayout = () => {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="lg:pl-64">
-        {/* Top Header */}
-        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 lg:hidden">
-          <div className="flex items-center justify-between p-4">
-            <button
-              onClick={() => setIsSidebarOpen(true)}
-              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-            >
-              <Bars3Icon className="h-6 w-6" />
-            </button>
-            <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              Customer Portal
-            </h1>
-            <div className="flex items-center space-x-2">
-              {/* Mobile notification badges */}
-              {(pendingQuotes + activeProjects) > 0 && (
-                <div className="flex items-center space-x-1">
-                  {pendingQuotes > 0 && (
-                    <span className="bg-purple-500 text-white text-xs rounded-full px-2 py-1">
-                      {pendingQuotes}
-                    </span>
-                  )}
-                  {activeProjects > 0 && (
-                    <span className="bg-green-500 text-white text-xs rounded-full px-2 py-1">
-                      {activeProjects}
-                    </span>
-                  )}
-                </div>
+      {/* Mobile Header */}
+      <div className="lg:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-20">
+        <div className="flex items-center justify-between p-4">
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+          >
+            <Bars3Icon className="h-6 w-6" />
+          </button>
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            Customer Portal
+          </h1>
+          <div className="flex items-center space-x-2">
+            {/* Mobile notification badges */}
+            <button className="relative p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+              <BellIcon className="h-5 w-5" />
+              {(unreadNotifications + unreadMessages) > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {(unreadNotifications + unreadMessages) > 9 ? '9+' : (unreadNotifications + unreadMessages)}
+                </span>
               )}
-            </div>
+            </button>
           </div>
         </div>
+      </div>
 
-        {/* Page Content */}
-        <main className="p-6">
+      {/* Main Content */}
+      <div className="lg:ml-64 lg:pt-16"> {/* ml-64 for sidebar width, pt-16 for navbar height on desktop */}
+        <main className="p-4 lg:p-6">
           <Outlet />
         </main>
       </div>
