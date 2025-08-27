@@ -102,7 +102,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <LazyWrapper><HomePage /></LazyWrapper> },
       { path: 'products', element: <LazyWrapper><ProductsPage /></LazyWrapper> },
-      { path: 'product/:id', element: <LazyWrapper><ProductDetailPage /></LazyWrapper> },
+      { path: 'products/:id', element: <LazyWrapper><ProductDetailPage /></LazyWrapper> },
       { path: 'properties', element: <LazyWrapper><PropertiesPage /></LazyWrapper> },
       { path: 'properties/:id', element: <LazyWrapper><PropertyDetailPage /></LazyWrapper> },
       { path: 'services', element: <LazyWrapper><ServicesPage /></LazyWrapper> },
