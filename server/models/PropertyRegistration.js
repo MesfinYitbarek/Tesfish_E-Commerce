@@ -19,7 +19,7 @@ const propertyRegistrationSchema = new mongoose.Schema({
   registrationNumber: {
     type: String,
     unique: true,
-    required: true
+   // required: true
   },
   
   // Personal Information

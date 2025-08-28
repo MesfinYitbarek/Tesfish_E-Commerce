@@ -1,4 +1,3 @@
-// components/dashboard/form-steps/LocationContactStep.jsx
 import { useState } from 'react';
 import Input from '../../ui/Input';
 import { 
@@ -7,13 +6,26 @@ import {
   EnvelopeIcon,
   PlusIcon,
   XMarkIcon,
-  ClockIcon
+  ClockIcon,
+  GlobeAltIcon
 } from '@heroicons/react/24/outline';
 
-// Default config values if not imported
+// Ethiopian cities and regions
+const ETHIOPIAN_REGIONS = [
+  'Addis Ababa', 'Afar', 'Amhara', 'Benishangul-Gumuz', 'Dire Dawa',
+  'Gambela', 'Harari', 'Oromia', 'Sidama', 'SNNP', 'Somali', 'Tigray'
+];
+
 const ETHIOPIAN_CITIES = [
   'Addis Ababa', 'Dire Dawa', 'Bahir Dar', 'Mekelle', 'Adama', 'Awasa', 
-  'Jimma', 'Dessie', 'Gondar', 'Harar', 'Jijiga', 'Shashamane', 'Arba Minch'
+  'Jimma', 'Dessie', 'Gondar', 'Harar', 'Jijiga', 'Shashamane', 'Arba Minch',
+  'Hawassa', 'Debre Zeit', 'Debre Berhan', 'Kombolcha', 'Nekemte', 'Asella',
+  'Dilla', 'Wolaita Sodo', 'Hosaena', 'Debre Markos', 'Ziway'
+];
+
+const ADDIS_ABABA_SUBCITIES = [
+  'Addis Ketema', 'Akaky Kaliti', 'Arada', 'Bole', 'Gullele', 'Kirkos',
+  'Kolfe Keranio', 'Lideta', 'Nifas Silk-Lafto', 'Yeka'
 ];
 
 const TIME_SLOTS = [
@@ -46,20 +58,21 @@ const LocationContactStep = ({ formData = {}, errors = {}, onChange }) => {
 
   const isRealEstate = ['homes', 'plots', 'commercials'].includes(formData.productType);
 
-  // Enhanced safe access with comprehensive defaults
+  // Enhanced safe access with comprehensive defaults aligned to model
   const safeFormData = {
     ...formData,
     propertyDetails: {
       ...formData.propertyDetails,
       location: {
         address: '',
-        city: 'Addis Ababa',
+        city: '',
         subcity: '',
         woreda: '',
         kebele: '',
-        region: 'Addis Ababa',
+        region: '',
         country: 'Ethiopia',
         zipCode: '',
+        coordinates: { lat: '', lng: '' },
         landmarks: [],
         nearbyFacilities: [],
         ...formData.propertyDetails?.location
@@ -74,7 +87,7 @@ const LocationContactStep = ({ formData = {}, errors = {}, onChange }) => {
     },
     viewingDetails: {
       allowViewings: true,
-      viewingDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+      viewingDays: [],
       viewingHours: {
         start: '09:00',
         end: '17:00'
@@ -95,7 +108,11 @@ const LocationContactStep = ({ formData = {}, errors = {}, onChange }) => {
 
   const viewingDays = Array.isArray(safeFormData.viewingDetails.viewingDays)
     ? safeFormData.viewingDetails.viewingDays
-    : ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+    : [];
+
+  const viewingRequirements = Array.isArray(safeFormData.viewingDetails.viewingRequirements)
+    ? safeFormData.viewingDetails.viewingRequirements
+    : [];
 
   const handleChange = (field, value) => {
     if (field.includes('.')) {
@@ -163,9 +180,30 @@ const LocationContactStep = ({ formData = {}, errors = {}, onChange }) => {
   };
 
   const facilityTypes = [
-    'school', 'hospital', 'market', 'bank', 'restaurant', 'shopping-mall', 
-    'gas-station', 'pharmacy', 'police-station', 'church', 'mosque', 'park'
+    { value: 'school', label: 'School' },
+    { value: 'hospital', label: 'Hospital' },
+    { value: 'market', label: 'Market' },
+    { value: 'bank', label: 'Bank' },
+    { value: 'restaurant', label: 'Restaurant' },
+    { value: 'shopping-mall', label: 'Shopping Mall' },
+    { value: 'gas-station', label: 'Gas Station' },
+    { value: 'pharmacy', label: 'Pharmacy' },
+    { value: 'police-station', label: 'Police Station' },
+    { value: 'church', label: 'Church' },
+    { value: 'mosque', label: 'Mosque' },
+    { value: 'park', label: 'Park' },
+    { value: 'bus-station', label: 'Bus Station' },
+    { value: 'taxi-station', label: 'Taxi Station' },
+    { value: 'university', label: 'University' },
+    { value: 'clinic', label: 'Clinic' }
   ];
+
+  // Get coordinates from address (placeholder for future geocoding)
+  const handleAddressChange = (address) => {
+    handleChange('propertyDetails.location.address', address);
+    // TODO: Implement geocoding to get coordinates
+    // This would typically call a geocoding service to get lat/lng
+  };
 
   return (
     <div className="space-y-6">
@@ -196,7 +234,7 @@ const LocationContactStep = ({ formData = {}, errors = {}, onChange }) => {
             <Input
               label="Street Address *"
               value={safeFormData.propertyDetails.location.address || ''}
-              onChange={(e) => handleChange('propertyDetails.location.address', e.target.value)}
+              onChange={(e) => handleAddressChange(e.target.value)}
               error={errors['propertyDetails.location.address']}
               placeholder="e.g., Bole, near Edna Mall, behind Friendship Hotel"
               helper="Provide specific address or area description to help buyers find the property"
@@ -204,17 +242,24 @@ const LocationContactStep = ({ formData = {}, errors = {}, onChange }) => {
             />
           </div>
 
-          {/* City and Location Details */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* City, Region, and Country */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 City *
               </label>
               <select
-                value={safeFormData.propertyDetails.location.city || 'Addis Ababa'}
-                onChange={(e) => handleChange('propertyDetails.location.city', e.target.value)}
+                value={safeFormData.propertyDetails.location.city || ''}
+                onChange={(e) => {
+                  handleChange('propertyDetails.location.city', e.target.value);
+                  // Auto-set region for known cities
+                  if (e.target.value === 'Addis Ababa') {
+                    handleChange('propertyDetails.location.region', 'Addis Ababa');
+                  }
+                }}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
               >
+                <option value="">Select City</option>
                 {ETHIOPIAN_CITIES.map(city => (
                   <option key={city} value={city}>
                     {city}
@@ -228,25 +273,61 @@ const LocationContactStep = ({ formData = {}, errors = {}, onChange }) => {
               )}
             </div>
 
-            <Input
-              label="Region/State"
-              value={safeFormData.propertyDetails.location.region || ''}
-              onChange={(e) => handleChange('propertyDetails.location.region', e.target.value)}
-              placeholder="e.g., Addis Ababa, Oromia"
-              className="text-base"
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Region/State
+              </label>
+              <select
+                value={safeFormData.propertyDetails.location.region || ''}
+                onChange={(e) => handleChange('propertyDetails.location.region', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
+              >
+                <option value="">Select Region</option>
+                {ETHIOPIAN_REGIONS.map(region => (
+                  <option key={region} value={region}>
+                    {region}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Country
+              </label>
+              <select
+                value={safeFormData.propertyDetails.location.country || 'Ethiopia'}
+                onChange={(e) => handleChange('propertyDetails.location.country', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
+              >
+                <option value="Ethiopia">Ethiopia</option>
+                <option value="Kenya">Kenya</option>
+                <option value="Uganda">Uganda</option>
+                <option value="Tanzania">Tanzania</option>
+              </select>
+            </div>
           </div>
 
           {/* Detailed Location (Addis Ababa specific) */}
           {safeFormData.propertyDetails.location.city === 'Addis Ababa' && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Input
-                label="Subcity"
-                value={safeFormData.propertyDetails.location.subcity || ''}
-                onChange={(e) => handleChange('propertyDetails.location.subcity', e.target.value)}
-                placeholder="e.g., Bole, Yeka, Kirkos"
-                className="text-base"
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Subcity
+                </label>
+                <select
+                  value={safeFormData.propertyDetails.location.subcity || ''}
+                  onChange={(e) => handleChange('propertyDetails.location.subcity', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
+                >
+                  <option value="">Select Subcity</option>
+                  {ADDIS_ABABA_SUBCITIES.map(subcity => (
+                    <option key={subcity} value={subcity}>
+                      {subcity}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <Input
                 label="Woreda"
                 value={safeFormData.propertyDetails.location.woreda || ''}
@@ -263,6 +344,37 @@ const LocationContactStep = ({ formData = {}, errors = {}, onChange }) => {
               />
             </div>
           )}
+
+          {/* ZIP Code and Coordinates */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input
+              label="ZIP/Postal Code"
+              value={safeFormData.propertyDetails.location.zipCode || ''}
+              onChange={(e) => handleChange('propertyDetails.location.zipCode', e.target.value)}
+              placeholder="1000"
+              className="text-base"
+            />
+            <Input
+              label="Latitude"
+              type="number"
+              step="any"
+              value={safeFormData.propertyDetails.location.coordinates?.lat || ''}
+              onChange={(e) => handleChange('propertyDetails.location.coordinates.lat', e.target.value)}
+              placeholder="9.0192"
+              helper="GPS coordinates (optional)"
+              className="text-base"
+            />
+            <Input
+              label="Longitude"
+              type="number"
+              step="any"
+              value={safeFormData.propertyDetails.location.coordinates?.lng || ''}
+              onChange={(e) => handleChange('propertyDetails.location.coordinates.lng', e.target.value)}
+              placeholder="38.7525"
+              helper="GPS coordinates (optional)"
+              className="text-base"
+            />
+          </div>
 
           {/* Landmarks */}
           <div>
@@ -326,8 +438,8 @@ const LocationContactStep = ({ formData = {}, errors = {}, onChange }) => {
               >
                 <option value="">Facility type</option>
                 {facilityTypes.map(type => (
-                  <option key={type} value={type}>
-                    {type.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  <option key={type.value} value={type.value}>
+                    {type.label}
                   </option>
                 ))}
               </select>
@@ -340,6 +452,7 @@ const LocationContactStep = ({ formData = {}, errors = {}, onChange }) => {
               <Input
                 placeholder="Distance (m)"
                 type="number"
+                min="0"
                 value={newFacility.distance}
                 onChange={(e) => setNewFacility({...newFacility, distance: e.target.value})}
                 className="text-base"
@@ -375,7 +488,7 @@ const LocationContactStep = ({ formData = {}, errors = {}, onChange }) => {
                         {facility.name || 'Unnamed Facility'}
                       </span>
                       <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
-                        ({(facility.type || '').replace('-', ' ')})
+                        ({facilityTypes.find(t => t.value === facility.type)?.label || facility.type})
                       </span>
                       {facility.distance > 0 && (
                         <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
@@ -503,14 +616,13 @@ const LocationContactStep = ({ formData = {}, errors = {}, onChange }) => {
                     >
                       <input
                         type="checkbox"
-                        checked={viewingDays.includes(day.label.toLowerCase())}
+                        checked={viewingDays.includes(day.value)}
                         onChange={(e) => {
-                          const currentDays = viewingDays;
-                          const dayName = day.label.toLowerCase();
+                          const currentDays = [...viewingDays];
                           if (e.target.checked) {
-                            handleChange('viewingDetails.viewingDays', [...currentDays, dayName]);
+                            handleChange('viewingDetails.viewingDays', [...currentDays, day.value]);
                           } else {
-                            handleChange('viewingDetails.viewingDays', currentDays.filter(d => d !== dayName));
+                            handleChange('viewingDetails.viewingDays', currentDays.filter(d => d !== day.value));
                           }
                         }}
                         className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
@@ -565,8 +677,50 @@ const LocationContactStep = ({ formData = {}, errors = {}, onChange }) => {
                   </select>
                 </div>
               </div>
+
+              {/* Viewing Requirements */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Viewing Requirements
+                </label>
+                <textarea
+                  value={viewingRequirements.join('\n') || ''}
+                  onChange={(e) => {
+                    const requirements = e.target.value.split('\n').filter(req => req.trim());
+                    handleChange('viewingDetails.viewingRequirements', requirements);
+                  }}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base resize-none"
+                  placeholder="Enter special requirements for viewing (one per line)&#10;e.g., 24-hour advance notice&#10;Valid ID required&#10;Accompanied by agent only"
+                />
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  Enter special requirements or instructions for property viewings (one per line)
+                </p>
+              </div>
             </>
           )}
+        </div>
+      )}
+
+      {/* Location Tips */}
+      {isRealEstate && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <div className="flex items-start">
+            <GlobeAltIcon className="h-5 w-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" />
+            <div>
+              <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">
+                Location Tips
+              </h4>
+              <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                <li>• Provide detailed address information to help buyers find your property</li>
+                <li>• Add nearby landmarks that people easily recognize</li>
+                <li>• Include distance to important facilities like schools and hospitals</li>
+                <li>• GPS coordinates help with accurate mapping</li>
+                <li>• Set realistic viewing hours that work for your schedule</li>
+                <li>• Specify any special requirements for property viewings</li>
+              </ul>
+            </div>
+          </div>
         </div>
       )}
     </div>

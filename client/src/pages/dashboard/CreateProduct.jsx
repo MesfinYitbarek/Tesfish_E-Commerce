@@ -25,49 +25,125 @@ const CreateProduct = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
 
-  // Initial form data
+  // Initial form data based on the Product model
   const [formData, setFormData] = useState({
-    // Basic Info
+    // Basic Information
     title: '',
     description: '',
     shortDescription: '',
-    productType: '',
-    subProductType: '',
-    listingType: '', // sell, rent
-    sellerType: 'individual', // individual, company
-    condition: '', // new, used, refurbished
+    
+    // Main Product Type
+    productType: '', // 'homes', 'plots', 'commercials', 'others'
+    subProductType: '', // Based on main type
+    listingType: '', // 'sell', 'rent' - required for real estate
+    
+    // Seller Information
+    sellerType: 'individual', // 'company', 'individual'
+    
+    // Product Details
     brand: '',
     model: '',
-    status: 'draft', // draft, active, pending, sold, rented, out-of-stock
-    featured: false,
-    tags: [],
-
+    condition: 'new',
+    
     // Pricing
     pricing: {
       basePrice: '',
       salePrice: '',
-      priceType: 'fixed', // fixed, per-unit, starting-from, per-month
       currency: 'ETB',
       isNegotiable: false,
+      priceType: 'fixed', // 'fixed', 'starting-from', 'per-unit', 'per-day', 'per-month', 'per-year'
       rentPrice: {
         monthly: '',
         yearly: '',
         deposit: ''
       }
     },
-
-    // Property Details (for real estate)
+    
+    // Inventory
+    inventory: {
+      sku: '',
+      stock: 1,
+      lowStockThreshold: 1,
+      trackInventory: false,
+      allowBackorders: false
+    },
+    
+    // Media
+    media: {
+      images: [],
+      videos: [],
+      documents: [],
+      virtualTour: ''
+    },
+    
+    // Product Specifications
+    specifications: [],
+    
+    // Property Details (for homes, plots, commercials)
     propertyDetails: {
-      area: { value: '', unit: 'sqm' },
+      propertyId: '',
+      propertyType: '',
+      
+      // Dimensions
+      area: {
+        value: '',
+        unit: 'sqm' // 'sqft', 'sqm', 'hectares', 'acres'
+      },
+      
+      // For Homes/Buildings
       bedrooms: '',
       bathrooms: '',
       floors: '',
       parkingSpaces: '',
       balconies: '',
-      furnishingStatus: 'unfurnished',
+      
+      // Property Features
+      furnishingStatus: 'unfurnished', // 'furnished', 'semi-furnished', 'unfurnished', 'not-applicable'
       yearBuilt: '',
       features: [],
       amenities: [],
+      
+      // Location Details
+      location: {
+        address: '',
+        city: '',
+        subcity: '',
+        woreda: '',
+        kebele: '',
+        region: '',
+        country: 'Ethiopia',
+        zipCode: '',
+        coordinates: {
+          lat: '',
+          lng: ''
+        },
+        landmarks: [],
+        nearbyFacilities: []
+      },
+      
+      // Legal & Registration
+      registrationFee: 0,
+      hasLegalDocuments: false,
+      legalDocuments: [],
+      titleDeedStatus: 'not-applicable', // 'clear', 'pending', 'disputed', 'not-applicable'
+      
+      // Project Details (for companies)
+      isProject: false,
+      projectDetails: {
+        projectName: '',
+        developer: '',
+        totalUnits: '',
+        availableUnits: '',
+        soldUnits: 0,
+        completionDate: '',
+        constructionStatus: 'planning', // 'planning', 'under-construction', 'completed'
+        paymentPlan: 'full-payment', // 'full-payment', 'installment', 'both'
+        installmentOptions: [],
+        projectFeatures: [],
+        masterPlan: ''
+      },
+      
+      // Utilities & Services
       utilities: {
         electricity: false,
         water: false,
@@ -76,50 +152,43 @@ const CreateProduct = () => {
         sewerage: false,
         garbage: false
       },
-      location: {
-        address: '',
-        city: '',
-        subcity: '',
-        region: '',
-        country: 'Ethiopia',
-        coordinates: { lat: '', lng: '' },
-        landmarks: []
-      },
+      
+      // For Plots/Land
       landDetails: {
-        landUse: 'residential',
-        topography: 'flat',
+        landUse: 'residential', // 'residential', 'commercial', 'mixed-use', 'agricultural', 'industrial'
+        topography: 'flat', // 'flat', 'sloped', 'hilly', 'mountainous'
         soilType: '',
-        waterSource: 'none',
-        accessRoad: 'paved',
+        waterSource: 'none', // 'borehole', 'well', 'municipal', 'river', 'none'
+        accessRoad: 'paved', // 'paved', 'gravel', 'dirt', 'no-access'
         developmentPotential: ''
-      },
-      isProject: false,
-      projectDetails: {
-        projectName: '',
-        developer: '',
-        totalUnits: '',
-        availableUnits: '',
-        completionDate: '',
-        constructionStatus: 'planning',
-        paymentPlan: 'full-payment',
-        projectFeatures: []
       }
     },
-
-    // Vehicle Details (for others -> vehicles)
+    
+    // Business/Commercial Details
+    businessDetails: {
+      businessType: '',
+      annualRevenue: '',
+      employees: '',
+      establishedYear: '',
+      equipment: [],
+      licenses: [],
+      financialDocuments: []
+    },
+    
+    // Vehicle Details (for others category)
     vehicleDetails: {
       make: '',
       model: '',
       year: '',
       mileage: '',
-      fuelType: 'petrol',
-      transmission: 'manual',
+      fuelType: 'petrol', // 'petrol', 'diesel', 'electric', 'hybrid'
+      transmission: 'manual', // 'manual', 'automatic'
       color: '',
       engineSize: '',
       bodyType: ''
     },
-
-    // Equipment Details (for others -> construction-equipment)
+    
+    // Equipment Details
     equipmentDetails: {
       manufacturer: '',
       model: '',
@@ -128,69 +197,85 @@ const CreateProduct = () => {
       hoursUsed: '',
       specifications: []
     },
-
-    // Business Details (for others -> business-sale)
-    businessDetails: {
-      businessType: '',
-      annualRevenue: '',
-      employees: '',
-      establishedYear: '',
-      equipment: [],
-      licenses: []
+    
+    // Status
+    status: 'draft', // 'draft', 'active', 'sold', 'rented', 'out-of-stock', 'discontinued', 'pending-approval'
+    
+    // Availability
+    availability: {
+      isAvailable: true,
+      availableFrom: '',
+      availableUntil: ''
     },
-
-    // General Product Specifications
-    specifications: [],
-
-    // Warranty & Return Policy (for products)
+    
+    // SEO
+    seo: {
+      metaTitle: '',
+      metaDescription: '',
+      keywords: []
+    },
+    
+    // Reviews
+    reviews: {
+      average: 0,
+      count: 0
+    },
+    
+    // Features
+    isFeatured: false,
+    isPromoted: false,
+    promotionExpiry: '',
+    isVerified: false,
+    
+    // Contact & Viewing
+    contactInfo: {
+      phone: '',
+      email: '',
+      whatsapp: '',
+      preferredContactMethod: 'phone' // 'phone', 'email', 'whatsapp', 'any'
+    },
+    
+    viewingDetails: {
+      allowViewings: true,
+      viewingDays: [],
+      viewingHours: {
+        start: '',
+        end: ''
+      },
+      viewingRequirements: []
+    },
+    
+    // Additional Fields
+    tags: [],
+    notes: '',
+    
+    // Warranty (for others category)
     warranty: {
       duration: '',
-      unit: 'months',
-      type: 'manufacturer',
+      unit: 'months', // 'days', 'months', 'years'
+      type: 'manufacturer', // 'manufacturer', 'seller', 'none'
       description: ''
     },
 
+    // Return Policy (for others category)
     returnPolicy: {
       returnable: false,
       returnPeriod: 30,
       conditions: []
     },
-
-    // Shipping Information (for products)
+    
+    // Shipping (for others category)
     shipping: {
       weight: '',
-      dimensions: { length: '', width: '', height: '' },
+      dimensions: {
+        length: '',
+        width: '',
+        height: ''
+      },
       shippingClass: '',
       freeShipping: false,
       shippingCost: ''
-    },
-
-    // Contact Information
-    contactInfo: {
-      phone: '',
-      email: '',
-      whatsapp: '',
-      preferredContactMethod: 'phone'
-    },
-
-    // Viewing Details (for real estate)
-    viewingDetails: {
-      allowViewings: true,
-      viewingDays: [],
-      viewingHours: { start: '', end: '' },
-      specialInstructions: ''
-    },
-
-    // Media
-    media: {
-      images: [],
-      videos: [],
-      documents: [],
-      virtualTour: ''
-    },
-
-    // Additional
-    notes: '' // Internal notes
+    }
   });
 
   const steps = [
@@ -207,7 +292,21 @@ const CreateProduct = () => {
   };
 
   const handleFormDataChange = (updates) => {
-    setFormData(prev => ({ ...prev, ...updates }));
+    setFormData(prev => {
+      // Deep merge for nested objects
+      const merged = { ...prev };
+      
+      Object.keys(updates).forEach(key => {
+        if (updates[key] && typeof updates[key] === 'object' && !Array.isArray(updates[key])) {
+          merged[key] = { ...prev[key], ...updates[key] };
+        } else {
+          merged[key] = updates[key];
+        }
+      });
+      
+      return merged;
+    });
+    
     // Clear errors for updated fields
     const updatedFields = Object.keys(updates);
     setErrors(prev => {
@@ -221,6 +320,7 @@ const CreateProduct = () => {
 
   const validateStep = (step) => {
     const stepErrors = {};
+    const isRealEstate = ['homes', 'plots', 'commercials'].includes(formData.productType);
 
     switch (step) {
       case 1: // Basic Info
@@ -233,7 +333,7 @@ const CreateProduct = () => {
         if (!formData.subProductType) {
           stepErrors.subProductType = 'Sub-type is required';
         }
-        if (['homes', 'plots', 'commercials'].includes(formData.productType) && !formData.listingType) {
+        if (isRealEstate && !formData.listingType) {
           stepErrors.listingType = 'Listing type is required for real estate';
         }
         if (!formData.description?.trim()) {
@@ -242,7 +342,7 @@ const CreateProduct = () => {
         break;
 
       case 2: // Details
-        if (['homes', 'plots', 'commercials'].includes(formData.productType)) {
+        if (isRealEstate) {
           if (!formData.propertyDetails?.area?.value) {
             stepErrors['propertyDetails.area.value'] = 'Area is required';
           }
@@ -266,13 +366,13 @@ const CreateProduct = () => {
         break;
 
       case 3: // Pricing
-        if (formData.listingType !== 'rent') {
-          if (!formData.pricing?.basePrice) {
-            stepErrors['pricing.basePrice'] = 'Price is required';
-          }
-        } else {
+        if (formData.listingType === 'rent') {
           if (!formData.pricing?.rentPrice?.monthly) {
             stepErrors['pricing.rentPrice.monthly'] = 'Monthly rent is required';
+          }
+        } else {
+          if (!formData.pricing?.basePrice) {
+            stepErrors['pricing.basePrice'] = 'Price is required';
           }
         }
         break;
@@ -281,7 +381,7 @@ const CreateProduct = () => {
         if (!formData.contactInfo?.phone?.trim()) {
           stepErrors['contactInfo.phone'] = 'Phone number is required';
         }
-        if (['homes', 'plots', 'commercials'].includes(formData.productType)) {
+        if (isRealEstate) {
           if (!formData.propertyDetails?.location?.city?.trim()) {
             stepErrors['propertyDetails.location.city'] = 'City is required';
           }
@@ -333,36 +433,17 @@ const CreateProduct = () => {
   const prepareFormDataForSubmission = (data) => {
     const cleaned = { ...data };
 
-    // Remove fields that should not be sent to backend
-    delete cleaned.category;
-    delete cleaned.subcategory;
-
-    // Handle promotion expiry - only include if it's a valid date
-    if (!cleaned.promotionExpiry || cleaned.promotionExpiry === 'null' || cleaned.promotionExpiry === '') {
-      delete cleaned.promotionExpiry;
-    }
-
-    // Clean pricing object
+    // Convert string numbers to actual numbers
     if (cleaned.pricing) {
-      // Remove empty string values and convert to numbers
-      Object.keys(cleaned.pricing).forEach(key => {
-        if (cleaned.pricing[key] === '' || cleaned.pricing[key] === 'null') {
-          delete cleaned.pricing[key];
-        } else if (key === 'basePrice' || key === 'salePrice') {
-          // Convert price strings to numbers
-          if (cleaned.pricing[key]) {
-            cleaned.pricing[key] = parseFloat(cleaned.pricing[key]) || 0;
-          }
-        }
-      });
-
-      // Clean rent price object
+      if (cleaned.pricing.basePrice) {
+        cleaned.pricing.basePrice = parseFloat(cleaned.pricing.basePrice) || 0;
+      }
+      if (cleaned.pricing.salePrice) {
+        cleaned.pricing.salePrice = parseFloat(cleaned.pricing.salePrice) || 0;
+      }
       if (cleaned.pricing.rentPrice) {
         Object.keys(cleaned.pricing.rentPrice).forEach(key => {
-          if (cleaned.pricing.rentPrice[key] === '' || cleaned.pricing.rentPrice[key] === 'null') {
-            delete cleaned.pricing.rentPrice[key];
-          } else {
-            // Convert to numbers
+          if (cleaned.pricing.rentPrice[key]) {
             cleaned.pricing.rentPrice[key] = parseFloat(cleaned.pricing.rentPrice[key]) || 0;
           }
         });
@@ -371,182 +452,147 @@ const CreateProduct = () => {
 
     // Clean property details for real estate
     if (cleaned.propertyDetails) {
-      // Clean area object
-      if (cleaned.propertyDetails.area) {
-        if (cleaned.propertyDetails.area.value === '' || cleaned.propertyDetails.area.value === 'null') {
-          delete cleaned.propertyDetails.area.value;
-        } else {
-          cleaned.propertyDetails.area.value = parseFloat(cleaned.propertyDetails.area.value) || 0;
-        }
+      // Convert area value to number
+      if (cleaned.propertyDetails.area?.value) {
+        cleaned.propertyDetails.area.value = parseFloat(cleaned.propertyDetails.area.value) || 0;
       }
 
-      // Clean numeric fields
+      // Convert numeric fields
       ['bedrooms', 'bathrooms', 'floors', 'parkingSpaces', 'balconies', 'yearBuilt'].forEach(field => {
-        if (cleaned.propertyDetails[field] === '' || cleaned.propertyDetails[field] === 'null') {
-          delete cleaned.propertyDetails[field];
-        } else if (cleaned.propertyDetails[field]) {
+        if (cleaned.propertyDetails[field]) {
           cleaned.propertyDetails[field] = parseInt(cleaned.propertyDetails[field]) || 0;
         }
       });
 
-      // Clean arrays - remove empty values
-      ['features', 'amenities'].forEach(field => {
-        if (cleaned.propertyDetails[field]) {
-          cleaned.propertyDetails[field] = cleaned.propertyDetails[field].filter(item => item && item.trim());
-        }
-      });
+      // Convert registration fee
+      if (cleaned.propertyDetails.registrationFee) {
+        cleaned.propertyDetails.registrationFee = parseFloat(cleaned.propertyDetails.registrationFee) || 0;
+      }
 
-      // Clean location object
-      if (cleaned.propertyDetails.location) {
-        Object.keys(cleaned.propertyDetails.location).forEach(key => {
-          if (cleaned.propertyDetails.location[key] === '' || cleaned.propertyDetails.location[key] === 'null') {
-            delete cleaned.propertyDetails.location[key];
+      // Convert coordinates
+      if (cleaned.propertyDetails.location?.coordinates) {
+        if (cleaned.propertyDetails.location.coordinates.lat) {
+          cleaned.propertyDetails.location.coordinates.lat = parseFloat(cleaned.propertyDetails.location.coordinates.lat);
+        }
+        if (cleaned.propertyDetails.location.coordinates.lng) {
+          cleaned.propertyDetails.location.coordinates.lng = parseFloat(cleaned.propertyDetails.location.coordinates.lng);
+        }
+      }
+
+      // Convert project details numbers
+      if (cleaned.propertyDetails.projectDetails) {
+        ['totalUnits', 'availableUnits', 'soldUnits'].forEach(field => {
+          if (cleaned.propertyDetails.projectDetails[field]) {
+            cleaned.propertyDetails.projectDetails[field] = parseInt(cleaned.propertyDetails.projectDetails[field]) || 0;
           }
         });
-
-        // Clean landmarks array
-        if (cleaned.propertyDetails.location.landmarks) {
-          cleaned.propertyDetails.location.landmarks = cleaned.propertyDetails.location.landmarks.filter(item => item && item.trim());
-        }
       }
     }
 
     // Clean vehicle details
     if (cleaned.vehicleDetails) {
-      Object.keys(cleaned.vehicleDetails).forEach(key => {
-        if (cleaned.vehicleDetails[key] === '' || cleaned.vehicleDetails[key] === 'null') {
-          delete cleaned.vehicleDetails[key];
-        } else if (['year', 'mileage'].includes(key) && cleaned.vehicleDetails[key]) {
-          cleaned.vehicleDetails[key] = parseInt(cleaned.vehicleDetails[key]) || 0;
+      ['year', 'mileage'].forEach(field => {
+        if (cleaned.vehicleDetails[field]) {
+          cleaned.vehicleDetails[field] = parseInt(cleaned.vehicleDetails[field]) || 0;
         }
       });
     }
 
     // Clean equipment details
     if (cleaned.equipmentDetails) {
-      Object.keys(cleaned.equipmentDetails).forEach(key => {
-        if (cleaned.equipmentDetails[key] === '' || cleaned.equipmentDetails[key] === 'null') {
-          delete cleaned.equipmentDetails[key];
-        } else if (['year', 'hoursUsed'].includes(key) && cleaned.equipmentDetails[key]) {
-          cleaned.equipmentDetails[key] = parseInt(cleaned.equipmentDetails[key]) || 0;
-        }
-      });
-
-      // Clean specifications array
-      if (cleaned.equipmentDetails.specifications) {
-        cleaned.equipmentDetails.specifications = cleaned.equipmentDetails.specifications.filter(
-          spec => spec.name && spec.value
-        );
-      }
-    }
-
-    // Clean general specifications array
-    if (cleaned.specifications) {
-      cleaned.specifications = cleaned.specifications.filter(
-        spec => spec.name && spec.value
-      );
-    }
-
-    // Clean contact info
-    if (cleaned.contactInfo) {
-      Object.keys(cleaned.contactInfo).forEach(key => {
-        if (cleaned.contactInfo[key] === '' || cleaned.contactInfo[key] === 'null') {
-          delete cleaned.contactInfo[key];
+      ['year', 'hoursUsed'].forEach(field => {
+        if (cleaned.equipmentDetails[field]) {
+          cleaned.equipmentDetails[field] = parseInt(cleaned.equipmentDetails[field]) || 0;
         }
       });
     }
 
-    // Clean viewing details
-    if (cleaned.viewingDetails) {
-      if (cleaned.viewingDetails.viewingDays) {
-        cleaned.viewingDetails.viewingDays = cleaned.viewingDetails.viewingDays.filter(day => day);
-      }
-      
-      if (!cleaned.viewingDetails.allowViewings) {
-        // If viewings are not allowed, remove viewing-related fields
-        delete cleaned.viewingDetails.viewingDays;
-        delete cleaned.viewingDetails.viewingHours;
-        delete cleaned.viewingDetails.specialInstructions;
-      }
-    }
-
-    // Clean media object
-    if (cleaned.media) {
-      // Filter out any invalid media items
-      if (cleaned.media.images) {
-        cleaned.media.images = cleaned.media.images.filter(img => img && img.url);
-      }
-      if (cleaned.media.videos) {
-        cleaned.media.videos = cleaned.media.videos.filter(video => video && video.url);
-      }
-      if (cleaned.media.documents) {
-        cleaned.media.documents = cleaned.media.documents.filter(doc => doc && doc.url);
-      }
-      
-      // Remove empty virtual tour
-      if (!cleaned.media.virtualTour || cleaned.media.virtualTour === '') {
-        delete cleaned.media.virtualTour;
-      }
-    }
-
-    // Clean warranty and shipping for products
-    if (cleaned.warranty) {
-      Object.keys(cleaned.warranty).forEach(key => {
-        if (cleaned.warranty[key] === '' || cleaned.warranty[key] === 'null') {
-          delete cleaned.warranty[key];
-        } else if (key === 'duration' && cleaned.warranty[key]) {
-          cleaned.warranty[key] = parseInt(cleaned.warranty[key]) || 0;
+    // Clean business details
+    if (cleaned.businessDetails) {
+      ['annualRevenue', 'employees', 'establishedYear'].forEach(field => {
+        if (cleaned.businessDetails[field]) {
+          cleaned.businessDetails[field] = parseInt(cleaned.businessDetails[field]) || 0;
         }
       });
     }
 
+    // Clean inventory
+    if (cleaned.inventory) {
+      ['stock', 'lowStockThreshold'].forEach(field => {
+        if (cleaned.inventory[field]) {
+          cleaned.inventory[field] = parseInt(cleaned.inventory[field]) || 0;
+        }
+      });
+    }
+
+    // Clean warranty
+    if (cleaned.warranty?.duration) {
+      cleaned.warranty.duration = parseInt(cleaned.warranty.duration) || 0;
+    }
+
+    // Clean return policy
+    if (cleaned.returnPolicy?.returnPeriod) {
+      cleaned.returnPolicy.returnPeriod = parseInt(cleaned.returnPolicy.returnPeriod) || 30;
+    }
+
+    // Clean shipping
     if (cleaned.shipping) {
-      Object.keys(cleaned.shipping).forEach(key => {
-        if (cleaned.shipping[key] === '' || cleaned.shipping[key] === 'null') {
-          delete cleaned.shipping[key];
-        } else if (['weight', 'shippingCost'].includes(key) && cleaned.shipping[key]) {
-          cleaned.shipping[key] = parseFloat(cleaned.shipping[key]) || 0;
-        }
-      });
-
-      // Clean dimensions
+      if (cleaned.shipping.weight) {
+        cleaned.shipping.weight = parseFloat(cleaned.shipping.weight) || 0;
+      }
+      if (cleaned.shipping.shippingCost) {
+        cleaned.shipping.shippingCost = parseFloat(cleaned.shipping.shippingCost) || 0;
+      }
       if (cleaned.shipping.dimensions) {
-        Object.keys(cleaned.shipping.dimensions).forEach(key => {
-          if (cleaned.shipping.dimensions[key] === '' || cleaned.shipping.dimensions[key] === 'null') {
-            delete cleaned.shipping.dimensions[key];
-          } else {
-            cleaned.shipping.dimensions[key] = parseFloat(cleaned.shipping.dimensions[key]) || 0;
+        ['length', 'width', 'height'].forEach(field => {
+          if (cleaned.shipping.dimensions[field]) {
+            cleaned.shipping.dimensions[field] = parseFloat(cleaned.shipping.dimensions[field]) || 0;
           }
         });
       }
     }
 
-    // Clean return policy
-    if (cleaned.returnPolicy) {
-      if (cleaned.returnPolicy.returnPeriod === '' || cleaned.returnPolicy.returnPeriod === 'null') {
-        delete cleaned.returnPolicy.returnPeriod;
-      } else if (cleaned.returnPolicy.returnPeriod) {
-        cleaned.returnPolicy.returnPeriod = parseInt(cleaned.returnPolicy.returnPeriod) || 30;
+    // Remove empty arrays and objects
+    const removeEmpty = (obj) => {
+      Object.keys(obj).forEach(key => {
+        if (obj[key] && typeof obj[key] === 'object') {
+          if (Array.isArray(obj[key])) {
+            obj[key] = obj[key].filter(item => item !== null && item !== undefined && item !== '');
+            if (obj[key].length === 0) {
+              delete obj[key];
+            }
+          } else {
+            removeEmpty(obj[key]);
+            if (Object.keys(obj[key]).length === 0) {
+              delete obj[key];
+            }
+          }
+        } else if (obj[key] === null || obj[key] === undefined || obj[key] === '') {
+          delete obj[key];
+        }
+      });
+    };
+
+    // Don't remove the main structure, just clean empty values
+    Object.keys(cleaned).forEach(key => {
+      if (cleaned[key] === null || cleaned[key] === undefined || cleaned[key] === '') {
+        delete cleaned[key];
+      } else if (typeof cleaned[key] === 'object' && !Array.isArray(cleaned[key])) {
+        removeEmpty(cleaned[key]);
+      } else if (Array.isArray(cleaned[key])) {
+        cleaned[key] = cleaned[key].filter(item => item !== null && item !== undefined && item !== '');
       }
+    });
 
-      if (cleaned.returnPolicy.conditions) {
-        cleaned.returnPolicy.conditions = cleaned.returnPolicy.conditions.filter(condition => condition && condition.trim());
-      }
-    }
-
-    // Clean tags array
-    if (cleaned.tags) {
-      cleaned.tags = cleaned.tags.filter(tag => tag && tag.trim());
-    }
-
-    // Set default status if not provided
+    // Set default values
     if (!cleaned.status) {
       cleaned.status = 'draft';
     }
-
-    // Ensure seller type is set
     if (!cleaned.sellerType) {
       cleaned.sellerType = 'individual';
+    }
+    if (!cleaned.condition) {
+      cleaned.condition = 'new';
     }
 
     console.log('Cleaned form data:', cleaned);
@@ -567,12 +613,15 @@ const CreateProduct = () => {
       }
 
       // Clean and prepare form data for submission
-      const cleanedData = prepareFormDataForSubmission(formData);
+      const cleanedData = prepareFormDataForSubmission({
+        ...formData,
+        status: 'active'
+      });
       
       // Submit the product
       const result = await dispatch(createProduct(cleanedData)).unwrap();
       
-      toast.success('Listing created successfully!');
+      toast.success('Listing published successfully!');
       navigate('/dashboard/products');
     } catch (error) {
       console.error('Error creating listing:', error);
@@ -601,6 +650,34 @@ const CreateProduct = () => {
       setIsSubmitting(false);
     }
   };
+
+  // Auto-save draft every 2 minutes
+  useEffect(() => {
+    const autoSave = setInterval(() => {
+      if (formData.title?.trim()) {
+        // Only auto-save if there's meaningful content
+        localStorage.setItem('productDraft', JSON.stringify(formData));
+      }
+    }, 120000); // 2 minutes
+
+    return () => clearInterval(autoSave);
+  }, [formData]);
+
+  // Load draft on component mount
+  useEffect(() => {
+    const savedDraft = localStorage.getItem('productDraft');
+    if (savedDraft) {
+      try {
+        const parsed = JSON.parse(savedDraft);
+        if (parsed.title?.trim()) {
+          setFormData(parsed);
+          toast.success('Draft loaded from previous session');
+        }
+      } catch (error) {
+        console.error('Error loading draft:', error);
+      }
+    }
+  }, []);
 
   const CurrentStepComponent = steps[currentStep - 1].component;
 
@@ -713,10 +790,10 @@ const CreateProduct = () => {
                 {isSubmitting ? (
                   <>
                     <LoadingSpinner size="sm" className="mr-2" />
-                    Creating...
+                    Publishing...
                   </>
                 ) : (
-                  'Create Listing'
+                  'Publish Listing'
                 )}
               </Button>
             )}

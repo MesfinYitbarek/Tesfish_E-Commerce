@@ -193,7 +193,7 @@ const productService = {
 // Property Registration Services
 export const propertyRegistrationService = {
   submitRegistration: async (registrationData) => {
-    const response = await api.post('/property-registrations', registrationData, {
+    const response = await api.post(API_ENDPOINTS.PROPERTY_REGISTRATIONS.CREATE, registrationData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -202,19 +202,38 @@ export const propertyRegistrationService = {
   },
 
   getMyRegistrations: async (params = {}) => {
-    const queryParams = new URLSearchParams(params);
-    const response = await api.get(`/property-registrations/my-registrations?${queryParams}`);
+    const queryParams = new URLSearchParams();
+    
+    Object.keys(params).forEach(key => {
+      if (params[key] !== null && params[key] !== undefined && params[key] !== '') {
+        queryParams.append(key, params[key]);
+      }
+    });
+
+    const response = await api.get(`${API_ENDPOINTS.PROPERTY_REGISTRATIONS.MY_REGISTRATIONS}?${queryParams}`);
     return response.data;
   },
 
   getCompanyRegistrations: async (params = {}) => {
-    const queryParams = new URLSearchParams(params);
-    const response = await api.get(`/property-registrations/company-registrations?${queryParams}`);
+    const queryParams = new URLSearchParams();
+    
+    Object.keys(params).forEach(key => {
+      if (params[key] !== null && params[key] !== undefined && params[key] !== '') {
+        queryParams.append(key, params[key]);
+      }
+    });
+
+    const response = await api.get(`${API_ENDPOINTS.PROPERTY_REGISTRATIONS.COMPANY_REGISTRATIONS}?${queryParams}`);
+    return response.data;
+  },
+
+  getRegistrationById: async (id) => {
+    const response = await api.get(`${API_ENDPOINTS.PROPERTY_REGISTRATIONS.DETAIL}/${id}`);
     return response.data;
   },
 
   updateRegistrationStatus: async (id, status, adminNotes) => {
-    const response = await api.put(`/property-registrations/${id}/status`, {
+    const response = await api.put(`${API_ENDPOINTS.PROPERTY_REGISTRATIONS.UPDATE_STATUS}/${id}/status`, {
       status,
       adminNotes
     });
@@ -222,12 +241,31 @@ export const propertyRegistrationService = {
   },
 
   verifyPayment: async (id, paymentData) => {
-    const response = await api.post(`/property-registrations/${id}/verify-payment`, paymentData);
+    const response = await api.post(`${API_ENDPOINTS.PROPERTY_REGISTRATIONS.VERIFY_PAYMENT}/${id}/verify-payment`, paymentData);
     return response.data;
   },
 
   exportRegistrationsCSV: async () => {
-    const response = await api.get('/property-registrations/export-csv', {
+    const response = await api.get(API_ENDPOINTS.PROPERTY_REGISTRATIONS.EXPORT_CSV, {
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+
+  getRegistrationStats: async () => {
+    const response = await api.get(API_ENDPOINTS.PROPERTY_REGISTRATIONS.STATS);
+    return response.data;
+  },
+
+  cancelRegistration: async (id, reason) => {
+    const response = await api.put(`${API_ENDPOINTS.PROPERTY_REGISTRATIONS.CANCEL}/${id}/cancel`, {
+      reason
+    });
+    return response.data;
+  },
+
+  downloadReceipt: async (id) => {
+    const response = await api.get(`${API_ENDPOINTS.PROPERTY_REGISTRATIONS.RECEIPT}/${id}/receipt`, {
       responseType: 'blob'
     });
     return response.data;
@@ -237,24 +275,24 @@ export const propertyRegistrationService = {
 // Appointment Services
 export const appointmentService = {
   bookAppointment: async (appointmentData) => {
-    const response = await api.post('/appointments', appointmentData);
+    const response = await api.post(API_ENDPOINTS.APPOINTMENTS.CREATE, appointmentData);
     return response.data;
   },
 
   getMyAppointments: async (params = {}) => {
     const queryParams = new URLSearchParams(params);
-    const response = await api.get(`/appointments/my-appointments?${queryParams}`);
+    const response = await api.get(`${API_ENDPOINTS.APPOINTMENTS.MY_APPOINTMENTS}?${queryParams}`);
     return response.data;
   },
 
   getSellerAppointments: async (params = {}) => {
     const queryParams = new URLSearchParams(params);
-    const response = await api.get(`/appointments/seller-appointments?${queryParams}`);
+    const response = await api.get(`${API_ENDPOINTS.APPOINTMENTS.SELLER_APPOINTMENTS}?${queryParams}`);
     return response.data;
   },
 
   updateAppointmentStatus: async (id, status, sellerNotes, outcome) => {
-    const response = await api.put(`/appointments/${id}/status`, {
+    const response = await api.put(`${API_ENDPOINTS.APPOINTMENTS.UPDATE_STATUS.replace(':id', id)}`, {
       status,
       sellerNotes,
       outcome
@@ -263,10 +301,20 @@ export const appointmentService = {
   },
 
   rescheduleAppointment: async (id, newDateTime, reason) => {
-    const response = await api.put(`/appointments/${id}/reschedule`, {
+    const response = await api.put(`${API_ENDPOINTS.APPOINTMENTS.RESCHEDULE.replace(':id', id)}`, {
       newDateTime,
       reason
     });
+    return response.data;
+  },
+
+  getAvailableSlots: async (propertyId, date) => {
+    const response = await api.get(`${API_ENDPOINTS.APPOINTMENTS.AVAILABLE_SLOTS}?propertyId=${propertyId}&date=${date}`);
+    return response.data;
+  },
+
+  getAppointmentStats: async () => {
+    const response = await api.get(API_ENDPOINTS.APPOINTMENTS.STATS);
     return response.data;
   }
 };
@@ -274,7 +322,7 @@ export const appointmentService = {
 // Chat Services
 export const chatService = {
   startChat: async (recipientId, propertyId, initialMessage) => {
-    const response = await api.post('/chats/start', {
+    const response = await api.post(`${API_ENDPOINTS.CHAT.CREATE}/start`, {
       recipientId,
       propertyId,
       initialMessage
@@ -284,13 +332,13 @@ export const chatService = {
 
   getUserChats: async (params = {}) => {
     const queryParams = new URLSearchParams(params);
-    const response = await api.get(`/chats?${queryParams}`);
+    const response = await api.get(`${API_ENDPOINTS.CHAT.LIST}?${queryParams}`);
     return response.data;
   },
 
   getChatMessages: async (chatId, params = {}) => {
     const queryParams = new URLSearchParams(params);
-    const response = await api.get(`/chats/${chatId}/messages?${queryParams}`);
+    const response = await api.get(`${API_ENDPOINTS.CHAT.DETAIL}/${chatId}/messages?${queryParams}`);
     return response.data;
   },
 
@@ -307,7 +355,7 @@ export const chatService = {
       formData.append('file', messageData.file);
     }
 
-    const response = await api.post(`/chats/${chatId}/messages`, formData, {
+    const response = await api.post(`${API_ENDPOINTS.CHAT.SEND_MESSAGE.replace(':id', chatId)}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },

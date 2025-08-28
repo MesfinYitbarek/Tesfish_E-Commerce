@@ -13,6 +13,7 @@ export const FEATURES = {
   PAYMENTS: import.meta.env.VITE_ENABLE_PAYMENTS === 'true',
   NOTIFICATIONS: import.meta.env.VITE_ENABLE_NOTIFICATIONS === 'true',
   APPOINTMENTS: import.meta.env.VITE_ENABLE_APPOINTMENTS !== 'false', // Default enabled
+  PROPERTY_REGISTRATION: import.meta.env.VITE_ENABLE_PROPERTY_REGISTRATION !== 'false', // Default enabled
 };
 
 // Validation Rules
@@ -20,9 +21,11 @@ export const VALIDATION = {
   EMAIL_REGEX: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
   PHONE_REGEX: /^[\+]?[1-9][\d]{0,15}$/,
   PASSWORD_MIN_LENGTH: 8,
-  FILE_MAX_SIZE: 5 * 1024 * 1024, // 5MB
+  FILE_MAX_SIZE: 10 * 1024 * 1024, // 10MB for property registration documents
+  IMAGE_MAX_SIZE: 5 * 1024 * 1024, // 5MB for images
   IMAGE_TYPES: ['image/jpeg', 'image/png', 'image/webp'],
   DOCUMENT_TYPES: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+  REGISTRATION_DOCUMENT_TYPES: ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'],
 };
 
 // Local Storage Keys
@@ -34,7 +37,66 @@ export const STORAGE_KEYS = {
   LANGUAGE: 'citilights_language',
   CART: 'citilights_cart',
   APPOINTMENT_DRAFT: 'citilights_appointment_draft',
+  REGISTRATION_DRAFT: 'citilights_registration_draft',
 };
+
+// Property Registration Status
+export const REGISTRATION_STATUS = {
+  PENDING: 'pending',
+  UNDER_REVIEW: 'under-review',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
+  CANCELLED: 'cancelled',
+  EXPIRED: 'expired'
+};
+
+// Payment Status for Registration
+export const REGISTRATION_PAYMENT_STATUS = {
+  PENDING: 'pending',
+  COMPLETED: 'completed',
+  FAILED: 'failed',
+  REFUNDED: 'refunded'
+};
+
+// Document Types for Registration
+export const REGISTRATION_DOCUMENT_TYPES = [
+  { value: 'id-card', label: 'ID Card', required: true },
+  { value: 'passport', label: 'Passport', required: false },
+  { value: 'license', label: 'Driving License', required: false },
+  { value: 'bank-statement', label: 'Bank Statement', required: false },
+  { value: 'salary-slip', label: 'Salary Slip', required: false },
+  { value: 'employment-letter', label: 'Employment Letter', required: false },
+  { value: 'business-license', label: 'Business License', required: false },
+  { value: 'other', label: 'Other Document', required: false }
+];
+
+// Relationship Types for Emergency Contact
+export const RELATIONSHIP_TYPES = [
+  'parent',
+  'sibling', 
+  'spouse',
+  'child',
+  'friend',
+  'colleague',
+  'relative',
+  'other'
+];
+
+// Ethiopian Regions
+export const ETHIOPIAN_REGIONS = [
+  'Addis Ababa',
+  'Afar',
+  'Amhara', 
+  'Benishangul-Gumuz',
+  'Dire Dawa',
+  'Gambela',
+  'Harari',
+  'Oromia',
+  'Sidama',
+  'SNNPR',
+  'Somali',
+  'Tigray'
+];
 
 // Appointment Types
 export const APPOINTMENT_TYPES = {
@@ -44,6 +106,7 @@ export const APPOINTMENT_TYPES = {
   CONTRACT_SIGNING: 'contract-signing',
   HANDOVER: 'handover',
   MAINTENANCE: 'maintenance',
+  REGISTRATION_MEETING: 'registration-meeting',
   OTHER: 'other'
 };
 
@@ -102,6 +165,18 @@ export const API_ENDPOINTS = {
     ME: '/auth/me',
     UPDATE_PROFILE: '/auth/profile'
   },
+  PROPERTY_REGISTRATIONS: {
+    CREATE: '/property-registrations',
+    MY_REGISTRATIONS: '/property-registrations/my-registrations',
+    COMPANY_REGISTRATIONS: '/property-registrations/company-registrations',
+    DETAIL: '/property-registrations',
+    UPDATE_STATUS: '/property-registrations',
+    VERIFY_PAYMENT: '/property-registrations',
+    EXPORT_CSV: '/property-registrations/export-csv',
+    STATS: '/property-registrations/stats',
+    CANCEL: '/property-registrations',
+    RECEIPT: '/property-registrations'
+  },
   PRODUCTS: {
     LIST: '/products',
     DETAIL: '/products',
@@ -109,7 +184,13 @@ export const API_ENDPOINTS = {
     UPDATE: '/products',
     DELETE: '/products',
     MY_PRODUCTS: '/products/seller/my-products',
-    ADMIN: '/products/admin'
+    ADMIN: '/products/admin',
+    INCREMENT_VIEWS: '/products',
+    REPORT: '/products',
+    RELATED: '/products',
+    BULK_UPDATE: '/products/bulk-update',
+    BULK_DELETE: '/products/bulk-delete',
+    UPDATE_STATUS: '/products'
   },
   ORDERS: {
     LIST: '/orders',
@@ -133,7 +214,20 @@ export const API_ENDPOINTS = {
     CHECK_INVENTORY: '/orders/cart/check-inventory',
     CALCULATE_SHIPPING: '/orders/cart/calculate-shipping'
   },
-  // NEW: Appointment endpoints
+  // Property Registration endpoints
+  PROPERTY_REGISTRATIONS: {
+    CREATE: '/property-registrations',
+    MY_REGISTRATIONS: '/property-registrations/my-registrations',
+    COMPANY_REGISTRATIONS: '/property-registrations/company-registrations',
+    DETAIL: '/property-registrations',
+    UPDATE_STATUS: '/property-registrations',
+    VERIFY_PAYMENT: '/property-registrations',
+    EXPORT_CSV: '/property-registrations/export-csv',
+    STATS: '/property-registrations/stats',
+    CANCEL: '/property-registrations',
+    RECEIPT: '/property-registrations'
+  },
+  // Appointment endpoints
   APPOINTMENTS: {
     LIST: '/appointments',
     CREATE: '/appointments',
@@ -176,6 +270,10 @@ export const API_ENDPOINTS = {
     LIST: '/users',
     DETAIL: '/users',
     WISHLIST: '/users/wishlist'
+  },
+  REVIEWS: {
+    LIST: '/reviews',
+    CREATE: '/reviews'
   }
 };
 
@@ -193,12 +291,18 @@ export const ROUTES = {
   PROFILE: '/profile',
   CHAT: '/chat',
   BOOKINGS: '/bookings',
-  // NEW: Appointment routes
+  // Appointment routes
   APPOINTMENTS: '/appointments',
   MY_APPOINTMENTS: '/appointments/my-appointments',
   SELLER_APPOINTMENTS: '/appointments/seller-appointments',
   APPOINTMENT_DETAIL: '/appointments/:id',
   BOOK_APPOINTMENT: '/appointments/book/:propertyId',
+  // Property Registration routes
+  PROPERTY_REGISTRATIONS: '/registrations',
+  MY_REGISTRATIONS: '/registrations/my-registrations',
+  COMPANY_REGISTRATIONS: '/registrations/company-registrations',
+  REGISTRATION_DETAIL: '/registrations/:id',
+  REGISTER_PROPERTY: '/register-property/:propertyId',
   SERVICES: '/services',
   ADMIN: '/admin'
 };
@@ -208,11 +312,13 @@ export const PAYMENT_METHODS = {
   STRIPE: 'stripe',
   PAYPAL: 'paypal',
   TELEBIRR: 'telebirr',
+  CHAPA: 'chapa',
   MOBILE_TRANSFER: 'mobile_transfer',
   BANK_TRANSFER: 'bank_transfer',
   CREDIT_CARD: 'credit_card',
   DEBIT_CARD: 'debit_card',
 };
+
 // Price Ranges
 export const PRICE_RANGES = [
   { min: 0, max: 100000, label: 'Under ETB 100,000' },
@@ -221,6 +327,7 @@ export const PRICE_RANGES = [
   { min: 1000000, max: 5000000, label: 'ETB 1M - 5M' },
   { min: 5000000, max: null, label: 'Over ETB 5M' }
 ];
+
 export const USER_TYPES = {
   CUSTOMER: 'customer',
   INDIVIDUAL: 'individual',
@@ -229,20 +336,43 @@ export const USER_TYPES = {
 };
 
 export const PRODUCT_TYPES = {
-  PHYSICAL: 'physical',
-  DIGITAL: 'digital',
-  SERVICE: 'service',
-  REAL_ESTATE: 'real-estate',
-  RENTAL: 'rental'
+  HOMES: 'homes',
+  PLOTS: 'plots', 
+  COMMERCIALS: 'commercials',
+  OTHERS: 'others'
 };
 
-export const PROPERTY_TYPES = {
+export const SUB_PRODUCT_TYPES = {
+  // Homes
+  HOUSES: 'houses',
   APARTMENT: 'apartment',
-  VILLA: 'villa',
-  COMMERCIAL: 'commercial',
-  LAND: 'land',
-  OFFICE: 'office',
-  WAREHOUSE: 'warehouse'
+  VILLAS: 'villas',
+  CONDOS: 'condos',
+  TOWNHOUSES: 'townhouses',
+  // Plots
+  MIXED_USE_LAND: 'mixed-use-land',
+  RESIDENTIAL_LAND: 'residential-land',
+  COMMERCIAL_LAND: 'commercial-land',
+  AGRICULTURAL_LAND: 'agricultural-land',
+  // Commercials
+  OFFICES: 'offices',
+  WAREHOUSES: 'warehouses',
+  SHOPS: 'shops',
+  BUILDINGS: 'buildings',
+  FACTORIES: 'factories',
+  HOTELS: 'hotels',
+  COMPANIES: 'companies',
+  // Others
+  ELECTRONICS: 'electronics',
+  VEHICLES: 'vehicles',
+  FURNITURES: 'furnitures',
+  AGRICULTURAL_PRODUCTS: 'agricultural-products',
+  CONSTRUCTION_EQUIPMENT: 'construction-equipment'
+};
+
+export const LISTING_TYPES = {
+  SELL: 'sell',
+  RENT: 'rent'
 };
 
 export const ORDER_STATUS = {
@@ -267,7 +397,11 @@ export const NOTIFICATION_TYPES = {
   ORDER: 'order',
   PAYMENT: 'payment',
   BOOKING: 'booking',
-  APPOINTMENT: 'appointment', // NEW
+  APPOINTMENT: 'appointment',
+  REGISTRATION: 'registration', // NEW
+  NEW_REGISTRATION: 'new_registration', // NEW
+  REGISTRATION_STATUS_UPDATE: 'registration_status_update', // NEW
+  REGISTRATION_PAYMENT_COMPLETED: 'registration_payment_completed', // NEW
   CHAT: 'chat',
   REVIEW: 'review',
   SYSTEM: 'system',
@@ -309,11 +443,17 @@ export const ERROR_MESSAGES = {
   NETWORK_ERROR: 'Network error. Please try again.',
   UNAUTHORIZED: 'You are not authorized to perform this action',
   SERVER_ERROR: 'Something went wrong. Please try again later.',
-  // NEW: Appointment errors
+  // Appointment errors
   APPOINTMENT_CONFLICT: 'The selected time conflicts with another appointment',
   APPOINTMENT_PAST_DATE: 'Appointment date must be in the future',
   PROPERTY_NOT_AVAILABLE: 'This property is not available for viewing',
-  SLOT_NOT_AVAILABLE: 'The selected time slot is not available'
+  SLOT_NOT_AVAILABLE: 'The selected time slot is not available',
+  // Registration errors
+  REGISTRATION_FEE_REQUIRED: 'Registration fee payment is required',
+  ALREADY_REGISTERED: 'You have already registered for this property',
+  REGISTRATION_EXPIRED: 'Registration period has expired',
+  INVALID_REGISTRATION_STATUS: 'Invalid registration status',
+  PAYMENT_VERIFICATION_FAILED: 'Payment verification failed'
 };
 
 // Success Messages
@@ -328,12 +468,19 @@ export const SUCCESS_MESSAGES = {
   BOOKING_CREATED: 'Booking created successfully',
   MESSAGE_SENT: 'Message sent successfully',
   REVIEW_SUBMITTED: 'Review submitted successfully',
-  // NEW: Appointment success messages
+  // Appointment success messages
   APPOINTMENT_BOOKED: 'Appointment booked successfully',
   APPOINTMENT_CANCELLED: 'Appointment cancelled successfully',
   APPOINTMENT_RESCHEDULED: 'Appointment rescheduled successfully',
   APPOINTMENT_CONFIRMED: 'Appointment confirmed successfully',
-  APPOINTMENT_COMPLETED: 'Appointment marked as completed'
+  APPOINTMENT_COMPLETED: 'Appointment marked as completed',
+  // Registration success messages
+  REGISTRATION_SUBMITTED: 'Property registration submitted successfully',
+  REGISTRATION_APPROVED: 'Registration approved successfully',
+  REGISTRATION_REJECTED: 'Registration rejected',
+  REGISTRATION_CANCELLED: 'Registration cancelled successfully',
+  PAYMENT_COMPLETED: 'Payment completed successfully',
+  RECEIPT_DOWNLOADED: 'Receipt downloaded successfully'
 };
 
 export default {
@@ -343,6 +490,11 @@ export default {
   STORAGE_KEYS,
   API_ENDPOINTS,
   ROUTES,
+  REGISTRATION_STATUS,
+  REGISTRATION_PAYMENT_STATUS,
+  REGISTRATION_DOCUMENT_TYPES,
+  RELATIONSHIP_TYPES,
+  ETHIOPIAN_REGIONS,
   APPOINTMENT_TYPES,
   APPOINTMENT_STATUS,
   MEETING_TYPES,
@@ -351,3 +503,236 @@ export default {
   ERROR_MESSAGES,
   SUCCESS_MESSAGES
 };
+export const PROPERTY_TYPES = {
+  APARTMENT: 'apartment',
+  VILLA: 'villa',
+  COMMERCIAL: 'commercial',
+  LAND: 'land',
+  OFFICE: 'office',
+  WAREHOUSE: 'warehouse'
+};
+
+// Property Registration Status
+// export const REGISTRATION_STATUS = {
+//   PENDING: 'pending',
+//   UNDER_REVIEW: 'under-review',
+//   APPROVED: 'approved',
+//   REJECTED: 'rejected',
+//   COMPLETED: 'completed',
+//   CANCELLED: 'cancelled',
+//   EXPIRED: 'expired'
+// };
+
+// Payment Status for Registration
+// export const REGISTRATION_PAYMENT_STATUS = {
+//   PENDING: 'pending',
+//   COMPLETED: 'completed',
+//   FAILED: 'failed',
+//   REFUNDED: 'refunded'
+// };
+
+// // Registration Document Types
+// export const REGISTRATION_DOCUMENT_TYPES = [
+//   { value: 'id-card', label: 'ID Card', required: true },
+//   { value: 'passport', label: 'Passport', required: false },
+//   { value: 'license', label: 'Driving License', required: false },
+//   { value: 'bank-statement', label: 'Bank Statement', required: false },
+//   { value: 'salary-slip', label: 'Salary Slip', required: false },
+//   { value: 'employment-letter', label: 'Employment Letter', required: false },
+//   { value: 'business-license', label: 'Business License', required: false },
+//   { value: 'other', label: 'Other Document', required: false }
+// ];
+
+// // Relationship Types for Emergency Contact
+// export const RELATIONSHIP_TYPES = [
+//   'parent',
+//   'sibling', 
+//   'spouse',
+//   'child',
+//   'friend',
+//   'colleague',
+//   'relative',
+//   'other'
+// ];
+
+// Registration Status Display Configuration
+export const REGISTRATION_STATUS_CONFIG = {
+  [REGISTRATION_STATUS.PENDING]: {
+    label: 'Pending',
+    description: 'Registration submitted, awaiting payment',
+    color: 'yellow',
+    bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
+    textColor: 'text-yellow-700 dark:text-yellow-300',
+    borderColor: 'border-yellow-200 dark:border-yellow-800'
+  },
+  [REGISTRATION_STATUS.UNDER_REVIEW]: {
+    label: 'Under Review',
+    description: 'Payment received, registration being reviewed',
+    color: 'blue',
+    bgColor: 'bg-blue-50 dark:bg-blue-900/20',
+    textColor: 'text-blue-700 dark:text-blue-300',
+    borderColor: 'border-blue-200 dark:border-blue-800'
+  },
+  [REGISTRATION_STATUS.APPROVED]: {
+    label: 'Approved',
+    description: 'Registration approved by property owner',
+    color: 'green',
+    bgColor: 'bg-green-50 dark:bg-green-900/20',
+    textColor: 'text-green-700 dark:text-green-300',
+    borderColor: 'border-green-200 dark:border-green-800'
+  },
+  [REGISTRATION_STATUS.REJECTED]: {
+    label: 'Rejected',
+    description: 'Registration rejected by property owner',
+    color: 'red',
+    bgColor: 'bg-red-50 dark:bg-red-900/20',
+    textColor: 'text-red-700 dark:text-red-300',
+    borderColor: 'border-red-200 dark:border-red-800'
+  },
+  [REGISTRATION_STATUS.COMPLETED]: {
+    label: 'Completed',
+    description: 'Registration process completed successfully',
+    color: 'green',
+    bgColor: 'bg-green-50 dark:bg-green-900/20',
+    textColor: 'text-green-700 dark:text-green-300',
+    borderColor: 'border-green-200 dark:border-green-800'
+  },
+  [REGISTRATION_STATUS.CANCELLED]: {
+    label: 'Cancelled',
+    description: 'Registration cancelled by customer',
+    color: 'gray',
+    bgColor: 'bg-gray-50 dark:bg-gray-800',
+    textColor: 'text-gray-700 dark:text-gray-300',
+    borderColor: 'border-gray-200 dark:border-gray-600'
+  },
+  [REGISTRATION_STATUS.EXPIRED]: {
+    label: 'Expired',
+    description: 'Registration expired due to inactivity',
+    color: 'gray',
+    bgColor: 'bg-gray-50 dark:bg-gray-800',
+    textColor: 'text-gray-700 dark:text-gray-300',
+    borderColor: 'border-gray-200 dark:border-gray-600'
+  }
+};
+
+// Payment Status Display Configuration
+export const REGISTRATION_PAYMENT_STATUS_CONFIG = {
+  [REGISTRATION_PAYMENT_STATUS.PENDING]: {
+    label: 'Payment Pending',
+    description: 'Awaiting payment confirmation',
+    color: 'yellow',
+    bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
+    textColor: 'text-yellow-700 dark:text-yellow-300'
+  },
+  [REGISTRATION_PAYMENT_STATUS.COMPLETED]: {
+    label: 'Payment Completed',
+    description: 'Payment successfully processed',
+    color: 'green',
+    bgColor: 'bg-green-50 dark:bg-green-900/20',
+    textColor: 'text-green-700 dark:text-green-300'
+  },
+  [REGISTRATION_PAYMENT_STATUS.FAILED]: {
+    label: 'Payment Failed',
+    description: 'Payment processing failed',
+    color: 'red',
+    bgColor: 'bg-red-50 dark:bg-red-900/20',
+    textColor: 'text-red-700 dark:text-red-300'
+  },
+  [REGISTRATION_PAYMENT_STATUS.REFUNDED]: {
+    label: 'Refunded',
+    description: 'Payment has been refunded',
+    color: 'blue',
+    bgColor: 'bg-blue-50 dark:bg-blue-900/20',
+    textColor: 'text-blue-700 dark:text-blue-300'
+  }
+};
+
+// Registration Workflow Steps
+export const REGISTRATION_WORKFLOW_STEPS = [
+  {
+    id: 1,
+    name: 'Submit Registration',
+    description: 'Fill out registration form and submit documents',
+    status: REGISTRATION_STATUS.PENDING
+  },
+  {
+    id: 2,
+    name: 'Payment',
+    description: 'Pay registration fee',
+    status: REGISTRATION_STATUS.PENDING
+  },
+  {
+    id: 3,
+    name: 'Review',
+    description: 'Property owner reviews application',
+    status: REGISTRATION_STATUS.UNDER_REVIEW
+  },
+  {
+    id: 4,
+    name: 'Decision',
+    description: 'Registration approved or rejected',
+    status: [REGISTRATION_STATUS.APPROVED, REGISTRATION_STATUS.REJECTED]
+  },
+  {
+    id: 5,
+    name: 'Completion',
+    description: 'Process completed',
+    status: REGISTRATION_STATUS.COMPLETED
+  }
+];
+
+// Error Messages for Registration
+export const REGISTRATION_ERROR_MESSAGES = {
+  REQUIRED_FIELD: 'This field is required',
+  INVALID_EMAIL: 'Please enter a valid email address',
+  INVALID_PHONE: 'Please enter a valid phone number',
+  FILE_TOO_LARGE: 'File size must be less than 10MB',
+  INVALID_FILE_TYPE: 'Only PDF, JPG, and PNG files are allowed',
+  REGISTRATION_FEE_REQUIRED: 'Registration fee payment is required',
+  ALREADY_REGISTERED: 'You have already registered for this property',
+  REGISTRATION_EXPIRED: 'Registration period has expired',
+  INVALID_REGISTRATION_STATUS: 'Invalid registration status',
+  PAYMENT_VERIFICATION_FAILED: 'Payment verification failed',
+  PROPERTY_NOT_FOUND: 'Property not found',
+  REGISTRATION_NOT_FOUND: 'Registration not found',
+  UNAUTHORIZED_ACCESS: 'You are not authorized to access this registration'
+};
+
+// Success Messages for Registration
+export const REGISTRATION_SUCCESS_MESSAGES = {
+  REGISTRATION_SUBMITTED: 'Property registration submitted successfully',
+  PAYMENT_COMPLETED: 'Payment completed successfully',
+  REGISTRATION_APPROVED: 'Your registration has been approved',
+  REGISTRATION_UPDATED: 'Registration updated successfully',
+  DOCUMENT_UPLOADED: 'Document uploaded successfully',
+  RECEIPT_DOWNLOADED: 'Receipt downloaded successfully'
+};
+
+// Registration Form Steps
+export const REGISTRATION_FORM_STEPS = [
+  {
+    id: 1,
+    title: 'Personal Information',
+    description: 'Basic personal details',
+    fields: ['firstName', 'lastName', 'email', 'phone', 'occupation']
+  },
+  {
+    id: 2,
+    title: 'Address & Emergency Contact',
+    description: 'Address and emergency contact information',
+    fields: ['address', 'emergencyContact']
+  },
+  {
+    id: 3,
+    title: 'Financial Information',
+    description: 'Optional financial details',
+    fields: ['financialInfo']
+  },
+  {
+    id: 4,
+    title: 'Documents & Review',
+    description: 'Upload documents and review information',
+    fields: ['documents']
+  }
+];
+

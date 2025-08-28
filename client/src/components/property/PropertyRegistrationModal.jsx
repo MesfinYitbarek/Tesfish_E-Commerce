@@ -15,21 +15,21 @@ import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import LoadingSpinner from '../ui/LoadingSpinner';
-//import { submitPropertyRegistration } from '../../store/slices/productSlice';
+import { submitPropertyRegistration } from '../../store/slices/productSlice';
 import { toast } from 'react-hot-toast';
 
 const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
   const dispatch = useDispatch();
-  const { isSubmitting } = useSelector((state) => state.property);
+  const { isSubmitting } = useSelector((state) => state.products);
   const { user } = useSelector((state) => state.auth);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     personalInfo: {
-      firstName: user?.firstName || user?.customerProfile?.firstName || '',
-      lastName: user?.lastName || user?.customerProfile?.lastName || '',
-      email: user?.email || '',
-      phone: user?.phone || user?.customerProfile?.phone || '',
+      firstName: '',
+      lastName: '',
+      email: '',
+      phone: '',
       alternatePhone: '',
       dateOfBirth: '',
       nationality: 'Ethiopian',
@@ -77,10 +77,10 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
         ...prev,
         personalInfo: {
           ...prev.personalInfo,
-          firstName: user?.firstName || user?.customerProfile?.firstName || '',
-          lastName: user?.lastName || user?.customerProfile?.lastName || '',
+          firstName: user?.individualProfile?.firstName || user?.firstName || '',
+          lastName: user?.individualProfile?.lastName || user?.lastName || '',
           email: user?.email || '',
-          phone: user?.phone || user?.customerProfile?.phone || ''
+          phone: user?.individualProfile?.phone || user?.phone || ''
         }
       }));
     }
@@ -135,7 +135,11 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
         address: {
           ...prev.address,
           permanent: {
-            ...prev.address.permanent,
+            street: '',
+            city: '',
+            region: '',
+            country: 'Ethiopia',
+            zipCode: '',
             sameAsCurrent: false
           }
         }
@@ -242,38 +246,57 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
     setCurrentStep(prev => prev - 1);
   };
 
-  const handleSubmit = async () => {
-    if (!validateStep(currentStep)) return;
+  // Handle form submission with better error handling
+const handleSubmit = async () => {
+  if (!validateStep(currentStep)) return;
 
-    try {
-      const registrationData = new FormData();
-      
-      registrationData.append('propertyId', product._id);
-      registrationData.append('personalInfo', JSON.stringify(formData.personalInfo));
-      registrationData.append('address', JSON.stringify(formData.address));
-      registrationData.append('emergencyContact', JSON.stringify(formData.emergencyContact));
-      registrationData.append('financialInfo', JSON.stringify(formData.financialInfo));
+  try {
+    const registrationData = new FormData();
+    
+    // Add propertyId as a simple string
+    registrationData.append('propertyId', product._id);
+    
+    // Add JSON data as strings (they will be parsed by the backend middleware)
+    registrationData.append('personalInfo', JSON.stringify(formData.personalInfo));
+    registrationData.append('address', JSON.stringify(formData.address));
+    registrationData.append('emergencyContact', JSON.stringify(formData.emergencyContact));
+    registrationData.append('financialInfo', JSON.stringify(formData.financialInfo));
 
-      // Add documents
-      documents.forEach((file, index) => {
-        registrationData.append('documents', file);
-      });
+    // Add documents
+    documents.forEach((file) => {
+      registrationData.append('documents', file);
+    });
 
-    //   const result = await dispatch(submitPropertyRegistration(registrationData)).unwrap();
-      
-    //   if (result.paymentUrl) {
-    //     // Redirect to payment page
-    //     window.open(result.paymentUrl, '_blank');
-    //   }
+    console.log('Submitting registration data:', {
+      propertyId: product._id,
+      personalInfo: formData.personalInfo,
+      address: formData.address,
+      emergencyContact: formData.emergencyContact,
+      financialInfo: formData.financialInfo,
+      documentsCount: documents.length
+    });
 
-      toast.success('Registration submitted successfully!');
-      onClose();
+    const result = await dispatch(submitPropertyRegistration(registrationData)).unwrap();
+    
+    if (result.paymentUrl) {
+      // Redirect to payment page
+      window.open(result.paymentUrl, '_blank');
+    }
 
-    } catch (error) {
-      console.error('Registration error:', error);
+    toast.success('Registration submitted successfully!');
+    onClose();
+
+  } catch (error) {
+    console.error('Registration error:', error);
+    
+    // Handle validation errors
+    if (error.includes('Validation failed')) {
+      toast.error('Please check all required fields and try again.');
+    } else {
       toast.error(error || 'Failed to submit registration');
     }
-  };
+  }
+};
 
   const getStepTitle = () => {
     switch (currentStep) {
@@ -289,14 +312,32 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
     'Parent', 'Sibling', 'Spouse', 'Child', 'Friend', 'Colleague', 'Other'
   ];
 
-  const documentTypes = [
-    { value: 'id-card', label: 'ID Card' },
-    { value: 'passport', label: 'Passport' },
-    { value: 'license', label: 'Driving License' },
-    { value: 'bank-statement', label: 'Bank Statement' },
-    { value: 'salary-slip', label: 'Salary Slip' },
-    { value: 'other', label: 'Other' }
-  ];
+  // Check if product has registration fee
+  const hasRegistrationFee = product?.propertyDetails?.registrationFee && product.propertyDetails.registrationFee > 0;
+
+  if (!hasRegistrationFee) {
+    return (
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        title="Registration Not Available"
+        size="md"
+      >
+        <div className="p-6 text-center">
+          <ExclamationTriangleIcon className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+            Registration Not Required
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            This property does not require registration or the registration fee is not set.
+          </p>
+          <Button onClick={onClose}>
+            Close
+          </Button>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal
@@ -315,6 +356,9 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
                 src={product.media.images[0].url}
                 alt={product.title}
                 className="w-16 h-16 rounded-lg object-cover"
+                onError={(e) => {
+                  e.target.src = '/api/placeholder/64/64';
+                }}
               />
             )}
             <div className="flex-1">
@@ -322,7 +366,7 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
                 {product.title}
               </h3>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                Registration Fee: {product.propertyDetails.registrationFee.toLocaleString()} {product.pricing.currency}
+                Registration Fee: {product.propertyDetails.registrationFee.toLocaleString()} {product.pricing?.currency || 'ETB'}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
                 This fee secures your interest in the property and will be processed via secure payment.
@@ -368,12 +412,14 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
                       value={formData.personalInfo.firstName}
                       onChange={(e) => handleInputChange('personalInfo', 'firstName', e.target.value)}
                       error={errors['personalInfo.firstName']}
+                      className="text-base"
                     />
                     <Input
                       label="Last Name *"
                       value={formData.personalInfo.lastName}
                       onChange={(e) => handleInputChange('personalInfo', 'lastName', e.target.value)}
                       error={errors['personalInfo.lastName']}
+                      className="text-base"
                     />
                   </div>
 
@@ -384,12 +430,14 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
                       value={formData.personalInfo.email}
                       onChange={(e) => handleInputChange('personalInfo', 'email', e.target.value)}
                       error={errors['personalInfo.email']}
+                      className="text-base"
                     />
                     <Input
                       label="Phone Number *"
                       value={formData.personalInfo.phone}
                       onChange={(e) => handleInputChange('personalInfo', 'phone', e.target.value)}
                       error={errors['personalInfo.phone']}
+                      className="text-base"
                     />
                   </div>
 
@@ -398,12 +446,14 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
                       label="Alternate Phone"
                       value={formData.personalInfo.alternatePhone}
                       onChange={(e) => handleInputChange('personalInfo', 'alternatePhone', e.target.value)}
+                      className="text-base"
                     />
                     <Input
                       label="Date of Birth"
                       type="date"
                       value={formData.personalInfo.dateOfBirth}
                       onChange={(e) => handleInputChange('personalInfo', 'dateOfBirth', e.target.value)}
+                      className="text-base"
                     />
                   </div>
 
@@ -412,12 +462,14 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
                       label="Nationality"
                       value={formData.personalInfo.nationality}
                       onChange={(e) => handleInputChange('personalInfo', 'nationality', e.target.value)}
+                      className="text-base"
                     />
                     <Input
                       label="Occupation *"
                       value={formData.personalInfo.occupation}
                       onChange={(e) => handleInputChange('personalInfo', 'occupation', e.target.value)}
                       error={errors['personalInfo.occupation']}
+                      className="text-base"
                     />
                   </div>
 
@@ -426,12 +478,14 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
                       label="Employer"
                       value={formData.personalInfo.employer}
                       onChange={(e) => handleInputChange('personalInfo', 'employer', e.target.value)}
+                      className="text-base"
                     />
                     <Input
                       label="Monthly Income (Optional)"
                       type="number"
                       value={formData.personalInfo.monthlyIncome}
                       onChange={(e) => handleInputChange('personalInfo', 'monthlyIncome', e.target.value)}
+                      className="text-base"
                     />
                   </div>
                 </div>
@@ -451,6 +505,7 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
                         value={formData.address.current.street}
                         onChange={(e) => handleInputChange('address', 'street', e.target.value, 'current')}
                         error={errors['address.current.street']}
+                        className="text-base"
                       />
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <Input
@@ -458,17 +513,20 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
                           value={formData.address.current.city}
                           onChange={(e) => handleInputChange('address', 'city', e.target.value, 'current')}
                           error={errors['address.current.city']}
+                          className="text-base"
                         />
                         <Input
                           label="Region *"
                           value={formData.address.current.region}
                           onChange={(e) => handleInputChange('address', 'region', e.target.value, 'current')}
                           error={errors['address.current.region']}
+                          className="text-base"
                         />
                         <Input
                           label="Zip Code"
                           value={formData.address.current.zipCode}
                           onChange={(e) => handleInputChange('address', 'zipCode', e.target.value, 'current')}
+                          className="text-base"
                         />
                       </div>
                     </div>
@@ -497,6 +555,7 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
                           value={formData.address.permanent.street}
                           onChange={(e) => handleInputChange('address', 'street', e.target.value, 'permanent')}
                           error={errors['address.permanent.street']}
+                          className="text-base"
                         />
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <Input
@@ -504,17 +563,20 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
                             value={formData.address.permanent.city}
                             onChange={(e) => handleInputChange('address', 'city', e.target.value, 'permanent')}
                             error={errors['address.permanent.city']}
+                            className="text-base"
                           />
                           <Input
                             label="Region *"
                             value={formData.address.permanent.region}
                             onChange={(e) => handleInputChange('address', 'region', e.target.value, 'permanent')}
                             error={errors['address.permanent.region']}
+                            className="text-base"
                           />
                           <Input
                             label="Zip Code"
                             value={formData.address.permanent.zipCode}
                             onChange={(e) => handleInputChange('address', 'zipCode', e.target.value, 'permanent')}
+                            className="text-base"
                           />
                         </div>
                       </div>
@@ -533,6 +595,7 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
                           value={formData.emergencyContact.name}
                           onChange={(e) => handleInputChange('emergencyContact', 'name', e.target.value)}
                           error={errors['emergencyContact.name']}
+                          className="text-base"
                         />
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -541,7 +604,7 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
                           <select
                             value={formData.emergencyContact.relationship}
                             onChange={(e) => handleInputChange('emergencyContact', 'relationship', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
                           >
                             <option value="">Select relationship</option>
                             {relationshipOptions.map(option => (
@@ -561,12 +624,14 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
                           value={formData.emergencyContact.phone}
                           onChange={(e) => handleInputChange('emergencyContact', 'phone', e.target.value)}
                           error={errors['emergencyContact.phone']}
+                          className="text-base"
                         />
                         <Input
                           label="Email Address"
                           type="email"
                           value={formData.emergencyContact.email}
                           onChange={(e) => handleInputChange('emergencyContact', 'email', e.target.value)}
+                          className="text-base"
                         />
                       </div>
                     </div>
@@ -586,11 +651,13 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
                       label="Bank Name"
                       value={formData.financialInfo.bankName}
                       onChange={(e) => handleInputChange('financialInfo', 'bankName', e.target.value)}
+                      className="text-base"
                     />
                     <Input
                       label="Account Number"
                       value={formData.financialInfo.accountNumber}
                       onChange={(e) => handleInputChange('financialInfo', 'accountNumber', e.target.value)}
+                      className="text-base"
                     />
                   </div>
 
@@ -616,7 +683,7 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
                         onChange={(e) => handleInputChange('financialInfo', 'loanDetails', e.target.value)}
                         placeholder="Please provide details about your existing loans..."
                         rows={3}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none text-base"
                       />
                     </div>
                   )}
@@ -627,6 +694,7 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
                     value={formData.financialInfo.monthlyExpenses}
                     onChange={(e) => handleInputChange('financialInfo', 'monthlyExpenses', e.target.value)}
                     placeholder="Estimated monthly expenses"
+                    className="text-base"
                   />
                 </div>
               )}
@@ -712,7 +780,7 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
                       <div className="flex justify-between border-t pt-3">
                         <span className="text-gray-600 dark:text-gray-400">Registration Fee:</span>
                         <span className="font-bold text-lg">
-                          {product.propertyDetails.registrationFee.toLocaleString()} {product.pricing.currency}
+                          {product.propertyDetails.registrationFee.toLocaleString()} {product.pricing?.currency || 'ETB'}
                         </span>
                       </div>
                       <div className="flex justify-between">

@@ -131,6 +131,11 @@ const DashboardLayout = () => {
               label="Bookings"
             />
             <NavItem 
+              to="/dashboard/registrations" 
+              icon={<CalendarIcon className="h-5 w-5" />}
+              label="Property Registrations"
+            />
+            <NavItem 
               to="/dashboard/analytics" 
               icon={<ChartBarIcon className="h-5 w-5" />}
               label="Analytics"

@@ -86,6 +86,7 @@ export const TIME_SLOTS = [
   { value: '18:00', label: '6:00 PM' }
 ];
 
+
 export const AREA_UNITS = [
   { value: 'sqm', label: 'Square Meters (m²)' },
   { value: 'sqft', label: 'Square Feet (ft²)' },

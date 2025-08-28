@@ -9,7 +9,7 @@ const PricingStep = ({ formData, errors, onChange }) => {
   const isRealEstate = ['homes', 'plots', 'commercials'].includes(formData.productType);
   const isRental = formData.listingType === 'rent';
 
-  // Ensure pricing object exists with all properties
+  // Ensure pricing object exists with all properties aligned to model
   const safePricing = {
     basePrice: '',
     salePrice: '',
@@ -26,13 +26,17 @@ const PricingStep = ({ formData, errors, onChange }) => {
 
   const handleChange = (field, value) => {
     if (field.includes('.')) {
-      const [parent, child] = field.split('.');
-      onChange({
-        [parent]: {
-          ...formData[parent],
-          [child]: value
-        }
-      });
+      const keys = field.split('.');
+      const updates = { ...formData };
+      let current = updates;
+      
+      for (let i = 0; i < keys.length - 1; i++) {
+        if (!current[keys[i]]) current[keys[i]] = {};
+        current = current[keys[i]];
+      }
+      current[keys[keys.length - 1]] = value;
+      
+      onChange(updates);
     } else {
       onChange({ [field]: value });
     }
@@ -43,7 +47,7 @@ const PricingStep = ({ formData, errors, onChange }) => {
       pricing: {
         ...formData.pricing,
         rentPrice: {
-          ...formData.pricing.rentPrice,
+          ...formData.pricing?.rentPrice,
           [field]: value
         }
       }
@@ -65,12 +69,14 @@ const PricingStep = ({ formData, errors, onChange }) => {
       { value: 'fixed', label: 'Total Price' },
       { value: 'per-unit', label: 'Per Square Meter' },
       { value: 'per-month', label: 'Per Month' },
+      { value: 'per-year', label: 'Per Year' },
       { value: 'starting-from', label: 'Starting From' }
     ],
     'others': [
       { value: 'fixed', label: 'Fixed Price' },
       { value: 'starting-from', label: 'Starting From' },
-      { value: 'per-unit', label: 'Per Unit' }
+      { value: 'per-unit', label: 'Per Unit' },
+      { value: 'per-day', label: 'Per Day' }
     ]
   };
 
@@ -87,6 +93,22 @@ const PricingStep = ({ formData, errors, onChange }) => {
     const yearlyAmount = parseFloat(yearly);
     return yearlyAmount ? (yearlyAmount / 12).toString() : '';
   };
+
+  // Calculate savings if sale price is set
+  const calculateSavings = () => {
+    if (safePricing.basePrice && safePricing.salePrice) {
+      const base = parseFloat(safePricing.basePrice);
+      const sale = parseFloat(safePricing.salePrice);
+      if (base > sale) {
+        const savings = base - sale;
+        const percentage = ((savings / base) * 100).toFixed(1);
+        return { amount: savings, percentage };
+      }
+    }
+    return null;
+  };
+
+  const savings = calculateSavings();
 
   return (
     <div className="space-y-6">
@@ -110,7 +132,7 @@ const PricingStep = ({ formData, errors, onChange }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Input
-                label="Price *"
+                label="Base Price *"
                 type="number"
                 min="0"
                 step="1"
@@ -118,7 +140,7 @@ const PricingStep = ({ formData, errors, onChange }) => {
                 onChange={(e) => handleChange('pricing.basePrice', e.target.value)}
                 error={errors['pricing.basePrice']}
                 placeholder="0"
-                helper="Enter the price in Ethiopian Birr (ETB)"
+                helper="Enter the original price in Ethiopian Birr (ETB)"
                 leftAddon="ETB"
                 className="text-base"
               />
@@ -142,10 +164,10 @@ const PricingStep = ({ formData, errors, onChange }) => {
             </div>
           </div>
 
-          {/* Sale Price */}
+          {/* Sale Price (Discounted Price) */}
           <div>
             <Input
-              label="Discounted Price (Optional)"
+              label="Sale Price (Discounted Price)"
               type="number"
               min="0"
               step="1"
@@ -157,6 +179,13 @@ const PricingStep = ({ formData, errors, onChange }) => {
               leftAddon="ETB"
               className="text-base"
             />
+            {savings && (
+              <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                <p className="text-sm text-green-700 dark:text-green-300">
+                  💰 Customers save <strong>{formatCurrency(savings.amount, 'ETB')}</strong> ({savings.percentage}% discount)
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -279,23 +308,34 @@ const PricingStep = ({ formData, errors, onChange }) => {
           ) : (
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-2xl font-bold text-primary-900 dark:text-primary-100">
-                  {formatCurrency(
-                    safePricing.salePrice || safePricing.basePrice, 
-                    'ETB'
-                  )}
+                <div className="flex items-baseline space-x-2">
+                  <p className="text-2xl font-bold text-primary-900 dark:text-primary-100">
+                    {formatCurrency(
+                      safePricing.salePrice || safePricing.basePrice, 
+                      'ETB'
+                    )}
+                  </p>
                   {safePricing.priceType !== 'fixed' && (
                     <span className="text-sm font-normal text-primary-600 dark:text-primary-400">
-                      {safePricing.priceType === 'per-unit' && (isRealEstate ? ' /sqm' : ' /unit')}
+                      {safePricing.priceType === 'per-unit' && (isRealEstate ? ' /m²' : ' /unit')}
                       {safePricing.priceType === 'per-month' && ' /month'}
+                      {safePricing.priceType === 'per-year' && ' /year'}
+                      {safePricing.priceType === 'per-day' && ' /day'}
                       {safePricing.priceType === 'starting-from' && ' (starting from)'}
                     </span>
                   )}
-                </p>
-                {safePricing.salePrice && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 line-through">
-                    Original: {formatCurrency(safePricing.basePrice, 'ETB')}
-                  </p>
+                </div>
+                {safePricing.salePrice && safePricing.basePrice && (
+                  <div className="flex items-center space-x-2 mt-1">
+                    <p className="text-sm text-gray-500 dark:text-gray-400 line-through">
+                      Original: {formatCurrency(safePricing.basePrice, 'ETB')}
+                    </p>
+                    {savings && (
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+                        Save {savings.percentage}%
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
               {safePricing.isNegotiable && (
@@ -355,6 +395,7 @@ const PricingStep = ({ formData, errors, onChange }) => {
                 <option value="ETB">Ethiopian Birr (ETB)</option>
                 <option value="USD">US Dollar (USD)</option>
                 <option value="EUR">Euro (EUR)</option>
+                <option value="GBP">British Pound (GBP)</option>
               </select>
             </div>
 
@@ -379,6 +420,62 @@ const PricingStep = ({ formData, errors, onChange }) => {
                 />
               </div>
             )}
+
+            {/* Installment Options (for real estate projects) */}
+            {isRealEstate && formData.sellerType === 'company' && formData.propertyDetails?.isProject && (
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Installment Payment Options</h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Input
+                    label="Down Payment (%)"
+                    type="number"
+                    min="0"
+                    max="100"
+                    placeholder="30"
+                    helper="Percentage of total price"
+                    className="text-base"
+                  />
+                  <Input
+                    label="Duration (months)"
+                    type="number"
+                    min="1"
+                    placeholder="24"
+                    className="text-base"
+                  />
+                  <Input
+                    label="Monthly Payment"
+                    type="number"
+                    min="0"
+                    placeholder="Auto-calculated"
+                    helper="Will be calculated automatically"
+                    disabled
+                    className="text-base"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Price History */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Price History</h4>
+              <div className="text-sm text-gray-600 dark:text-gray-400 bg-white dark:bg-gray-700 p-3 rounded border">
+                <div className="flex justify-between">
+                  <span>Created:</span>
+                  <span>{new Date().toLocaleDateString()}</span>
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span>Original Price:</span>
+                  <span>{safePricing.basePrice ? formatCurrency(safePricing.basePrice, 'ETB') : 'Not set'}</span>
+                </div>
+                {safePricing.salePrice && (
+                  <div className="flex justify-between mt-1">
+                    <span>Current Price:</span>
+                    <span className="text-green-600 dark:text-green-400">{formatCurrency(safePricing.salePrice, 'ETB')}</span>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -401,7 +498,7 @@ const PricingStep = ({ formData, errors, onChange }) => {
                 </>
               ) : (
                 <>
-                  <li>• Consider offering discounts to attract more customers</li>
+                  <li>• Set a sale price lower than base price to show discounts</li>
                   <li>• Be transparent about any additional fees or charges</li>
                   <li>• Price negotiability can attract more inquiries but may result in lower final prices</li>
                 </>
@@ -409,6 +506,7 @@ const PricingStep = ({ formData, errors, onChange }) => {
               {isRealEstate && (
                 <li>• Consider the property's unique features and location when setting the price</li>
               )}
+              <li>• Use the per-unit option for bulk sales or area-based pricing</li>
             </ul>
           </div>
         </div>
@@ -434,8 +532,8 @@ const PricingStep = ({ formData, errors, onChange }) => {
               <p className="text-gray-500 dark:text-gray-400">Market Average*</p>
               <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                 {isRental && safePricing.rentPrice.monthly
-                  ? formatCurrency(safePricing.rentPrice.monthly * 1.1, 'ETB')
-                  : formatCurrency((safePricing.salePrice || safePricing.basePrice) * 1.1, 'ETB')
+                  ? formatCurrency(Math.round(safePricing.rentPrice.monthly * 1.1), 'ETB')
+                  : formatCurrency(Math.round((safePricing.salePrice || safePricing.basePrice) * 1.1), 'ETB')
                 }
               </p>
             </div>
@@ -447,7 +545,7 @@ const PricingStep = ({ formData, errors, onChange }) => {
             </div>
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-            * Estimated based on similar listings
+            * Estimated based on similar listings in your area
           </p>
         </div>
       )}

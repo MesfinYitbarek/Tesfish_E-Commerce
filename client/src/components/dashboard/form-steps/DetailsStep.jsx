@@ -18,10 +18,12 @@ const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
     }, obj);
   };
 
-  // Ensure all nested objects are initialized
+  // Ensure all nested objects are initialized with model-compliant structure
   const safeFormData = {
     ...formData,
     propertyDetails: {
+      propertyId: '',
+      propertyType: formData?.subProductType || '',
       area: { value: '', unit: 'sqm' },
       bedrooms: '',
       bathrooms: '',
@@ -40,6 +42,23 @@ const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
         sewerage: false,
         garbage: false
       },
+      location: {
+        address: '',
+        city: '',
+        subcity: '',
+        woreda: '',
+        kebele: '',
+        region: '',
+        country: 'Ethiopia',
+        zipCode: '',
+        coordinates: { lat: '', lng: '' },
+        landmarks: [],
+        nearbyFacilities: []
+      },
+      registrationFee: 0,
+      hasLegalDocuments: false,
+      legalDocuments: [],
+      titleDeedStatus: 'not-applicable',
       landDetails: {
         landUse: 'residential',
         topography: 'flat',
@@ -54,10 +73,13 @@ const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
         developer: '',
         totalUnits: '',
         availableUnits: '',
+        soldUnits: 0,
         completionDate: '',
         constructionStatus: 'planning',
         paymentPlan: 'full-payment',
-        projectFeatures: []
+        installmentOptions: [],
+        projectFeatures: [],
+        masterPlan: ''
       },
       ...formData.propertyDetails
     },
@@ -89,9 +111,18 @@ const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
       establishedYear: '',
       equipment: [],
       licenses: [],
+      financialDocuments: [],
       ...formData.businessDetails
     },
     specifications: formData.specifications || [],
+    inventory: {
+      sku: '',
+      stock: 1,
+      lowStockThreshold: 1,
+      trackInventory: formData.productType === 'others',
+      allowBackorders: false,
+      ...formData.inventory
+    },
     warranty: {
       duration: '',
       unit: 'months',
@@ -100,7 +131,7 @@ const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
       ...formData.warranty
     },
     returnPolicy: {
-      returnable: false,
+      returnable: formData.productType === 'others',
       returnPeriod: 30,
       conditions: [],
       ...formData.returnPolicy
@@ -189,19 +220,25 @@ const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
     homes: [
       'Air Conditioning', 'Balcony', 'Garden', 'Parking', 'Swimming Pool', 
       'Gym/Fitness Center', 'Security 24/7', 'Elevator', 'Generator', 
-      'Water Tank', 'Garage', 'Storage Room', "Maid's Room", 'Study Room'
+      'Water Tank', 'Garage', 'Storage Room', "Maid's Room", 'Study Room',
+      'Walk-in Closet', 'Laundry Room', 'Guest Room', 'Home Office',
+      'Fireplace', 'Terrace', 'Basement', 'Attic', 'Panoramic View'
     ],
     commercials: [
       'Air Conditioning', 'Parking', 'Security 24/7', 'Elevator', 'Generator',
       'Reception Area', 'Conference Room', 'Cafeteria', 'Loading Dock',
-      'Fire Safety', 'CCTV', 'Backup Power', 'High-Speed Internet'
+      'Fire Safety', 'CCTV', 'Backup Power', 'High-Speed Internet',
+      'Warehouse Space', 'Office Space', 'Retail Space', 'Kitchen Facilities'
     ]
   };
 
   const commonAmenities = [
     'Swimming Pool', 'Gym', 'Playground', 'Community Center', 'Security Gate',
     'CCTV Surveillance', '24/7 Security', 'Landscaped Gardens', 'Walking Paths',
-    'Children Play Area', 'Basketball Court', 'Tennis Court', 'Clubhouse'
+    'Children Play Area', 'Basketball Court', 'Tennis Court', 'Clubhouse',
+    'Parking', 'Elevator', 'Generator', 'Water Tank', 'Internet/WiFi',
+    'Cable TV', 'Intercom', 'Gated Community', 'Mosque/Church Nearby',
+    'School Nearby', 'Hospital Nearby', 'Shopping Center Nearby'
   ];
 
   // Render different content based on product type
@@ -218,12 +255,28 @@ const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
           </p>
         </div>
 
+        {/* Property ID (Auto-generated) */}
+        <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Property ID</h4>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {safeFormData.propertyDetails.propertyId || 'Will be auto-generated upon submission'}
+              </p>
+            </div>
+            <div className="text-sm text-primary-600 dark:text-primary-400">
+              Auto-Generated
+            </div>
+          </div>
+        </div>
+
         {/* Area */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             label="Area *"
             type="number"
             min="1"
+            step="0.01"
             value={getNestedValue(safeFormData, 'propertyDetails.area.value') || ''}
             onChange={(e) => handleChange('propertyDetails.area', {
               ...getNestedValue(safeFormData, 'propertyDetails.area'),
@@ -245,8 +298,8 @@ const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
               })}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
             >
-              <option value="sqm">Square Meters (sqm)</option>
-              <option value="sqft">Square Feet (sqft)</option>
+              <option value="sqm">Square Meters (m²)</option>
+              <option value="sqft">Square Feet (ft²)</option>
               {safeFormData.productType === 'plots' && (
                 <>
                   <option value="hectares">Hectares</option>
@@ -325,7 +378,7 @@ const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
                   Furnishing Status
                 </label>
                 <select
-                  value={getNestedValue(safeFormData, 'propertyDetails.furnishingStatus') || ''}
+                  value={getNestedValue(safeFormData, 'propertyDetails.furnishingStatus') || 'unfurnished'}
                   onChange={(e) => handleChange('propertyDetails.furnishingStatus', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
                 >
@@ -361,7 +414,7 @@ const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
                   Land Use *
                 </label>
                 <select
-                  value={getNestedValue(safeFormData, 'propertyDetails.landDetails.landUse') || ''}
+                  value={getNestedValue(safeFormData, 'propertyDetails.landDetails.landUse') || 'residential'}
                   onChange={(e) => handleChange('propertyDetails.landDetails.landUse', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
                 >
@@ -383,7 +436,7 @@ const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
                   Topography
                 </label>
                 <select
-                  value={getNestedValue(safeFormData, 'propertyDetails.landDetails.topography') || ''}
+                  value={getNestedValue(safeFormData, 'propertyDetails.landDetails.topography') || 'flat'}
                   onChange={(e) => handleChange('propertyDetails.landDetails.topography', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
                 >
@@ -409,7 +462,7 @@ const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
                   Water Source
                 </label>
                 <select
-                  value={getNestedValue(safeFormData, 'propertyDetails.landDetails.waterSource') || ''}
+                  value={getNestedValue(safeFormData, 'propertyDetails.landDetails.waterSource') || 'none'}
                   onChange={(e) => handleChange('propertyDetails.landDetails.waterSource', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
                 >
@@ -428,7 +481,7 @@ const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
                   Access Road
                 </label>
                 <select
-                  value={getNestedValue(safeFormData, 'propertyDetails.landDetails.accessRoad') || ''}
+                  value={getNestedValue(safeFormData, 'propertyDetails.landDetails.accessRoad') || 'paved'}
                   onChange={(e) => handleChange('propertyDetails.landDetails.accessRoad', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
                 >
@@ -449,6 +502,57 @@ const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
             </div>
           </div>
         )}
+
+        {/* Legal & Registration */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Legal & Registration</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="Registration Fee (ETB)"
+              type="number"
+              min="0"
+              value={getNestedValue(safeFormData, 'propertyDetails.registrationFee') || ''}
+              onChange={(e) => handleChange('propertyDetails.registrationFee', e.target.value)}
+              placeholder="0"
+              className="text-base"
+            />
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Title Deed Status
+              </label>
+              <select
+                value={getNestedValue(safeFormData, 'propertyDetails.titleDeedStatus') || 'not-applicable'}
+                onChange={(e) => handleChange('propertyDetails.titleDeedStatus', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
+              >
+                <option value="not-applicable">Not Applicable</option>
+                <option value="clear">Clear</option>
+                <option value="pending">Pending</option>
+                <option value="disputed">Disputed</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-start">
+            <input
+              type="checkbox"
+              id="hasLegalDocuments"
+              checked={getNestedValue(safeFormData, 'propertyDetails.hasLegalDocuments') || false}
+              onChange={(e) => handleChange('propertyDetails.hasLegalDocuments', e.target.checked)}
+              className="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            />
+            <div className="ml-3">
+              <label htmlFor="hasLegalDocuments" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Legal documents available
+              </label>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Check if you have legal documentation for this property
+              </p>
+            </div>
+          </div>
+        </div>
 
         {/* Features */}
         {safeFormData.productType !== 'plots' && (
@@ -703,7 +807,7 @@ const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
                       Construction Status
                     </label>
                     <select
-                      value={getNestedValue(safeFormData, 'propertyDetails.projectDetails.constructionStatus') || ''}
+                      value={getNestedValue(safeFormData, 'propertyDetails.projectDetails.constructionStatus') || 'planning'}
                       onChange={(e) => handleChange('propertyDetails.projectDetails.constructionStatus', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
                     >
@@ -718,7 +822,7 @@ const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
                       Payment Plan
                     </label>
                     <select
-                      value={getNestedValue(safeFormData, 'propertyDetails.projectDetails.paymentPlan') || ''}
+                      value={getNestedValue(safeFormData, 'propertyDetails.projectDetails.paymentPlan') || 'full-payment'}
                       onChange={(e) => handleChange('propertyDetails.projectDetails.paymentPlan', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
                     >
@@ -845,6 +949,48 @@ const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
           placeholder="e.g., Sedan, SUV, Hatchback"
           className="text-base"
         />
+
+        {/* Inventory Management for Vehicles */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Inventory</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="SKU (Optional)"
+              value={safeFormData.inventory.sku}
+              onChange={(e) => handleChange('inventory.sku', e.target.value)}
+              placeholder="VEH-001"
+              className="text-base"
+            />
+            <Input
+              label="Stock Quantity"
+              type="number"
+              min="0"
+              value={safeFormData.inventory.stock}
+              onChange={(e) => handleChange('inventory.stock', e.target.value)}
+              placeholder="1"
+              className="text-base"
+            />
+          </div>
+
+          <div className="flex items-start">
+            <input
+              type="checkbox"
+              id="trackInventory"
+              checked={safeFormData.inventory.trackInventory}
+              onChange={(e) => handleChange('inventory.trackInventory', e.target.checked)}
+              className="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            />
+            <div className="ml-3">
+              <label htmlFor="trackInventory" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Track inventory levels
+              </label>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Enable if you have multiple units of this vehicle
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -909,6 +1055,135 @@ const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
             className="text-base"
           />
         </div>
+
+        {/* Equipment Specifications */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Equipment Specifications</h3>
+
+          {/* Add New Specification */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+            <Input
+              placeholder="Specification name"
+              value={newSpecification.name}
+              onChange={(e) => setNewSpecification({...newSpecification, name: e.target.value})}
+              className="text-base"
+            />
+            <Input
+              placeholder="Value"
+              value={newSpecification.value}
+              onChange={(e) => setNewSpecification({...newSpecification, value: e.target.value})}
+              className="text-base"
+            />
+            <Input
+              placeholder="Group (optional)"
+              value={newSpecification.group}
+              onChange={(e) => setNewSpecification({...newSpecification, group: e.target.value})}
+              className="text-base"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                if (newSpecification.name && newSpecification.value) {
+                  const updatedSpecs = [...safeFormData.equipmentDetails.specifications, { ...newSpecification }];
+                  handleChange('equipmentDetails.specifications', updatedSpecs);
+                  setNewSpecification({ name: '', value: '', group: '' });
+                }
+              }}
+              disabled={!newSpecification.name.trim() || !newSpecification.value.trim()}
+            >
+              <PlusIcon className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Existing Specifications */}
+          {safeFormData.equipmentDetails.specifications.length > 0 && (
+            <div className="space-y-2">
+              {safeFormData.equipmentDetails.specifications.map((spec, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-700 rounded-lg"
+                >
+                  <div className="flex-1">
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{spec.name}: </span>
+                    <span className="text-gray-600 dark:text-gray-400">{spec.value}</span>
+                    {spec.group && (
+                      <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">({spec.group})</span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const updatedSpecs = safeFormData.equipmentDetails.specifications.filter((_, i) => i !== index);
+                      handleChange('equipmentDetails.specifications', updatedSpecs);
+                    }}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <XMarkIcon className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Business Details (for others -> business-sale)
+  if (safeFormData.productType === 'others' && safeFormData.subProductType === 'business-sale') {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2 flex items-center">
+            <ComputerDesktopIcon className="h-6 w-6 mr-2 text-primary-500" />
+            Business Details
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            Provide information about the business for sale.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Business Type *"
+            value={safeFormData.businessDetails.businessType}
+            onChange={(e) => handleChange('businessDetails.businessType', e.target.value)}
+            placeholder="e.g., Restaurant, Retail Store, Manufacturing"
+            className="text-base"
+          />
+          <Input
+            label="Established Year"
+            type="number"
+            min="1900"
+            max={new Date().getFullYear()}
+            value={safeFormData.businessDetails.establishedYear}
+            onChange={(e) => handleChange('businessDetails.establishedYear', e.target.value)}
+            placeholder="2010"
+            className="text-base"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Annual Revenue (ETB)"
+            type="number"
+            min="0"
+            value={safeFormData.businessDetails.annualRevenue}
+            onChange={(e) => handleChange('businessDetails.annualRevenue', e.target.value)}
+            placeholder="1000000"
+            className="text-base"
+          />
+          <Input
+            label="Number of Employees"
+            type="number"
+            min="0"
+            value={safeFormData.businessDetails.employees}
+            onChange={(e) => handleChange('businessDetails.employees', e.target.value)}
+            placeholder="10"
+            className="text-base"
+          />
+        </div>
       </div>
     );
   }
@@ -924,6 +1199,79 @@ const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
         <p className="text-gray-600 dark:text-gray-400">
           Provide specific information about your product.
         </p>
+      </div>
+
+      {/* Inventory Management */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Inventory Management</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Input
+            label="SKU (Stock Keeping Unit)"
+            value={safeFormData.inventory.sku}
+            onChange={(e) => handleChange('inventory.sku', e.target.value)}
+            placeholder="PROD-001"
+            helper="Unique identifier for this product"
+            className="text-base"
+          />
+          <Input
+            label="Stock Quantity"
+            type="number"
+            min="0"
+            value={safeFormData.inventory.stock}
+            onChange={(e) => handleChange('inventory.stock', e.target.value)}
+            placeholder="10"
+            className="text-base"
+          />
+          <Input
+            label="Low Stock Threshold"
+            type="number"
+            min="0"
+            value={safeFormData.inventory.lowStockThreshold}
+            onChange={(e) => handleChange('inventory.lowStockThreshold', e.target.value)}
+            placeholder="5"
+            helper="Alert when stock falls below this level"
+            className="text-base"
+          />
+        </div>
+
+        <div className="flex items-start space-x-6">
+          <div className="flex items-start">
+            <input
+              type="checkbox"
+              id="trackInventory"
+              checked={safeFormData.inventory.trackInventory}
+              onChange={(e) => handleChange('inventory.trackInventory', e.target.checked)}
+              className="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            />
+            <div className="ml-3">
+              <label htmlFor="trackInventory" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Track inventory levels
+              </label>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Monitor stock levels and get low stock alerts
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start">
+            <input
+              type="checkbox"
+              id="allowBackorders"
+              checked={safeFormData.inventory.allowBackorders}
+              onChange={(e) => handleChange('inventory.allowBackorders', e.target.checked)}
+              className="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            />
+            <div className="ml-3">
+              <label htmlFor="allowBackorders" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Allow backorders
+              </label>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Accept orders when out of stock
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Specifications */}
@@ -1092,6 +1440,7 @@ const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
               label="Length"
               type="number"
               min="0"
+              step="0.1"
               value={safeFormData.shipping.dimensions.length}
               onChange={(e) => handleChange('shipping.dimensions', {
                 ...safeFormData.shipping.dimensions,
@@ -1104,6 +1453,7 @@ const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
               label="Width"
               type="number"
               min="0"
+              step="0.1"
               value={safeFormData.shipping.dimensions.width}
               onChange={(e) => handleChange('shipping.dimensions', {
                 ...safeFormData.shipping.dimensions,
@@ -1116,6 +1466,7 @@ const DetailsStep = ({ formData, errors, productTypeConfig, onChange }) => {
               label="Height"
               type="number"
               min="0"
+              step="0.1"
               value={safeFormData.shipping.dimensions.height}
               onChange={(e) => handleChange('shipping.dimensions', {
                 ...safeFormData.shipping.dimensions,

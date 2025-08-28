@@ -12,7 +12,9 @@ import {
   ChartBarIcon,
   BellIcon,
   DocumentTextIcon,
-  XMarkIcon
+  XMarkIcon,
+  ClipboardDocumentListIcon,
+  CurrencyDollarIcon
 } from '@heroicons/react/24/outline';
 import { logout } from '../../store/slices/authSlice';
 import { APP_CONFIG } from '../../constants';
@@ -73,6 +75,29 @@ const DashboardSidebar = ({ onClose }) => {
       highlight: true
     },
     {
+      name: 'Property Registrations',
+      href: '/dashboard/registrations',
+      icon: ClipboardDocumentListIcon,
+      badge: user?.pendingRegistrations || 0,
+      subItems: [
+        {
+          name: 'All Registrations',
+          href: '/dashboard/registrations',
+          badge: user?.totalRegistrations || 0
+        },
+        {
+          name: 'Pending Review',
+          href: '/dashboard/registrations?status=under-review',
+          badge: user?.pendingRegistrations || 0
+        },
+        {
+          name: 'Payment Completed',
+          href: '/dashboard/registrations?status=completed',
+          badge: user?.completedPayments || 0
+        }
+      ]
+    },
+    {
       name: 'Messages',
       href: '/dashboard/messages',
       icon: ChatBubbleLeftRightIcon,
@@ -127,33 +152,82 @@ const DashboardSidebar = ({ onClose }) => {
     return location.pathname.startsWith(href);
   };
 
-  const NavItem = ({ item }) => (
-    <Link
-      to={item.href}
-      className={`group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-        isActive(item.href, item.exact)
-          ? 'bg-primary-100 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
-          : item.highlight
-          ? 'bg-primary-500 text-white hover:bg-primary-600'
-          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-      }`}
-      onClick={onClose}
-    >
-      <item.icon className={`mr-3 h-5 w-5 flex-shrink-0 ${
-        item.highlight ? 'text-white' : ''
-      }`} />
-      <span className="truncate">{item.name}</span>
-      {item.badge !== undefined && item.badge > 0 && (
-        <span className={`ml-auto inline-block py-0.5 px-2 text-xs rounded-full ${
-          item.highlight
-            ? 'bg-white text-primary-600'
-            : 'bg-primary-100 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
-        }`}>
-          {item.badge > 99 ? '99+' : item.badge}
-        </span>
-      )}
-    </Link>
-  );
+  const NavItem = ({ item }) => {
+    const [isExpanded, setIsExpanded] = useState(isActive(item.href));
+    
+    return (
+      <div>
+        <Link
+          to={item.href}
+          className={`group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+            isActive(item.href, item.exact)
+              ? 'bg-primary-100 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
+              : item.highlight
+              ? 'bg-primary-500 text-white hover:bg-primary-600'
+              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+          }`}
+          onClick={(e) => {
+            if (item.subItems) {
+              e.preventDefault();
+              setIsExpanded(!isExpanded);
+            } else {
+              onClose && onClose();
+            }
+          }}
+        >
+          <item.icon className={`mr-3 h-5 w-5 flex-shrink-0 ${
+            item.highlight ? 'text-white' : ''
+          }`} />
+          <span className="truncate flex-1">{item.name}</span>
+          {item.badge !== undefined && item.badge > 0 && (
+            <span className={`ml-2 inline-block py-0.5 px-2 text-xs rounded-full ${
+              item.highlight
+                ? 'bg-white text-primary-600'
+                : 'bg-primary-100 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400'
+            }`}>
+              {item.badge > 99 ? '99+' : item.badge}
+            </span>
+          )}
+          {item.subItems && (
+            <svg
+              className={`ml-2 h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          )}
+        </Link>
+
+        {/* Sub Items */}
+        {item.subItems && isExpanded && (
+          <div className="ml-8 mt-1 space-y-1">
+            {item.subItems.map((subItem) => (
+              <Link
+                key={subItem.name}
+                to={subItem.href}
+                className={`flex items-center px-3 py-2 text-sm rounded-lg transition-colors ${
+                  location.pathname === subItem.href || 
+                  (subItem.href.includes('?') && location.pathname === subItem.href.split('?')[0] && location.search.includes(subItem.href.split('?')[1]))
+                    ? 'bg-primary-50 dark:bg-primary-900/10 text-primary-700 dark:text-primary-300'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800'
+                }`}
+                onClick={onClose}
+              >
+                <span className="truncate flex-1">{subItem.name}</span>
+                {subItem.badge !== undefined && subItem.badge > 0 && (
+                  <span className="ml-2 inline-block py-0.5 px-2 text-xs rounded-full bg-primary-100 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400">
+                    {subItem.badge > 99 ? '99+' : subItem.badge}
+                  </span>
+                )}
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col h-full">

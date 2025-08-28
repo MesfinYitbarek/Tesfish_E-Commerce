@@ -6,7 +6,9 @@ import {
   HomeIcon,
   BuildingOfficeIcon,
   MapIcon,
-  ShoppingBagIcon
+  ShoppingBagIcon,
+  StarIcon,
+  EyeIcon
 } from '@heroicons/react/24/outline';
 import { PRODUCT_TYPE_CONFIG } from '../../../config/productTypes';
 
@@ -14,7 +16,7 @@ const BasicInfoStep = ({ formData, errors, onChange }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [newTag, setNewTag] = useState('');
 
-  // Safe form data with defaults
+  // Safe form data with defaults aligned to model
   const safeFormData = {
     title: '',
     description: '',
@@ -23,21 +25,46 @@ const BasicInfoStep = ({ formData, errors, onChange }) => {
     subProductType: '',
     listingType: '',
     sellerType: 'individual',
-    condition: '',
+    condition: 'new',
     brand: '',
     model: '',
-    featured: false,
+    isFeatured: false,
+    isPromoted: false,
+    isVerified: false,
     tags: [],
     notes: '',
+    status: 'draft',
+    seo: {
+      metaTitle: '',
+      metaDescription: '',
+      keywords: []
+    },
+    availability: {
+      isAvailable: true,
+      availableFrom: '',
+      availableUntil: ''
+    },
     ...formData
   };
 
   const handleChange = (field, value) => {
-    // Special handling for productType change
-    if (field === 'productType') {
+    if (field.includes('.')) {
+      const keys = field.split('.');
+      const updates = { ...formData };
+      let current = updates;
+      
+      for (let i = 0; i < keys.length - 1; i++) {
+        if (!current[keys[i]]) current[keys[i]] = {};
+        current = current[keys[i]];
+      }
+      current[keys[keys.length - 1]] = value;
+      
+      onChange(updates);
+    } else if (field === 'productType') {
+      // Reset dependent fields when product type changes
       onChange({
         [field]: value,
-        subProductType: '', // Reset sub-type when main type changes
+        subProductType: '',
         listingType: ['homes', 'plots', 'commercials'].includes(value) ? '' : undefined
       });
     } else {
@@ -223,6 +250,7 @@ const BasicInfoStep = ({ formData, errors, onChange }) => {
         }
         helper="Create an attractive title that describes your listing"
         className="text-base"
+        maxLength={100}
       />
 
       {/* Short Description */}
@@ -257,6 +285,7 @@ const BasicInfoStep = ({ formData, errors, onChange }) => {
           value={safeFormData.description}
           onChange={(e) => handleChange('description', e.target.value)}
           rows={6}
+          maxLength={2000}
           className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base resize-none"
           placeholder={
             isRealEstate
@@ -264,11 +293,16 @@ const BasicInfoStep = ({ formData, errors, onChange }) => {
               : "Provide a comprehensive description of your product. Include features, benefits, condition, and any other relevant details..."
           }
         />
-        {errors.description && (
-          <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-            {errors.description}
-          </p>
-        )}
+        <div className="flex justify-between mt-1">
+          {errors.description && (
+            <p className="text-sm text-red-600 dark:text-red-400">
+              {errors.description}
+            </p>
+          )}
+          <span className="text-sm text-gray-500 dark:text-gray-400 ml-auto">
+            {safeFormData.description.length}/2000
+          </span>
+        </div>
       </div>
 
       {/* Seller Type */}
@@ -330,7 +364,6 @@ const BasicInfoStep = ({ formData, errors, onChange }) => {
                   onChange={(e) => handleChange('condition', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
                 >
-                  <option value="">Select condition</option>
                   <option value="new">New</option>
                   <option value="like-new">Like New</option>
                   <option value="excellent">Excellent</option>
@@ -338,6 +371,7 @@ const BasicInfoStep = ({ formData, errors, onChange }) => {
                   <option value="fair">Fair</option>
                   <option value="poor">Poor</option>
                   <option value="refurbished">Refurbished</option>
+                  <option value="damaged">Damaged</option>
                 </select>
               </div>
             )}
@@ -362,21 +396,119 @@ const BasicInfoStep = ({ formData, errors, onChange }) => {
               </div>
             )}
 
-            {/* Featured Listing */}
-            <div className="flex items-start">
-              <input
-                type="checkbox"
-                id="featured"
-                checked={safeFormData.featured}
-                onChange={(e) => handleChange('featured', e.target.checked)}
-                className="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+            {/* Availability */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Availability</h4>
+              
+              <div className="flex items-start">
+                <input
+                  type="checkbox"
+                  id="isAvailable"
+                  checked={safeFormData.availability?.isAvailable ?? true}
+                  onChange={(e) => handleChange('availability.isAvailable', e.target.checked)}
+                  className="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <div className="ml-3">
+                  <label htmlFor="isAvailable" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Currently Available
+                  </label>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Uncheck if this item is temporarily unavailable
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Available From"
+                  type="date"
+                  value={safeFormData.availability?.availableFrom || ''}
+                  onChange={(e) => handleChange('availability.availableFrom', e.target.value)}
+                  helper="When will this become available?"
+                  className="text-base"
+                />
+                <Input
+                  label="Available Until"
+                  type="date"
+                  value={safeFormData.availability?.availableUntil || ''}
+                  onChange={(e) => handleChange('availability.availableUntil', e.target.value)}
+                  helper="When will this no longer be available?"
+                  className="text-base"
+                />
+              </div>
+            </div>
+
+            {/* Promotion Options */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">Promotion Options</h4>
+              
+              <div className="flex items-start">
+                <input
+                  type="checkbox"
+                  id="isFeatured"
+                  checked={safeFormData.isFeatured}
+                  onChange={(e) => handleChange('isFeatured', e.target.checked)}
+                  className="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <div className="ml-3">
+                  <label htmlFor="isFeatured" className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
+                    <StarIcon className="h-4 w-4 mr-1" />
+                    Featured Listing
+                  </label>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Mark this as a featured listing for better visibility (additional fees may apply)
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start">
+                <input
+                  type="checkbox"
+                  id="isPromoted"
+                  checked={safeFormData.isPromoted}
+                  onChange={(e) => handleChange('isPromoted', e.target.checked)}
+                  className="mt-1 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <div className="ml-3">
+                  <label htmlFor="isPromoted" className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center">
+                    <EyeIcon className="h-4 w-4 mr-1" />
+                    Promoted Listing
+                  </label>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Promote this listing for increased visibility
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* SEO Settings */}
+            <div className="space-y-4">
+              <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">SEO Settings</h4>
+              
+              <Input
+                label="Meta Title"
+                value={safeFormData.seo?.metaTitle || ''}
+                onChange={(e) => handleChange('seo.metaTitle', e.target.value)}
+                placeholder="SEO-friendly title for search engines"
+                helper="Leave blank to use the main title"
+                maxLength={60}
+                className="text-base"
               />
-              <div className="ml-3">
-                <label htmlFor="featured" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Featured Listing
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Meta Description
                 </label>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Mark this as a featured listing for better visibility (additional fees may apply)
+                <textarea
+                  value={safeFormData.seo?.metaDescription || ''}
+                  onChange={(e) => handleChange('seo.metaDescription', e.target.value)}
+                  rows={3}
+                  maxLength={160}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base resize-none"
+                  placeholder="Description for search engine results"
+                />
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  {safeFormData.seo?.metaDescription?.length || 0}/160 characters
                 </p>
               </div>
             </div>
@@ -468,6 +600,7 @@ const BasicInfoStep = ({ formData, errors, onChange }) => {
                 </>
               )}
               <li>• Use relevant tags to improve searchability</li>
+              <li>• Consider featured/promoted options for better visibility</li>
             </ul>
           </div>
         </div>

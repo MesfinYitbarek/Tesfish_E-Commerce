@@ -1,9 +1,9 @@
 // store/slices/productSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import productService from '../../services/productService';
+import productService, { propertyRegistrationService } from '../../services/productService';
 import { toast } from 'react-hot-toast';
 
-// Async thunks
+// Async thunks for products
 export const createProduct = createAsyncThunk(
   'products/createProduct',
   async (productData, { rejectWithValue }) => {
@@ -195,6 +195,7 @@ export const fetchProductStats = createAsyncThunk(
     }
   }
 );
+
 // ================= ADMIN THUNKS =================
 export const fetchProductsForAdmin = createAsyncThunk(
   'products/fetchProductsForAdmin',
@@ -241,7 +242,116 @@ export const bulkDeleteProducts = createAsyncThunk(
     }
   }
 );
+
+// ================= PROPERTY REGISTRATION THUNKS =================
+export const submitPropertyRegistration = createAsyncThunk(
+  'products/submitPropertyRegistration',
+  async (registrationData, { rejectWithValue }) => {
+    try {
+      const response = await propertyRegistrationService.submitRegistration(registrationData);
+      toast.success('Property registration submitted successfully!');
+      return response.data;
+    } catch (error) {
+      const message =
+        error.response?.data?.message || 'Failed to submit property registration';
+      toast.error(message);
+      return rejectWithValue(message);
+    }
+  }
+);
+
+export const fetchMyRegistrations = createAsyncThunk(
+  'products/fetchMyRegistrations',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const response = await propertyRegistrationService.getMyRegistrations(params);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to fetch your registrations'
+      );
+    }
+  }
+);
+
+export const fetchCompanyRegistrations = createAsyncThunk(
+  'products/fetchCompanyRegistrations',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const response = await propertyRegistrationService.getCompanyRegistrations(params);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to fetch company registrations'
+      );
+    }
+  }
+);
+
+export const updateRegistrationStatus = createAsyncThunk(
+  'products/updateRegistrationStatus',
+  async ({ id, status, adminNotes }, { rejectWithValue }) => {
+    try {
+      const response = await propertyRegistrationService.updateRegistrationStatus(id, status, adminNotes);
+      toast.success(`Registration ${status} successfully`);
+      return { id, status, adminNotes, data: response.data };
+    } catch (error) {
+      const message =
+        error.response?.data?.message || 'Failed to update registration status';
+      toast.error(message);
+      return rejectWithValue(message);
+    }
+  }
+);
+
+export const verifyRegistrationPayment = createAsyncThunk(
+  'products/verifyRegistrationPayment',
+  async ({ id, paymentData }, { rejectWithValue }) => {
+    try {
+      const response = await propertyRegistrationService.verifyPayment(id, paymentData);
+      toast.success('Payment verified successfully!');
+      return { id, data: response.data };
+    } catch (error) {
+      const message =
+        error.response?.data?.message || 'Failed to verify payment';
+      toast.error(message);
+      return rejectWithValue(message);
+    }
+  }
+);
+
+export const fetchRegistrationStats = createAsyncThunk(
+  'products/fetchRegistrationStats',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await propertyRegistrationService.getRegistrationStats();
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to fetch registration statistics'
+      );
+    }
+  }
+);
+
+export const cancelRegistration = createAsyncThunk(
+  'products/cancelRegistration',
+  async ({ id, reason }, { rejectWithValue }) => {
+    try {
+      const response = await propertyRegistrationService.cancelRegistration(id, reason);
+      toast.success('Registration cancelled successfully');
+      return { id, reason, data: response.data };
+    } catch (error) {
+      const message =
+        error.response?.data?.message || 'Failed to cancel registration';
+      toast.error(message);
+      return rejectWithValue(message);
+    }
+  }
+);
+
 const initialState = {
+  // Products
   products: [],
   currentProduct: null,
   featuredProducts: [],
@@ -250,12 +360,24 @@ const initialState = {
   propertyTypes: [],
   wishlistedItems: [],
   stats: null,
-  adminLoading: false,   // NEW: for admin actions
+  adminLoading: false,
   adminProducts: [], 
   isLoading: false,
   productLoading: false,
   statsLoading: false,
   error: null,
+  
+  // Property Registrations
+  registrations: [],
+  myRegistrations: [],
+  companyRegistrations: [],
+  currentRegistration: null,
+  registrationStats: null,
+  isSubmitting: false,
+  registrationLoading: false,
+  registrationError: null,
+  
+  // Filters and UI
   aggregatedFilters: {
     priceRange: { minPrice: 0, maxPrice: 0, avgPrice: 0 },
     cities: [],
@@ -266,6 +388,13 @@ const initialState = {
     currentPage: 1,
     totalPages: 1,
     totalProducts: 0,
+    hasNext: false,
+    hasPrev: false,
+  },
+  registrationPagination: {
+    currentPage: 1,
+    totalPages: 1,
+    total: 0,
     hasNext: false,
     hasPrev: false,
   },
@@ -298,6 +427,14 @@ const initialState = {
     page: 1,
     limit: 12,
   },
+  registrationFilters: {
+    status: '',
+    property: '',
+    search: '',
+    page: 1,
+    limit: 10,
+    sort: 'newest'
+  },
   viewMode: 'grid',
 };
 
@@ -319,12 +456,31 @@ const productSlice = createSlice({
         limit: state.filters.limit, // Keep limit preference
       };
     },
+    setRegistrationFilters: (state, action) => {
+      state.registrationFilters = { ...state.registrationFilters, ...action.payload };
+      if (!action.payload.page) {
+        state.registrationFilters.page = 1;
+      }
+    },
+    clearRegistrationFilters: state => {
+      state.registrationFilters = {
+        ...initialState.registrationFilters,
+        sort: state.registrationFilters.sort,
+        limit: state.registrationFilters.limit,
+      };
+    },
     setViewMode: (state, action) => {
       state.viewMode = action.payload;
     },
     clearCurrentProduct: state => {
       state.currentProduct = null;
       state.relatedProducts = [];
+    },
+    setCurrentRegistration: (state, action) => {
+      state.currentRegistration = action.payload;
+    },
+    clearCurrentRegistration: state => {
+      state.currentRegistration = null;
     },
     setWishlistedItems: (state, action) => {
       state.wishlistedItems = action.payload;
@@ -339,6 +495,24 @@ const productSlice = createSlice({
         };
       }
     },
+    updateRegistrationInList: (state, action) => {
+      const { registrationId, updates } = action.payload;
+      const registrationIndex = state.myRegistrations.findIndex(r => r._id === registrationId);
+      if (registrationIndex !== -1) {
+        state.myRegistrations[registrationIndex] = {
+          ...state.myRegistrations[registrationIndex],
+          ...updates,
+        };
+      }
+      
+      const companyRegistrationIndex = state.companyRegistrations.findIndex(r => r._id === registrationId);
+      if (companyRegistrationIndex !== -1) {
+        state.companyRegistrations[companyRegistrationIndex] = {
+          ...state.companyRegistrations[companyRegistrationIndex],
+          ...updates,
+        };
+      }
+    },
     removeProductOptimistically: (state, action) => {
       state.products = state.products.filter(
         product => product._id !== action.payload
@@ -347,12 +521,36 @@ const productSlice = createSlice({
         state.pagination.totalProducts -= 1;
       }
     },
+    removeRegistrationOptimistically: (state, action) => {
+      state.myRegistrations = state.myRegistrations.filter(
+        registration => registration._id !== action.payload
+      );
+      state.companyRegistrations = state.companyRegistrations.filter(
+        registration => registration._id !== action.payload
+      );
+      if (state.registrationPagination.total > 0) {
+        state.registrationPagination.total -= 1;
+      }
+    },
     resetProductState: (state) => {
       return initialState;
+    },
+    resetRegistrationState: (state) => {
+      state.registrations = [];
+      state.myRegistrations = [];
+      state.companyRegistrations = [];
+      state.currentRegistration = null;
+      state.registrationStats = null;
+      state.isSubmitting = false;
+      state.registrationLoading = false;
+      state.registrationError = null;
+      state.registrationPagination = initialState.registrationPagination;
+      state.registrationFilters = initialState.registrationFilters;
     },
   },
   extraReducers: builder => {
     builder
+      // ================= PRODUCT CASES =================
       // Create Product
       .addCase(createProduct.pending, state => {
         state.isLoading = true;
@@ -500,6 +698,7 @@ const productSlice = createSlice({
           state.currentProduct.status = status;
         }
       })
+
       // ================= ADMIN CASES =================
       .addCase(fetchProductsForAdmin.pending, state => {
         state.adminLoading = true;
@@ -545,6 +744,7 @@ const productSlice = createSlice({
         state.adminLoading = false;
         state.error = action.payload;
       })
+
       // Fetch Product Stats
       .addCase(fetchProductStats.pending, state => {
         state.statsLoading = true;
@@ -556,20 +756,149 @@ const productSlice = createSlice({
       .addCase(fetchProductStats.rejected, (state, action) => {
         state.statsLoading = false;
         state.error = action.payload;
+      })
+
+      // ================= PROPERTY REGISTRATION CASES =================
+      // Submit Registration
+      .addCase(submitPropertyRegistration.pending, state => {
+        state.isSubmitting = true;
+        state.registrationError = null;
+      })
+      .addCase(submitPropertyRegistration.fulfilled, (state, action) => {
+        state.isSubmitting = false;
+        state.myRegistrations.unshift(action.payload.registration);
+      })
+      .addCase(submitPropertyRegistration.rejected, (state, action) => {
+        state.isSubmitting = false;
+        state.registrationError = action.payload;
+      })
+
+      // Fetch My Registrations
+      .addCase(fetchMyRegistrations.pending, state => {
+        state.registrationLoading = true;
+        state.registrationError = null;
+      })
+      .addCase(fetchMyRegistrations.fulfilled, (state, action) => {
+        state.registrationLoading = false;
+        state.myRegistrations = action.payload.registrations || [];
+        state.registrationPagination = action.payload.pagination || initialState.registrationPagination;
+      })
+      .addCase(fetchMyRegistrations.rejected, (state, action) => {
+        state.registrationLoading = false;
+        state.registrationError = action.payload;
+      })
+
+      // Fetch Company Registrations
+      .addCase(fetchCompanyRegistrations.pending, state => {
+        state.registrationLoading = true;
+        state.registrationError = null;
+      })
+      .addCase(fetchCompanyRegistrations.fulfilled, (state, action) => {
+        state.registrationLoading = false;
+        state.companyRegistrations = action.payload.registrations || [];
+        state.registrationStats = action.payload.stats || null;
+        state.registrationPagination = action.payload.pagination || initialState.registrationPagination;
+      })
+      .addCase(fetchCompanyRegistrations.rejected, (state, action) => {
+        state.registrationLoading = false;
+        state.registrationError = action.payload;
+      })
+
+      // Update Registration Status
+      .addCase(updateRegistrationStatus.pending, state => {
+        state.isSubmitting = true;
+      })
+      .addCase(updateRegistrationStatus.fulfilled, (state, action) => {
+        state.isSubmitting = false;
+        const { id, status, adminNotes } = action.payload;
+        
+        // Update in company registrations
+        const companyIndex = state.companyRegistrations.findIndex(r => r._id === id);
+        if (companyIndex !== -1) {
+          state.companyRegistrations[companyIndex].status = status;
+          state.companyRegistrations[companyIndex].adminNotes = adminNotes;
+          state.companyRegistrations[companyIndex].reviewedAt = new Date().toISOString();
+        }
+
+        // Update current registration if it matches
+        if (state.currentRegistration?._id === id) {
+          state.currentRegistration.status = status;
+          state.currentRegistration.adminNotes = adminNotes;
+          state.currentRegistration.reviewedAt = new Date().toISOString();
+        }
+      })
+      .addCase(updateRegistrationStatus.rejected, (state, action) => {
+        state.isSubmitting = false;
+        state.registrationError = action.payload;
+      })
+
+      // Verify Payment
+      .addCase(verifyRegistrationPayment.pending, state => {
+        state.isSubmitting = true;
+      })
+      .addCase(verifyRegistrationPayment.fulfilled, (state, action) => {
+        state.isSubmitting = false;
+        const { id } = action.payload;
+        
+        // Update payment status in my registrations
+        const myIndex = state.myRegistrations.findIndex(r => r._id === id);
+        if (myIndex !== -1) {
+          state.myRegistrations[myIndex].payment.paymentStatus = 'completed';
+          state.myRegistrations[myIndex].status = 'under-review';
+        }
+      })
+      .addCase(verifyRegistrationPayment.rejected, (state, action) => {
+        state.isSubmitting = false;
+        state.registrationError = action.payload;
+      })
+
+      // Fetch Registration Stats
+      .addCase(fetchRegistrationStats.fulfilled, (state, action) => {
+        state.registrationStats = action.payload;
+      })
+
+      // Cancel Registration
+      .addCase(cancelRegistration.pending, state => {
+        state.isSubmitting = true;
+      })
+      .addCase(cancelRegistration.fulfilled, (state, action) => {
+        state.isSubmitting = false;
+        const { id } = action.payload;
+        
+        // Update status to cancelled
+        const myIndex = state.myRegistrations.findIndex(r => r._id === id);
+        if (myIndex !== -1) {
+          state.myRegistrations[myIndex].status = 'cancelled';
+        }
+        
+        const companyIndex = state.companyRegistrations.findIndex(r => r._id === id);
+        if (companyIndex !== -1) {
+          state.companyRegistrations[companyIndex].status = 'cancelled';
+        }
+      })
+      .addCase(cancelRegistration.rejected, (state, action) => {
+        state.isSubmitting = false;
+        state.registrationError = action.payload;
       });
   },
 });
 
-
 export const {
   setFilters,
   clearFilters,
+  setRegistrationFilters,
+  clearRegistrationFilters,
   setViewMode,
   clearCurrentProduct,
+  setCurrentRegistration,
+  clearCurrentRegistration,
   setWishlistedItems,
   updateProductInList,
+  updateRegistrationInList,
   removeProductOptimistically,
+  removeRegistrationOptimistically,
   resetProductState,
+  resetRegistrationState,
 } = productSlice.actions;
 
 export default productSlice.reducer;
