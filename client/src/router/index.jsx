@@ -52,6 +52,7 @@ const CustomerDashboard = lazy(() => import('../pages/Customer/CustomerDashboard
 const CustomerRegistrations = lazy(() => import('../pages/customer/CustomerRegistrations'));
 const PaymentProcessing = lazy(() => import('../pages/customer/PaymentProcessing'));
 const ServiceInquiries = lazy(() => import('../pages/Customer/ServiceInquiries'));
+const SavedProperties = lazy(() => import('../pages/Customer/SavedProperties'));
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requiredRole = null }) => {
@@ -209,7 +210,8 @@ export const router = createBrowserRouter([
       // Customer Property Registrations
       { path: 'registrations', element: <LazyWrapper><CustomerRegistrations /></LazyWrapper> },
       { path: 'payments', element: <LazyWrapper><PaymentProcessing /></LazyWrapper> },
-      
+      { path: 'bookings', element: <LazyWrapper><Bookings /></LazyWrapper> },
+      { path: 'favorites', element: <LazyWrapper><SavedProperties /></LazyWrapper> },
       // Service Inquiry Routes for Customers
       { path: 'dashboard/inquiries', element: <LazyWrapper><ServiceInquiries /></LazyWrapper> },
       { path: 'dashboard/inquiries/:id', element: <LazyWrapper><ServiceInquiryDetail /></LazyWrapper> },

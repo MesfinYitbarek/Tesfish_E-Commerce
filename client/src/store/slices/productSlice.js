@@ -120,6 +120,23 @@ export const fetchFeaturedProducts = createAsyncThunk(
   }
 );
 
+// Add these thunks to your existing productSlice.js
+
+export const fetchWishlist = createAsyncThunk(
+  'products/fetchWishlist',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await productService.fetchWishlist();
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to fetch wishlist'
+      );
+    }
+  }
+);
+
+// Update the existing toggleWishlist to handle full property objects
 export const toggleWishlist = createAsyncThunk(
   'products/toggleWishlist',
   async (productId, { rejectWithValue }) => {
@@ -135,6 +152,8 @@ export const toggleWishlist = createAsyncThunk(
     }
   }
 );
+
+
 
 export const fetchRelatedProducts = createAsyncThunk(
   'products/fetchRelatedProducts',
@@ -361,12 +380,12 @@ const initialState = {
   wishlistedItems: [],
   stats: null,
   adminLoading: false,
-  adminProducts: [], 
+  adminProducts: [],
   isLoading: false,
   productLoading: false,
   statsLoading: false,
   error: null,
-  
+
   // Property Registrations
   registrations: [],
   myRegistrations: [],
@@ -376,7 +395,7 @@ const initialState = {
   isSubmitting: false,
   registrationLoading: false,
   registrationError: null,
-  
+
   // Filters and UI
   aggregatedFilters: {
     priceRange: { minPrice: 0, maxPrice: 0, avgPrice: 0 },
@@ -504,7 +523,7 @@ const productSlice = createSlice({
           ...updates,
         };
       }
-      
+
       const companyRegistrationIndex = state.companyRegistrations.findIndex(r => r._id === registrationId);
       if (companyRegistrationIndex !== -1) {
         state.companyRegistrations[companyRegistrationIndex] = {
@@ -567,7 +586,19 @@ const productSlice = createSlice({
         state.isLoading = false;
         state.error = action.payload;
       })
-      
+      // Add to extraReducers
+      .addCase(fetchWishlist.pending, state => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchWishlist.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.wishlistedItems = action.payload.wishlist || [];
+      })
+      .addCase(fetchWishlist.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
+      })
       // Update Product
       .addCase(updateProduct.pending, state => {
         state.isLoading = true;
@@ -587,7 +618,7 @@ const productSlice = createSlice({
         state.isLoading = false;
         state.error = action.payload;
       })
-      
+
       // Fetch Products
       .addCase(fetchProducts.pending, state => {
         state.isLoading = true;
@@ -603,7 +634,7 @@ const productSlice = createSlice({
         state.isLoading = false;
         state.error = action.payload;
       })
-      
+
       // Fetch Single Product
       .addCase(fetchProduct.pending, state => {
         state.productLoading = true;
@@ -617,7 +648,7 @@ const productSlice = createSlice({
         state.productLoading = false;
         state.error = action.payload;
       })
-      
+
       // Fetch My Products
       .addCase(fetchMyProducts.pending, state => {
         state.isLoading = true;
@@ -633,7 +664,7 @@ const productSlice = createSlice({
         state.isLoading = false;
         state.error = action.payload;
       })
-      
+
       // Fetch Categories
       .addCase(fetchCategories.fulfilled, (state, action) => {
         state.categories = action.payload.categories || [];
@@ -643,12 +674,12 @@ const productSlice = createSlice({
       .addCase(fetchPropertyTypes.fulfilled, (state, action) => {
         state.propertyTypes = action.payload.propertyTypes || [];
       })
-      
+
       // Fetch Featured Products
       .addCase(fetchFeaturedProducts.fulfilled, (state, action) => {
         state.featuredProducts = action.payload.products || [];
       })
-      
+
       // Toggle Wishlist
       .addCase(toggleWishlist.fulfilled, (state, action) => {
         const { productId, isWishlisted } = action.payload;
@@ -662,12 +693,12 @@ const productSlice = createSlice({
           );
         }
       })
-      
+
       // Fetch Related Products
       .addCase(fetchRelatedProducts.fulfilled, (state, action) => {
         state.relatedProducts = action.payload.products || [];
       })
-      
+
       // Delete Product
       .addCase(deleteProduct.pending, state => {
         state.isLoading = true;
@@ -686,7 +717,7 @@ const productSlice = createSlice({
         state.isLoading = false;
         state.error = action.payload;
       })
-      
+
       // Update Product Status
       .addCase(updateProductStatus.fulfilled, (state, action) => {
         const { productId, status } = action.payload;
@@ -811,7 +842,7 @@ const productSlice = createSlice({
       .addCase(updateRegistrationStatus.fulfilled, (state, action) => {
         state.isSubmitting = false;
         const { id, status, adminNotes } = action.payload;
-        
+
         // Update in company registrations
         const companyIndex = state.companyRegistrations.findIndex(r => r._id === id);
         if (companyIndex !== -1) {
@@ -839,7 +870,7 @@ const productSlice = createSlice({
       .addCase(verifyRegistrationPayment.fulfilled, (state, action) => {
         state.isSubmitting = false;
         const { id } = action.payload;
-        
+
         // Update payment status in my registrations
         const myIndex = state.myRegistrations.findIndex(r => r._id === id);
         if (myIndex !== -1) {
@@ -864,13 +895,13 @@ const productSlice = createSlice({
       .addCase(cancelRegistration.fulfilled, (state, action) => {
         state.isSubmitting = false;
         const { id } = action.payload;
-        
+
         // Update status to cancelled
         const myIndex = state.myRegistrations.findIndex(r => r._id === id);
         if (myIndex !== -1) {
           state.myRegistrations[myIndex].status = 'cancelled';
         }
-        
+
         const companyIndex = state.companyRegistrations.findIndex(r => r._id === id);
         if (companyIndex !== -1) {
           state.companyRegistrations[companyIndex].status = 'cancelled';

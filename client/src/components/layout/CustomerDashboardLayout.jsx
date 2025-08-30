@@ -73,6 +73,12 @@ const CustomerDashboardLayout = () => {
       description: 'Property registration status'
     },
     { 
+      name: 'My Appointments', 
+      href: '/customer/bookings', 
+      icon: DocumentTextIcon,
+      description: 'Property Appointment status'
+    },
+    { 
       name: 'Payment History', 
       href: '/customer/payments', 
       icon: CreditCardIcon,

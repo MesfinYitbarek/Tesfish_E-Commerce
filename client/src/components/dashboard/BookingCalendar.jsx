@@ -6,10 +6,10 @@ import {
   ClockIcon,
   UserIcon
 } from '@heroicons/react/24/outline';
-import { formatCurrency } from '../../utils/helpers';
 import LoadingSpinner from '../ui/LoadingSpinner';
+import { formatDate } from '../../utils/helpers';
 
-const BookingCalendar = ({ bookings, onBookingSelect, isLoading }) => {
+const BookingCalendar = ({ bookings = [], onBookingSelect, isLoading }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState([]);
 
@@ -38,7 +38,7 @@ const BookingCalendar = ({ bookings, onBookingSelect, isLoading }) => {
     
     while (currentCalendarDate <= endDate) {
       const dayBookings = bookings.filter(booking => {
-        const bookingDate = new Date(booking.date);
+        const bookingDate = new Date(booking.scheduledDateTime || booking.date);
         return bookingDate.toDateString() === currentCalendarDate.toDateString();
       });
       
@@ -70,7 +70,9 @@ const BookingCalendar = ({ bookings, onBookingSelect, isLoading }) => {
       pending: 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800',
       confirmed: 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800',
       completed: 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800',
-      cancelled: 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800'
+      cancelled: 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800',
+      rescheduled: 'bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+      'no-show': 'bg-gray-100 dark:bg-gray-900/20 text-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-800'
     };
     return colors[status] || colors.pending;
   };
@@ -171,33 +173,51 @@ const BookingCalendar = ({ bookings, onBookingSelect, isLoading }) => {
                 )}
               </div>
 
-              {/* Bookings */}
+              {/* Appointments */}
               <div className="space-y-1">
-                {day.bookings.slice(0, 3).map((booking) => (
-                  <button
-                    key={booking.id}
-                    onClick={() => onBookingSelect(booking)}
-                    className={`w-full text-left p-1.5 rounded text-xs border transition-colors hover:shadow-sm ${getStatusColor(booking.status)}`}
-                  >
-                    <div className="flex items-center space-x-1 mb-1">
-                      <ClockIcon className="h-3 w-3 flex-shrink-0" />
-                      <span className="font-medium truncate">{booking.time}</span>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <UserIcon className="h-3 w-3 flex-shrink-0" />
-                      <span className="truncate">{booking.customer.name}</span>
-                    </div>
-                    <div className="truncate font-medium mt-1">
-                      {booking.service.title}
-                    </div>
-                  </button>
-                ))}
+                {day.bookings.slice(0, 3).map((booking) => {
+                  const appointmentTime = new Date(booking.scheduledDateTime || booking.date).toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  });
+                  
+                  const customerName = booking.contactInfo?.name || 
+                                     `${booking.customer?.firstName || ''} ${booking.customer?.lastName || ''}`.trim() ||
+                                     booking.customer?.name ||
+                                     'Unknown';
+                  
+                  const propertyTitle = booking.property?.title || 'Property Viewing';
+
+                  return (
+                    <button
+  key={booking._id || booking.id}
+  onClick={(e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onBookingSelect(booking);
+  }}
+  className={`w-full text-left p-1.5 rounded text-xs border transition-colors hover:shadow-sm ${getStatusColor(booking.status)}`}
+>
+                      <div className="flex items-center space-x-1 mb-1">
+                        <ClockIcon className="h-3 w-3 flex-shrink-0" />
+                        <span className="font-medium truncate">{appointmentTime}</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <UserIcon className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{customerName}</span>
+                      </div>
+                      <div className="truncate font-medium mt-1">
+                        {propertyTitle}
+                      </div>
+                    </button>
+                  );
+                })}
                 
                 {day.bookings.length > 3 && (
                   <button
                     onClick={() => {
-                      // Show all bookings for this day
-                      console.log('Show all bookings for', day.date);
+                      // Show all bookings for this day - could open a modal
+                      console.log('Show all bookings for', day.date, day.bookings);
                     }}
                     className="w-full text-left p-1 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
                   >
@@ -252,12 +272,9 @@ const BookingCalendar = ({ bookings, onBookingSelect, isLoading }) => {
         </div>
         <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 text-center">
           <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {formatCurrency(
-              bookings.filter(b => b.status === 'completed').reduce((sum, b) => sum + b.amount, 0),
-              'ETB'
-            )}
+            {bookings.filter(b => b.status === 'cancelled').length}
           </div>
-          <div className="text-sm text-gray-600 dark:text-gray-400">Revenue</div>
+          <div className="text-sm text-gray-600 dark:text-gray-400">Cancelled</div>
         </div>
       </div>
     </div>

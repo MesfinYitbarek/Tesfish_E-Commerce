@@ -269,7 +269,17 @@ export const API_ENDPOINTS = {
   USERS: {
     LIST: '/users',
     DETAIL: '/users',
-    WISHLIST: '/users/wishlist'
+    PROFILE: '/profile/me',
+    UPDATE_PROFILE: '/profile/me',
+    WISHLIST: '/users/wishlist',
+    TOGGLE_WISHLIST: '/users/wishlist', // Same endpoint for toggle
+    ADD_TO_WISHLIST: '/users/wishlist',
+    REMOVE_FROM_WISHLIST: '/users/wishlist',
+    EXPORT: '/users/export',
+    NOTIFICATION_SETTINGS: '/profile/me/notifications',
+    PREFERENCES: '/profile/me/preferences',
+    DEACTIVATE: '/profile/me/deactivate',
+    DOWNLOAD_DATA: '/profile/me/download-data',
   },
   REVIEWS: {
     LIST: '/reviews',

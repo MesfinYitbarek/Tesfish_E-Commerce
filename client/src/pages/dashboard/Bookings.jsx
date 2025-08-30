@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
 import { 
   CalendarIcon,
@@ -10,6 +11,17 @@ import {
   XMarkIcon,
   EyeIcon
 } from '@heroicons/react/24/outline';
+import {
+  getSellerAppointments,
+  getMyAppointments,
+  updateAppointmentStatus,
+  selectSellerAppointments,
+  selectMyAppointments,
+  selectIsLoadingAppointments,
+  selectAppointmentError,
+  updateFilters,
+  selectAppointmentFilters
+} from '../../store/slices/appointmentSlice';
 import BookingCard from '../../components/dashboard/BookingCard';
 import BookingCalendar from '../../components/dashboard/BookingCalendar';
 import BookingDetailsModal from '../../components/dashboard/BookingDetailsModal';
@@ -18,209 +30,76 @@ import Input from '../../components/ui/Input';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { formatDate } from '../../utils/helpers';
 
+
 const Bookings = () => {
+  const dispatch = useDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [bookings, setBookings] = useState([]);
+  const { user } = useSelector((state) => state.auth);
+  const sellerAppointments = useSelector(selectSellerAppointments);
+  const customerAppointments = useSelector(selectMyAppointments);
+  const isLoading = useSelector(selectIsLoadingAppointments);
+  const error = useSelector(selectAppointmentError);
+  const filters = useSelector(selectAppointmentFilters);
+
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [viewMode, setViewMode] = useState('list'); // list, calendar
-  const [filter, setFilter] = useState('all'); // all, pending, confirmed, completed, cancelled
   const [searchQuery, setSearchQuery] = useState('');
-  const [dateRange, setDateRange] = useState('all'); // all, today, week, month
-  const [isLoading, setIsLoading] = useState(true);
 
+  const isSeller = ['company', 'individual'].includes(user?.userType);
+  const appointments = isSeller ? sellerAppointments : customerAppointments;
+console.log(user);
   useEffect(() => {
-    fetchBookings();
-  }, [filter, dateRange]);
+    if (user) {
+      // Load appointments based on user type
+      if (isSeller) {
+        dispatch(getSellerAppointments({
+          status: filters.status === 'all' ? undefined : filters.status,
+          date: filters.date,
+          property: filters.property
+        }));
+      } else {
+        dispatch(getMyAppointments({
+          status: filters.status === 'all' ? undefined : filters.status,
+          upcoming: filters.upcoming
+        }));
+      }
+    }
+  }, [dispatch, user, isSeller, filters]);
 
-  const fetchBookings = async () => {
-    setIsLoading(true);
+  const handleStatusChange = async (appointmentId, newStatus) => {
     try {
-      // Simulate API call
-      setTimeout(() => {
-        const mockBookings = [
-          {
-            id: '1',
-            service: {
-              id: 'service1',
-              title: 'Interior Design Consultation',
-              type: 'service',
-              image: '/api/placeholder/60/60'
-            },
-            customer: {
-              id: 'customer1',
-              name: 'Sarah Johnson',
-              email: 'sarah@example.com',
-              phone: '+251911234567',
-              avatar: '/api/placeholder/40/40'
-            },
-            date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
-            time: '10:00',
-            duration: 2,
-            status: 'confirmed',
-            amount: 30000,
-            paymentStatus: 'paid',
-            notes: 'Looking for modern kitchen design ideas. Has specific color preferences.',
-            location: 'Customer\'s home - Bole, Addis Ababa',
-            createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-            requirements: ['Kitchen renovation', 'Modern style', 'Budget 500K ETB']
-          },
-          {
-            id: '2',
-            service: {
-              id: 'service2',
-              title: 'Project Management Service',
-              type: 'service',
-              image: '/api/placeholder/60/60'
-            },
-            customer: {
-              id: 'customer2',
-              name: 'Michael Chen',
-              email: 'michael@example.com',
-              phone: '+251922345678',
-              avatar: null
-            },
-            date: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
-            time: '14:30',
-            duration: 4,
-            status: 'pending',
-            amount: 100000,
-            paymentStatus: 'pending',
-            notes: 'Residential construction project planning. Need detailed timeline.',
-            location: 'Office meeting - CMC area',
-            createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-            requirements: ['Construction project', 'Timeline planning', 'Cost estimation']
-          },
-          {
-            id: '3',
-            service: {
-              id: 'service3',
-              title: 'Architecture Consultation',
-              type: 'service',
-              image: '/api/placeholder/60/60'
-            },
-            customer: {
-              id: 'customer3',
-              name: 'Emma Wilson',
-              email: 'emma@example.com',
-              phone: '+251933456789',
-              avatar: '/api/placeholder/40/40'
-            },
-            date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
-            time: '09:00',
-            duration: 3,
-            status: 'confirmed',
-            amount: 75000,
-            paymentStatus: 'paid',
-            notes: 'Villa renovation plans review. Has existing blueprints.',
-            location: 'Site visit - Old Airport area',
-            createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-            requirements: ['Villa renovation', 'Blueprint review', 'Permit assistance']
-          },
-          {
-            id: '4',
-            service: {
-              id: 'service1',
-              title: 'Interior Design Consultation',
-              type: 'service',
-              image: '/api/placeholder/60/60'
-            },
-            customer: {
-              id: 'customer4',
-              name: 'David Lee',
-              email: 'david@example.com',
-              phone: '+251944567890',
-              avatar: null
-            },
-            date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-            time: '16:00',
-            duration: 1.5,
-            status: 'completed',
-            amount: 22500,
-            paymentStatus: 'paid',
-            notes: 'Office space redesign completed successfully.',
-            location: 'Customer\'s office - Kazanchis',
-            createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-            requirements: ['Office redesign', 'Professional look', 'Space optimization']
-          },
-          {
-            id: '5',
-            service: {
-              id: 'service2',
-              title: 'Project Management Service',
-              type: 'service',
-              image: '/api/placeholder/60/60'
-            },
-            customer: {
-              id: 'customer5',
-              name: 'Lisa Zhang',
-              email: 'lisa@example.com',
-              phone: '+251955678901',
-              avatar: '/api/placeholder/40/40'
-            },
-            date: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000), // tomorrow
-            time: '11:00',
-            duration: 2,
-            status: 'cancelled',
-            amount: 50000,
-            paymentStatus: 'refunded',
-            notes: 'Cancelled due to customer\'s schedule conflict.',
-            location: 'Video call',
-            createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-            requirements: ['Project consultation', 'Remote meeting']
-          }
-        ];
-
-        setBookings(mockBookings);
-        setIsLoading(false);
-      }, 800);
+      await dispatch(updateAppointmentStatus({
+        appointmentId,
+        statusData: { status: newStatus }
+      })).unwrap();
+      
+      // Reload appointments
+      if (isSeller) {
+        dispatch(getSellerAppointments({
+          status: filters.status === 'all' ? undefined : filters.status
+        }));
+      }
     } catch (error) {
-      console.error('Error fetching bookings:', error);
-      setIsLoading(false);
+      console.error('Error updating appointment status:', error);
     }
   };
 
-  const handleStatusChange = async (bookingId, newStatus) => {
-    try {
-      setBookings(prev => 
-        prev.map(booking => 
-          booking.id === bookingId 
-            ? { ...booking, status: newStatus }
-            : booking
-        )
-      );
-    } catch (error) {
-      console.error('Error updating booking status:', error);
-    }
+  const handleFilterChange = (newFilters) => {
+    dispatch(updateFilters(newFilters));
   };
 
-  const filteredBookings = bookings.filter(booking => {
-    // Status filter
-    if (filter !== 'all' && booking.status !== filter) return false;
-    
+  const filteredAppointments = appointments.filter(appointment => {
     // Search filter
     if (searchQuery) {
       const searchLower = searchQuery.toLowerCase();
-      const matchesCustomer = booking.customer.name.toLowerCase().includes(searchLower);
-      const matchesService = booking.service.title.toLowerCase().includes(searchLower);
-      const matchesLocation = booking.location.toLowerCase().includes(searchLower);
+      const customerName = `${appointment.customer?.firstName || ''} ${appointment.customer?.lastName || ''}`.toLowerCase();
+      const propertyTitle = appointment.property?.title?.toLowerCase() || '';
+      const location = appointment.property?.propertyDetails?.location?.address?.toLowerCase() || '';
       
-      if (!matchesCustomer && !matchesService && !matchesLocation) return false;
-    }
-
-    // Date range filter
-    if (dateRange !== 'all') {
-      const bookingDate = new Date(booking.date);
-      const now = new Date();
-      
-      switch (dateRange) {
-        case 'today':
-          return bookingDate.toDateString() === now.toDateString();
-        case 'week':
-          const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-          return bookingDate >= now && bookingDate <= weekFromNow;
-        case 'month':
-          const monthFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-          return bookingDate >= now && bookingDate <= monthFromNow;
+      if (!customerName.includes(searchLower) && 
+          !propertyTitle.includes(searchLower) && 
+          !location.includes(searchLower)) {
+        return false;
       }
     }
 
@@ -229,11 +108,11 @@ const Bookings = () => {
 
   const getStatusCounts = () => {
     return {
-      all: bookings.length,
-      pending: bookings.filter(b => b.status === 'pending').length,
-      confirmed: bookings.filter(b => b.status === 'confirmed').length,
-      completed: bookings.filter(b => b.status === 'completed').length,
-      cancelled: bookings.filter(b => b.status === 'cancelled').length
+      all: appointments.length,
+      pending: appointments.filter(a => a.status === 'pending').length,
+      confirmed: appointments.filter(a => a.status === 'confirmed').length,
+      completed: appointments.filter(a => a.status === 'completed').length,
+      cancelled: appointments.filter(a => a.status === 'cancelled').length
     };
   };
 
@@ -247,16 +126,36 @@ const Bookings = () => {
     { key: 'cancelled', label: 'Cancelled', count: statusCounts.cancelled }
   ];
 
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-64">
+        <div className="text-center">
+          <XMarkIcon className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+            Error Loading Appointments
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Bookings
+            {isSeller ? 'Appointment Management' : 'My Appointments'}
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Manage your service bookings and appointments
+            {isSeller 
+              ? 'Manage property viewing appointments from customers'
+              : 'Track your property viewing appointments'
+            }
           </p>
         </div>
 
@@ -294,9 +193,9 @@ const Bookings = () => {
           {statusFilters.map(status => (
             <button
               key={status.key}
-              onClick={() => setFilter(status.key)}
+              onClick={() => handleFilterChange({ status: status.key })}
               className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-                filter === status.key
+                filters.status === status.key
                   ? 'bg-primary-500 text-white'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
               }`}
@@ -309,27 +208,47 @@ const Bookings = () => {
           ))}
         </div>
 
-        {/* Search and Filters */}
+        {/* Search and Additional Filters */}
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <Input
-              placeholder="Search by customer, service, or location..."
+              placeholder={isSeller 
+                ? "Search by customer name, property, or location..." 
+                : "Search by property or location..."
+              }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               leftIcon={<MagnifyingGlassIcon className="h-4 w-4" />}
             />
           </div>
 
-          <select
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value)}
-            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          >
-            <option value="all">All Dates</option>
-            <option value="today">Today</option>
-            <option value="week">Next 7 Days</option>
-            <option value="month">Next 30 Days</option>
-          </select>
+          {!isSeller && (
+            <div className="flex items-center">
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={filters.upcoming}
+                  onChange={(e) => handleFilterChange({ upcoming: e.target.checked })}
+                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  Upcoming only
+                </span>
+              </label>
+            </div>
+          )}
+
+          {isSeller && (
+            <select
+              value={filters.date || ''}
+              onChange={(e) => handleFilterChange({ date: e.target.value || null })}
+              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            >
+              <option value="">All Dates</option>
+              <option value={new Date().toISOString().split('T')[0]}>Today</option>
+              <option value={new Date(Date.now() + 86400000).toISOString().split('T')[0]}>Tomorrow</option>
+            </select>
+          )}
         </div>
       </div>
 
@@ -339,16 +258,48 @@ const Bookings = () => {
           <div className="p-6">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
-                <LoadingSpinner size="lg" text="Loading bookings..." />
+                <LoadingSpinner size="lg" text="Loading appointments..." />
               </div>
-            ) : filteredBookings.length > 0 ? (
+            ) : filteredAppointments.length > 0 ? (
               <div className="space-y-4">
-                {filteredBookings.map(booking => (
+                {filteredAppointments.map(appointment => (
                   <BookingCard
-                    key={booking.id}
-                    booking={booking}
+                    key={appointment._id}
+                    booking={{
+                      appointment: appointment,
+                      id: appointment._id,
+                      service: {
+                        id: appointment.property?._id,
+                        title: appointment.property?.title || 'Property',
+                        type: 'property',
+                        image: appointment.property?.media?.images?.[0]?.url || '/api/placeholder/60/60'
+                      },
+                      customer: {
+                        id: appointment.customer?._id,
+                        name: appointment.contactInfo?.name || `${appointment.customer?.firstName || ''} ${appointment.customer?.lastName || ''}`.trim(),
+                        email: appointment.contactInfo?.email || appointment.customer?.email,
+                        phone: appointment.contactInfo?.phone || appointment.customer?.phone,
+                        avatar: appointment.customer?.avatar
+                      },
+                      date: new Date(appointment.scheduledDateTime),
+                      time: new Date(appointment.scheduledDateTime).toLocaleTimeString('en-US', { 
+                        hour: '2-digit', 
+                        minute: '2-digit' 
+                      }),
+                      duration: appointment.duration / 60, // Convert minutes to hours
+                      status: appointment.status,
+                      amount: 0, // Appointments don't have amounts
+                      paymentStatus: 'not-applicable',
+                      notes: appointment.customerNotes || appointment.sellerNotes,
+                      location: appointment.meetingDetails?.address || 
+                               appointment.property?.propertyDetails?.location?.address || 
+                               'Property location',
+                      createdAt: new Date(appointment.createdAt),
+                      requirements: appointment.requirements || []
+                    }}
                     onStatusChange={handleStatusChange}
                     onViewDetails={setSelectedBooking}
+                    isSeller={isSeller}
                   />
                 ))}
               </div>
@@ -356,21 +307,59 @@ const Bookings = () => {
               <div className="text-center py-12">
                 <CalendarIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-                  No bookings found
+                  No appointments found
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400">
-                  {filter === 'all' 
-                    ? 'You don\'t have any bookings yet. Once customers book your services, they\'ll appear here.'
-                    : `No ${filter} bookings found. Try adjusting your filters.`
+                  {filters.status === 'all' 
+                    ? isSeller
+                      ? 'No appointments scheduled yet. Customers will see your properties and can book appointments.'
+                      : 'You haven\'t booked any appointments yet. Browse properties and schedule viewings.'
+                    : `No ${filters.status} appointments found. Try adjusting your filters.`
                   }
                 </p>
+                {!isSeller && filters.status === 'all' && (
+                  <Button
+                    onClick={() => window.location.href = '/properties'}
+                    className="mt-4"
+                  >
+                    Browse Properties
+                  </Button>
+                )}
               </div>
             )}
           </div>
         ) : (
           <BookingCalendar 
-            bookings={filteredBookings}
-            onBookingSelect={setSelectedBooking}
+            bookings={filteredAppointments.map(appointment => ({
+              id: appointment._id,
+              scheduledDateTime: appointment.scheduledDateTime,
+              service: {
+                title: appointment.property?.title || 'Property'
+              },
+              customer: {
+                name: appointment.contactInfo?.name || `${appointment.customer?.firstName || ''} ${appointment.customer?.lastName || ''}`.trim()
+              },
+              date: new Date(appointment.scheduledDateTime),
+              time: new Date(appointment.scheduledDateTime).toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              }),
+              status: appointment.status,
+              amount: 0,
+              property: appointment.property,
+              contactInfo: appointment.contactInfo,
+              duration: appointment.duration,
+              appointmentType: appointment.appointmentType,
+              meetingDetails: appointment.meetingDetails,
+              customerNotes: appointment.customerNotes,
+              sellerNotes: appointment.sellerNotes,
+              requirements: appointment.requirements,
+              createdAt: appointment.createdAt
+            }))}
+            onBookingSelect={(booking) => {
+              const appointment = filteredAppointments.find(a => a._id === booking.id);
+              setSelectedBooking(appointment);
+            }}
             isLoading={isLoading}
           />
         )}
@@ -379,9 +368,53 @@ const Bookings = () => {
       {/* Booking Details Modal */}
       {selectedBooking && (
         <BookingDetailsModal
-          booking={selectedBooking}
+          booking={{
+            appointment: selectedBooking,
+            id: selectedBooking._id,
+            service: {
+              id: selectedBooking.property?._id,
+              title: selectedBooking.property?.title || 'Property',
+              type: 'property',
+              image: selectedBooking.property?.media?.images?.[0]?.url || '/api/placeholder/60/60'
+            },
+            customer: {
+              id: selectedBooking.customer?._id,
+              name: selectedBooking.contactInfo?.name || `${selectedBooking.customer?.firstName || ''} ${selectedBooking.customer?.lastName || ''}`.trim(),
+              email: selectedBooking.contactInfo?.email || selectedBooking.customer?.email,
+              phone: selectedBooking.contactInfo?.phone || selectedBooking.customer?.phone,
+              avatar: selectedBooking.customer?.avatar
+            },
+            seller: selectedBooking.seller,
+            date: new Date(selectedBooking.scheduledDateTime),
+            time: new Date(selectedBooking.scheduledDateTime).toLocaleTimeString('en-US', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            }),
+            duration: selectedBooking.duration / 60,
+            status: selectedBooking.status,
+            amount: 0,
+            paymentStatus: 'not-applicable',
+            notes: selectedBooking.customerNotes || selectedBooking.sellerNotes,
+            location: selectedBooking.meetingDetails?.address || 
+                     selectedBooking.property?.propertyDetails?.location?.address || 
+                     'Property location',
+            createdAt: new Date(selectedBooking.createdAt),
+            requirements: selectedBooking.requirements || [],
+            appointmentNumber: selectedBooking.appointmentNumber,
+            appointmentType: selectedBooking.appointmentType,
+            meetingDetails: selectedBooking.meetingDetails,
+            customerNotes: selectedBooking.customerNotes,
+            sellerNotes: selectedBooking.sellerNotes,
+            adminNotes: selectedBooking.adminNotes,
+            outcome: selectedBooking.outcome,
+            reschedulingHistory: selectedBooking.reschedulingHistory,
+            confirmedAt: selectedBooking.confirmedAt,
+            completedAt: selectedBooking.completedAt,
+            cancelledAt: selectedBooking.cancelledAt
+          }}
           onClose={() => setSelectedBooking(null)}
           onStatusChange={handleStatusChange}
+          isSeller={isSeller}
         />
       )}
     </div>

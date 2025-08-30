@@ -1,4 +1,3 @@
-// services/productService.js
 import api from './api';
 import { API_ENDPOINTS } from '../constants';
 
@@ -120,15 +119,49 @@ const productService = {
     return response.data;
   },
 
+  // ================= WISHLIST FUNCTIONS =================
+  
+  // Fetch user's complete wishlist with populated property data
+  fetchWishlist: async () => {
+    const response = await api.get(API_ENDPOINTS.USERS.WISHLIST);
+    return response.data;
+  },
+
+  // Get wishlist (alias for backward compatibility)
+  getWishlist: async () => {
+    const response = await api.get(API_ENDPOINTS.USERS.WISHLIST);
+    return response.data;
+  },
+
+  // Toggle product in/out of wishlist
   toggleWishlist: async (productId) => {
     const response = await api.post(`${API_ENDPOINTS.USERS.WISHLIST}/${productId}`);
     return response.data;
   },
 
-  getWishlist: async () => {
-    const response = await api.get(API_ENDPOINTS.USERS.WISHLIST);
+  // Add product to wishlist
+  addToWishlist: async (productId) => {
+    const response = await api.post(`${API_ENDPOINTS.USERS.WISHLIST}/${productId}`);
     return response.data;
   },
+
+  // Remove product from wishlist
+  removeFromWishlist: async (productId) => {
+    const response = await api.post(`${API_ENDPOINTS.USERS.WISHLIST}/${productId}`);
+    return response.data;
+  },
+
+  // Check if product is in wishlist
+  isInWishlist: async (productId) => {
+    try {
+      const wishlist = await productService.fetchWishlist();
+      return wishlist.wishlist.some(item => item._id === productId);
+    } catch (error) {
+      return false;
+    }
+  },
+
+  // ================= OTHER PRODUCT FUNCTIONS =================
 
   getRelatedProducts: async (productId, limit = 4) => {
     const response = await api.get(`${API_ENDPOINTS.PRODUCTS.RELATED}/${productId}?limit=${limit}`);
@@ -162,7 +195,24 @@ const productService = {
     return response.data;
   },
 
-  // Admin specific functions
+  // ================= PRODUCT COMPARISON =================
+  
+  // Compare multiple products
+  compareProducts: async (productIds) => {
+    const response = await api.post(`${API_ENDPOINTS.PRODUCTS.COMPARE}`, { productIds });
+    return response.data;
+  },
+
+  // ================= PRODUCT SHARING =================
+  
+  // Share product via email
+  shareProduct: async (productId, shareData) => {
+    const response = await api.post(`${API_ENDPOINTS.PRODUCTS.SHARE}/${productId}`, shareData);
+    return response.data;
+  },
+
+  // ================= ADMIN SPECIFIC FUNCTIONS =================
+
   getProductsForAdmin: async (params = {}) => {
     const queryParams = new URLSearchParams(params);
     const response = await api.get(`${API_ENDPOINTS.PRODUCTS.ADMIN}/all?${queryParams}`);
@@ -185,6 +235,99 @@ const productService = {
   bulkDeleteProducts: async (productIds) => {
     const response = await api.delete(API_ENDPOINTS.PRODUCTS.BULK_DELETE, {
       data: { productIds }
+    });
+    return response.data;
+  },
+
+  // ================= EXPORT FUNCTIONS =================
+  
+  // Export products to CSV
+  exportProductsCSV: async (params = {}) => {
+    const queryParams = new URLSearchParams(params);
+    const response = await api.get(`${API_ENDPOINTS.PRODUCTS.EXPORT}?${queryParams}`, {
+      responseType: 'blob'
+    });
+    return response.data;
+  }
+};
+
+// ================= USER SERVICES =================
+export const userService = {
+  // Get user profile
+  getProfile: async () => {
+    const response = await api.get(API_ENDPOINTS.USERS.PROFILE);
+    return response.data;
+  },
+
+  // Update user profile
+  updateProfile: async (profileData) => {
+    const formData = new FormData();
+    
+    Object.keys(profileData).forEach(key => {
+      if (key !== 'profileImage') {
+        if (typeof profileData[key] === 'object') {
+          formData.append(key, JSON.stringify(profileData[key]));
+        } else {
+          formData.append(key, profileData[key]);
+        }
+      }
+    });
+
+    if (profileData.profileImage instanceof File) {
+      formData.append('profileImage', profileData.profileImage);
+    }
+
+    const response = await api.put(API_ENDPOINTS.USERS.PROFILE, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  // Get user by ID
+  getUser: async (userId) => {
+    const response = await api.get(`${API_ENDPOINTS.USERS.DETAIL}/${userId}`);
+    return response.data;
+  },
+
+  // Get all users (admin only)
+  getUsers: async (params = {}) => {
+    const queryParams = new URLSearchParams(params);
+    const response = await api.get(`${API_ENDPOINTS.USERS.LIST}?${queryParams}`);
+    return response.data;
+  },
+
+  // Export users (admin only)
+  exportUsers: async () => {
+    const response = await api.get(API_ENDPOINTS.USERS.EXPORT, {
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+
+  // Update notification settings
+  updateNotificationSettings: async (settings) => {
+    const response = await api.put(API_ENDPOINTS.USERS.NOTIFICATION_SETTINGS, settings);
+    return response.data;
+  },
+
+  // Update preferences
+  updatePreferences: async (preferences) => {
+    const response = await api.put(API_ENDPOINTS.USERS.PREFERENCES, preferences);
+    return response.data;
+  },
+
+  // Deactivate account
+  deactivateAccount: async (reason) => {
+    const response = await api.post(API_ENDPOINTS.USERS.DEACTIVATE, { reason });
+    return response.data;
+  },
+
+  // Download user data (GDPR compliance)
+  downloadUserData: async () => {
+    const response = await api.get(API_ENDPOINTS.USERS.DOWNLOAD_DATA, {
+      responseType: 'blob'
     });
     return response.data;
   }
