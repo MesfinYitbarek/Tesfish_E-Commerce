@@ -1,47 +1,71 @@
+// components/home/CategoryShowcase.jsx
 import { Link } from 'react-router-dom';
 import { 
   HomeIcon, 
   BuildingOfficeIcon, 
-  WrenchScrewdriverIcon,
+  MapPinIcon,
   ComputerDesktopIcon,
   SwatchIcon as ShirtIcon,
   TruckIcon,
   ArrowRightIcon,
   ChartBarIcon,
-  UserGroupIcon
+  UserGroupIcon,
+  CubeIcon
 } from '@heroicons/react/24/outline';
 
 const CategoryShowcase = () => {
   const categories = [
     {
-      id: 'real-estate',
-      name: 'Real Estate',
-      description: 'Premium properties & investments',
-      fullDescription: 'Discover luxury homes, apartments, and commercial spaces across Ethiopia',
+      id: 'homes',
+      name: 'Homes & Apartments',
+      description: 'Houses, apartments & villas',
+      fullDescription: 'Discover beautiful homes, modern apartments, luxury villas, and condos across Ethiopia',
       icon: HomeIcon,
-      itemCount: '10,000+',
-      image: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop',
+      image: 'https://pfst.cf2.poecdn.net/base/image/c74ce0df0a232131752ff4a283afe51f3b93c6ceac55cfc3dc239d2a80d16c85?w=400&h=300',
       color: 'from-blue-500 to-blue-700',
       accentColor: 'blue',
-      href: '/products?category=real-estate',
-      trending: true,
+      href: '/products?productType=homes',
       featured: true,
-      stats: { newListings: '150+', avgPrice: '5.2M ETB' }
+      subTypes: ['houses', 'apartment', 'villas', 'condos', 'townhouses']
     },
     {
-      id: 'services',
-      name: 'Professional Services',
-      description: 'Expert construction & design',
-      fullDescription: 'Professional project management, engineering, and interior design services',
-      icon: WrenchScrewdriverIcon,
-      itemCount: '500+',
-      image: 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=400&h=300&fit=crop',
+      id: 'commercials',
+      name: 'Commercial Properties',
+      description: 'Offices, shops & warehouses',
+      fullDescription: 'Premium office spaces, retail shops, warehouses, and commercial buildings for business',
+      icon: BuildingOfficeIcon,
+      image: 'https://pfst.cf2.poecdn.net/base/image/9d9c71dec12723ff6b004d13a2d69d305620727d248be7b4c82a1d30974c4425?w=400&h=300',
       color: 'from-green-500 to-green-700',
       accentColor: 'green',
-      href: '/products?category=services',
-      trending: true,
+      href: '/products?productType=commercials',
       featured: true,
-      stats: { providers: '50+', avgRating: '4.8/5' }
+      subTypes: ['offices', 'warehouses', 'shops', 'buildings', 'factories', 'hotels']
+    },
+    {
+      id: 'plots',
+      name: 'Land & Plots',
+      description: 'Residential & commercial land',
+      fullDescription: 'Prime residential land, commercial plots, mixed-use land, and agricultural properties',
+      icon: MapPinIcon,
+      image: 'https://pfst.cf2.poecdn.net/base/image/1d7884774a838296d5b139dfb0188761fcfc63608952fd1db2e9c75e4354c6d1?w=400&h=300',
+      color: 'from-emerald-500 to-emerald-700',
+      accentColor: 'emerald',
+      href: '/products?productType=plots',
+      featured: false,
+      subTypes: ['residential-land', 'commercial-land', 'mixed-use-land', 'agricultural-land']
+    },
+    {
+      id: 'vehicles',
+      name: 'Vehicles',
+      description: 'Cars, trucks & motorcycles',
+      fullDescription: 'Quality used and new vehicles, spare parts, and automotive accessories',
+      icon: TruckIcon,
+      image: 'https://pfst.cf2.poecdn.net/base/image/d49dd6b59fa154a62ea2a5549ecd4553ac079a01b6472ceceaf56f9a0f14c8b3?w=400&h=300',
+      color: 'from-orange-500 to-orange-700',
+      accentColor: 'orange',
+      href: '/products?productType=others&subProductType=vehicles',
+      featured: false,
+      subTypes: ['cars', 'trucks', 'motorcycles', 'spare-parts']
     },
     {
       id: 'electronics',
@@ -49,59 +73,51 @@ const CategoryShowcase = () => {
       description: 'Latest tech & appliances',
       fullDescription: 'Computers, smartphones, home appliances, and electronic accessories',
       icon: ComputerDesktopIcon,
-      itemCount: '2,000+',
-      image: 'https://images.unsplash.com/photo-1468495244123-6c6c332eeece?w=400&h=300&fit=crop',
+      image: 'https://pfst.cf2.poecdn.net/base/image/c5cb08388da1e9a931e8a25009b7923fefe36ba96f5a4abac18c9468a78e3eed?w=400&h=300',
       color: 'from-purple-500 to-purple-700',
       accentColor: 'purple',
-      href: '/products?category=electronics',
-      trending: false,
+      href: '/products?productType=others&subProductType=electronics',
       featured: false,
-      stats: { brands: '25+', warranty: 'Up to 2yr' }
+      subTypes: ['phones', 'computers', 'appliances', 'accessories']
     },
     {
       id: 'fashion',
-      name: 'Fashion & Style',
-      description: 'Trendy clothing & accessories',
-      fullDescription: 'Contemporary fashion, traditional wear, accessories, and footwear',
+      name: 'Fashion & Lifestyle',
+      description: 'Clothing & accessories',
+      fullDescription: 'Contemporary fashion, traditional wear, accessories, and lifestyle products',
       icon: ShirtIcon,
-      itemCount: '1,500+',
-      image: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&h=300&fit=crop',
+      image: 'https://pfst.cf2.poecdn.net/base/image/8ec4233e8fe834e7bd221f7a7e64788cff0277e3e11630572777afc8e76e0c5b?w=400&h=300',
       color: 'from-pink-500 to-pink-700',
       accentColor: 'pink',
-      href: '/products?category=fashion',
-      trending: true,
+      href: '/products?productType=others&subProductType=furnitures',
       featured: false,
-      stats: { designers: '15+', newArrivals: 'Weekly' }
-    },
-    {
-      id: 'automotive',
-      name: 'Automotive',
-      description: 'Vehicles & auto parts',
-      fullDescription: 'Cars, motorcycles, spare parts, and automotive accessories',
-      icon: TruckIcon,
-      itemCount: '800+',
-      image: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=400&h=300&fit=crop',
-      color: 'from-orange-500 to-orange-700',
-      accentColor: 'orange',
-      href: '/products?category=automotive',
-      trending: false,
-      featured: false,
-      stats: { dealers: '20+', financing: 'Available' }
+      subTypes: ['clothing', 'accessories', 'footwear', 'traditional']
     },
     {
       id: 'construction',
-      name: 'Construction',
-      description: 'Building materials & tools',
-      fullDescription: 'Quality construction materials, professional tools, and equipment',
-      icon: BuildingOfficeIcon,
-      itemCount: '1,200+',
-      image: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&h=300&fit=crop',
+      name: 'Construction & Equipment',
+      description: 'Materials & machinery',
+      fullDescription: 'Construction materials, professional equipment, and industrial machinery',
+      icon: CubeIcon,
+      image: 'https://pfst.cf2.poecdn.net/base/image/1d7884774a838296d5b139dfb0188761fcfc63608952fd1db2e9c75e4354c6d1?w=400&h=300',
       color: 'from-gray-600 to-gray-800',
       accentColor: 'gray',
-      href: '/products?category=construction',
-      trending: false,
+      href: '/products?productType=others&subProductType=construction-equipment',
       featured: false,
-      stats: { suppliers: '30+', delivery: 'Same day' }
+      subTypes: ['materials', 'tools', 'machinery', 'equipment']
+    },
+    {
+      id: 'agriculture',
+      name: 'Agriculture',
+      description: 'Farm products & equipment',
+      fullDescription: 'Agricultural products, farming equipment, seeds, and livestock',
+      icon: BuildingOfficeIcon,
+      image: 'https://pfst.cf2.poecdn.net/base/image/9d9c71dec12723ff6b004d13a2d69d305620727d248be7b4c82a1d30974c4425?w=400&h=300',
+      color: 'from-green-600 to-green-800',
+      accentColor: 'green',
+      href: '/products?productType=others&subProductType=agricultural-products',
+      featured: false,
+      subTypes: ['crops', 'livestock', 'equipment', 'supplies']
     }
   ];
 
@@ -122,7 +138,7 @@ const CategoryShowcase = () => {
           </h2>
           <p className="text-sm text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
             Discover our comprehensive marketplace featuring premium real estate, 
-            professional services, and quality products across Ethiopia.
+            quality vehicles, electronics, and more across Ethiopia.
           </p>
         </div>
 
@@ -132,10 +148,6 @@ const CategoryShowcase = () => {
             <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">
               Featured Categories
             </h3>
-            <div className="flex items-center text-purple-600 dark:text-purple-400">
-              <UserGroupIcon className="h-4 w-4 mr-1" />
-              <span className="text-xs font-medium">Most Popular</span>
-            </div>
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -154,6 +166,43 @@ const CategoryShowcase = () => {
             {regularCategories.map((category) => (
               <CategoryCard key={category.id} category={category} />
             ))}
+          </div>
+        </div>
+
+        {/* Quick Browse by Product Type */}
+        <div className="mb-8 bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-4">
+            Quick Browse
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <Link 
+              to="/products?productType=homes&listingType=sell"
+              className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+            >
+              <HomeIcon className="h-6 w-6 mx-auto mb-2 text-blue-600 dark:text-blue-400" />
+              <div className="text-sm font-medium text-blue-700 dark:text-blue-300">Buy Homes</div>
+            </Link>
+            <Link 
+              to="/products?productType=homes&listingType=rent"
+              className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+            >
+              <HomeIcon className="h-6 w-6 mx-auto mb-2 text-green-600 dark:text-green-400" />
+              <div className="text-sm font-medium text-green-700 dark:text-green-300">Rent Homes</div>
+            </Link>
+            <Link 
+              to="/products?productType=commercials"
+              className="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+            >
+              <BuildingOfficeIcon className="h-6 w-6 mx-auto mb-2 text-purple-600 dark:text-purple-400" />
+              <div className="text-sm font-medium text-purple-700 dark:text-purple-300">Commercial</div>
+            </Link>
+            <Link 
+              to="/products?productType=others"
+              className="text-center p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
+            >
+              <CubeIcon className="h-6 w-6 mx-auto mb-2 text-orange-600 dark:text-orange-400" />
+              <div className="text-sm font-medium text-orange-700 dark:text-orange-300">Products</div>
+            </Link>
           </div>
         </div>
 
@@ -193,6 +242,7 @@ const FeaturedCategoryCard = ({ category }) => {
             src={category.image}
             alt={category.name}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+            loading="lazy"
           />
           
           {/* Gradient Overlay */}
@@ -203,22 +253,6 @@ const FeaturedCategoryCard = ({ category }) => {
             <div className="bg-white/20 backdrop-blur-md rounded-xl p-2">
               <Icon className="h-5 w-5 text-white" />
             </div>
-          </div>
-
-          {/* Trending Badge */}
-          {category.trending && (
-            <div className="absolute top-4 right-4">
-              <div className="bg-orange-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center">
-                <ChartBarIcon className="h-2 w-2 mr-1" />
-                Hot
-              </div>
-            </div>
-          )}
-
-          {/* Item Count */}
-          <div className="absolute bottom-4 left-4 text-white">
-            <div className="text-lg font-bold">{category.itemCount}</div>
-            <div className="text-xs opacity-90">Available</div>
           </div>
         </div>
 
@@ -233,21 +267,8 @@ const FeaturedCategoryCard = ({ category }) => {
             </p>
           </div>
 
-          {/* Stats */}
-          <div className="flex items-center justify-between">
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              {Object.entries(category.stats).map(([key, value]) => (
-                <div key={key}>
-                  <div className="text-gray-500 dark:text-gray-400 capitalize">
-                    {key.replace(/([A-Z])/g, ' $1').trim()}
-                  </div>
-                  <div className="font-semibold text-gray-900 dark:text-gray-100">
-                    {value}
-                  </div>
-                </div>
-              ))}
-            </div>
-            
+          {/* Call to Action */}
+          <div className="flex items-center justify-end">
             <div className="flex items-center text-purple-600 dark:text-purple-400 text-sm font-medium group-hover:translate-x-1 transition-transform duration-200">
               <span className="mr-1">Explore</span>
               <ArrowRightIcon className="h-4 w-4" />
@@ -274,6 +295,7 @@ const CategoryCard = ({ category }) => {
           src={category.image}
           alt={category.name}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+          loading="lazy"
         />
         
         {/* Gradient Overlay */}
@@ -285,12 +307,6 @@ const CategoryCard = ({ category }) => {
             <div className="bg-white/20 backdrop-blur-sm rounded-lg p-2">
               <Icon className="h-4 w-4" />
             </div>
-            
-            {category.trending && (
-              <div className="bg-orange-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full">
-                Hot
-              </div>
-            )}
           </div>
           
           <div>
@@ -301,10 +317,7 @@ const CategoryCard = ({ category }) => {
               {category.description}
             </p>
             
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium opacity-75">
-                {category.itemCount}
-              </span>
+            <div className="flex items-center justify-end">
               <ArrowRightIcon className="h-3 w-3 group-hover:translate-x-1 transition-transform duration-200" />
             </div>
           </div>

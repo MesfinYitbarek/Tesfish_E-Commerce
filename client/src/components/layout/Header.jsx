@@ -5,7 +5,6 @@ import {
   Bars3Icon,
   XMarkIcon,
   MagnifyingGlassIcon,
-  ShoppingCartIcon,
   UserIcon,
   SunIcon,
   MoonIcon,
@@ -69,76 +68,8 @@ const Header = () => {
 
   const cartItemsCount = items?.reduce((total, item) => total + item.quantity, 0) || 0;
 
-  const megaMenuData = {
-    properties: {
-      title: 'Properties',
-      categories: [
-        {
-          title: 'Buy Properties',
-          links: [
-            { name: 'Houses & Villas', href: '/products?category=real-estate&type=villa', icon: HomeIcon },
-            { name: 'Apartments', href: '/products?category=real-estate&type=apartment', icon: BuildingOfficeIcon },
-            { name: 'Commercial Spaces', href: '/products?category=real-estate&type=commercial', icon: BuildingOfficeIcon },
-            { name: 'Land & Plots', href: '/products?category=real-estate&type=land', icon: HomeIcon },
-          ]
-        },
-        {
-          title: 'Rent Properties',
-          links: [
-            { name: 'Rental Houses', href: '/products?category=real-estate&type=rental&propertyType=house', icon: HomeIcon },
-            { name: 'Rental Apartments', href: '/products?category=real-estate&type=rental&propertyType=apartment', icon: BuildingOfficeIcon },
-            { name: 'Short-term Rentals', href: '/products?category=real-estate&type=rental&duration=short', icon: HomeIcon },
-            { name: 'Office Spaces', href: '/products?category=real-estate&type=rental&propertyType=office', icon: BuildingOfficeIcon },
-          ]
-        }
-      ],
-      featured: {
-        title: 'Featured Locations',
-        items: [
-          { name: 'Bole Properties', href: '/products?location=Bole', trending: true },
-          { name: 'Kazanchis Area', href: '/products?location=Kazanchis', trending: false },
-          { name: 'CMC Vicinity', href: '/products?location=CMC', trending: true },
-          { name: 'Gerji District', href: '/products?location=Gerji', trending: false },
-        ]
-      }
-    },
-    services: {
-      title: 'Services',
-      categories: [
-        {
-          title: 'Design Services',
-          links: [
-            { name: 'Interior Design', href: '/services/interior-design', icon: SparklesIcon },
-            { name: 'Architectural Design', href: '/services/architectural-design', icon: BuildingOfficeIcon },
-            { name: 'Landscape Design', href: '/services/landscape-design', icon: HomeIcon },
-            { name: 'Space Planning', href: '/services/space-planning', icon: CogIcon },
-          ]
-        },
-        {
-          title: 'Construction',
-          links: [
-            { name: 'Project Management', href: '/services/project-management', icon: CogIcon },
-            { name: 'Construction Oversight', href: '/services/construction', icon: BuildingOfficeIcon },
-            { name: 'Quality Assurance', href: '/services/quality-assurance', icon: CogIcon },
-            { name: 'Cost Estimation', href: '/services/cost-estimation', icon: CogIcon },
-          ]
-        }
-      ],
-      featured: {
-        title: 'Popular Services',
-        items: [
-          { name: 'Complete Home Renovation', href: '/services/renovation', trending: true },
-          { name: 'Real Estate Consulting', href: '/services/consulting', trending: false },
-          { name: 'Property Management', href: '/services/property-management', trending: true },
-          { name: 'Legal Documentation', href: '/services/legal', trending: false },
-        ]
-      }
-    }
-  };
-
   const navigation = [
     { name: 'Home', href: '/' },
-    { name: 'Properties', href: '/properties' },
     { name: 'Services', href: '/services' },
     { name: 'All Products', href: '/products' },
   ];
@@ -334,21 +265,6 @@ const Header = () => {
                 <MoonIcon className="h-4 w-4" />
               )}
             </button>
-
-            {/* Compact Cart */}
-            <Link
-              to="/cart"
-              className="relative p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 transition-all duration-200 hover:scale-110"
-              title="Shopping Cart"
-            >
-              <ShoppingCartIcon className="h-4 w-4" />
-              {cartItemsCount > 0 && (
-                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-gradient-to-r from-red-500 to-red-600 text-xs text-white flex items-center justify-center font-bold animate-pulse">
-                  {cartItemsCount > 9 ? '9+' : cartItemsCount}
-                </span>
-              )}
-            </Link>
-
             {/* Compact Authentication */}
             {isAuthenticated ? (
               <div className="flex items-center space-x-1">

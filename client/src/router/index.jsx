@@ -10,6 +10,7 @@ import AuthLayout from '../components/layout/AuthLayout';
 import AdminLayout from '../components/layout/AdminLayout';
 import CustomerDashboardLayout from '../components/layout/CustomerDashboardLayout';
 import CustomerNotificationsPage from '../pages/customer/CustomerNotificationsPage';
+import BusinessProfile from '../pages/dashboard/BusinessProfile';
 
 // Lazy Pages - Existing
 const HomePage = lazy(() => import('../pages/home/HomePage'));
@@ -169,7 +170,7 @@ export const router = createBrowserRouter([
       
       // Account Management
       { path: 'notifications', element: <LazyWrapper><NotificationPanel /></LazyWrapper> },
-      { path: 'settings', element: <LazyWrapper><Settings /></LazyWrapper> },
+      { path: 'business-profile', element: <LazyWrapper><BusinessProfile /></LazyWrapper> },
       { path: 'profile', element: <LazyWrapper><Profile /></LazyWrapper> }
     ]
   },

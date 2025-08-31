@@ -426,6 +426,306 @@ export const NOTIFICATION_PRIORITIES = {
   MEDIUM: 'medium',
   HIGH: 'high'
 };
+export const BUSINESS_CATEGORIES = [
+  {
+    id: 'construction',
+    name: 'Construction & Engineering',
+    type: 'both',
+    subcategories: [
+      'General Construction',
+      'Electrical Installation',
+      'Plumbing Services',
+      'HVAC Systems',
+      'Interior Design',
+      'Architecture',
+      'Civil Engineering',
+      'Structural Engineering'
+    ]
+  },
+  {
+    id: 'real-estate',
+    name: 'Real Estate',
+    type: 'both',
+    subcategories: [
+      'Property Development',
+      'Real Estate Brokerage',
+      'Property Management',
+      'Real Estate Consulting',
+      'Property Valuation',
+      'Real Estate Investment'
+    ]
+  },
+  {
+    id: 'technology',
+    name: 'Technology & IT',
+    type: 'both',
+    subcategories: [
+      'Software Development',
+      'Web Development',
+      'Mobile App Development',
+      'IT Consulting',
+      'Network Services',
+      'Cybersecurity',
+      'Data Analytics',
+      'Cloud Services'
+    ]
+  },
+  {
+    id: 'healthcare',
+    name: 'Healthcare & Medical',
+    type: 'both',
+    subcategories: [
+      'General Medicine',
+      'Dental Services',
+      'Pharmacy',
+      'Medical Equipment',
+      'Health Insurance',
+      'Mental Health',
+      'Physical Therapy',
+      'Laboratory Services'
+    ]
+  },
+  {
+    id: 'education',
+    name: 'Education & Training',
+    type: 'both',
+    subcategories: [
+      'Primary Education',
+      'Secondary Education',
+      'Higher Education',
+      'Vocational Training',
+      'Language Schools',
+      'Online Learning',
+      'Professional Development',
+      'Tutoring Services'
+    ]
+  },
+  {
+    id: 'finance',
+    name: 'Finance & Banking',
+    type: 'business',
+    subcategories: [
+      'Commercial Banking',
+      'Investment Banking',
+      'Insurance Services',
+      'Accounting',
+      'Financial Consulting',
+      'Tax Services',
+      'Microfinance',
+      'Foreign Exchange'
+    ]
+  },
+  {
+    id: 'transportation',
+    name: 'Transportation & Logistics',
+    type: 'both',
+    subcategories: [
+      'Freight Transportation',
+      'Public Transportation',
+      'Logistics Services',
+      'Warehousing',
+      'Delivery Services',
+      'Car Rental',
+      'Moving Services',
+      'Supply Chain Management'
+    ]
+  },
+  {
+    id: 'agriculture',
+    name: 'Agriculture & Food',
+    type: 'both',
+    subcategories: [
+      'Crop Production',
+      'Livestock Farming',
+      'Food Processing',
+      'Agricultural Equipment',
+      'Fertilizers & Seeds',
+      'Organic Farming',
+      'Food Distribution',
+      'Agricultural Consulting'
+    ]
+  },
+  {
+    id: 'manufacturing',
+    name: 'Manufacturing & Industrial',
+    type: 'business',
+    subcategories: [
+      'Textile Manufacturing',
+      'Food & Beverage',
+      'Chemical Manufacturing',
+      'Metal Works',
+      'Plastic & Rubber',
+      'Electronics Manufacturing',
+      'Pharmaceutical',
+      'Industrial Equipment'
+    ]
+  },
+  {
+    id: 'retail',
+    name: 'Retail & Commerce',
+    type: 'both',
+    subcategories: [
+      'General Retail',
+      'Electronics & Appliances',
+      'Clothing & Fashion',
+      'Grocery & Supermarkets',
+      'Automotive Parts',
+      'Home & Garden',
+      'Sports & Recreation',
+      'Books & Stationery'
+    ]
+  },
+  {
+    id: 'hospitality',
+    name: 'Hospitality & Tourism',
+    type: 'both',
+    subcategories: [
+      'Hotels & Lodging',
+      'Restaurants & Cafes',
+      'Travel Agencies',
+      'Tour Operators',
+      'Event Planning',
+      'Catering Services',
+      'Entertainment Venues',
+      'Recreation Centers'
+    ]
+  },
+  {
+    id: 'professional-services',
+    name: 'Professional Services',
+    type: 'both',
+    subcategories: [
+      'Legal Services',
+      'Consulting',
+      'Marketing & Advertising',
+      'Human Resources',
+      'Business Development',
+      'Project Management',
+      'Quality Assurance',
+      'Research & Development'
+    ]
+  },
+  {
+    id: 'automotive',
+    name: 'Automotive',
+    type: 'both',
+    subcategories: [
+      'Car Sales',
+      'Auto Repair',
+      'Auto Parts',
+      'Car Wash',
+      'Tire Services',
+      'Vehicle Insurance',
+      'Automotive Consulting',
+      'Fleet Management'
+    ]
+  },
+  {
+    id: 'energy',
+    name: 'Energy & Utilities',
+    type: 'business',
+    subcategories: [
+      'Electricity Generation',
+      'Solar Energy',
+      'Water Supply',
+      'Waste Management',
+      'Oil & Gas',
+      'Renewable Energy',
+      'Energy Consulting',
+      'Utility Services'
+    ]
+  },
+  {
+    id: 'media',
+    name: 'Media & Communications',
+    type: 'both',
+    subcategories: [
+      'Print Media',
+      'Broadcasting',
+      'Digital Media',
+      'Telecommunications',
+      'Public Relations',
+      'Content Creation',
+      'Video Production',
+      'Graphic Design'
+    ]
+  },
+  {
+    id: 'beauty',
+    name: 'Beauty & Personal Care',
+    type: 'individual',
+    subcategories: [
+      'Hair Salons',
+      'Beauty Salons',
+      'Spa Services',
+      'Cosmetics',
+      'Personal Training',
+      'Massage Therapy',
+      'Nail Services',
+      'Wellness Centers'
+    ]
+  },
+  {
+    id: 'sports',
+    name: 'Sports & Fitness',
+    type: 'both',
+    subcategories: [
+      'Fitness Centers',
+      'Sports Clubs',
+      'Personal Training',
+      'Sports Equipment',
+      'Athletic Coaching',
+      'Sports Medicine',
+      'Recreation Centers',
+      'Outdoor Activities'
+    ]
+  },
+  {
+    id: 'arts',
+    name: 'Arts & Culture',
+    type: 'individual',
+    subcategories: [
+      'Music & Entertainment',
+      'Visual Arts',
+      'Photography',
+      'Cultural Events',
+      'Museums & Galleries',
+      'Performing Arts',
+      'Crafts & Handmade',
+      'Creative Services'
+    ]
+  },
+  {
+    id: 'security',
+    name: 'Security Services',
+    type: 'business',
+    subcategories: [
+      'Private Security',
+      'Security Systems',
+      'Surveillance',
+      'Personal Protection',
+      'Security Consulting',
+      'Emergency Services',
+      'Investigation Services',
+      'Risk Management'
+    ]
+  },
+  {
+    id: 'other',
+    name: 'Other Services',
+    type: 'both',
+    subcategories: [
+      'Cleaning Services',
+      'Maintenance & Repair',
+      'Pet Services',
+      'Home Services',
+      'Personal Services',
+      'Business Services',
+      'Consulting',
+      'Miscellaneous'
+    ]
+  }
+];
 export const ETHIOPIAN_CITIES = [
   "Addis Ababa",
   "Dire Dawa",

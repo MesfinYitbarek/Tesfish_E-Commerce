@@ -1,81 +1,111 @@
+// components/home/HeroSection.jsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   MagnifyingGlassIcon, 
   MapPinIcon, 
   HomeIcon, 
-  CurrencyDollarIcon,
+  BuildingOfficeIcon,
   SparklesIcon,
   ChartBarIcon,
   BuildingOffice2Icon
 } from '@heroicons/react/24/outline';
 import Button from '../ui/Button';
-import { PROPERTY_TYPES, PRICE_RANGES } from '../../constants';
 
 const HeroSection = () => {
-  const [searchType, setSearchType] = useState('buy');
+  const [searchType, setSearchType] = useState('homes');
+  const [listingType, setListingType] = useState('sell');
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState('');
-  const [propertyType, setPropertyType] = useState('');
+  const [subProductType, setSubProductType] = useState('');
   const [priceRange, setPriceRange] = useState('');
   const [isSearching, setIsSearching] = useState(false);
-  // const [currentStatIndex, setCurrentStatIndex] = useState(0);
-  // const [animatedValues, setAnimatedValues] = useState({ properties: 0, companies: 0, customers: 0 });
   
   const navigate = useNavigate();
 
-  // // Animated stats
-  // const stats = [
-  //   { key: 'properties', value: 10000, label: 'Properties', suffix: '+', icon: HomeIcon },
-  //   { key: 'companies', value: 500, label: 'Companies', suffix: '+', icon: BuildingOffice2Icon },
-  //   { key: 'customers', value: 50000, label: 'Happy Customers', suffix: '+', icon: SparklesIcon }
-  // ];
+  // Product type configurations based on backend schema
+  const productTypes = {
+    homes: {
+      label: 'Homes',
+      subTypes: [
+        { value: 'houses', label: 'Houses' },
+        { value: 'apartment', label: 'Apartments' },
+        { value: 'villas', label: 'Villas' },
+        { value: 'condos', label: 'Condos' },
+        { value: 'townhouses', label: 'Townhouses' }
+      ]
+    },
+    plots: {
+      label: 'Land & Plots',
+      subTypes: [
+        { value: 'residential-land', label: 'Residential Land' },
+        { value: 'commercial-land', label: 'Commercial Land' },
+        { value: 'mixed-use-land', label: 'Mixed Use Land' },
+        { value: 'agricultural-land', label: 'Agricultural Land' }
+      ]
+    },
+    commercials: {
+      label: 'Commercial',
+      subTypes: [
+        { value: 'offices', label: 'Offices' },
+        { value: 'warehouses', label: 'Warehouses' },
+        { value: 'shops', label: 'Shops' },
+        { value: 'buildings', label: 'Buildings' },
+        { value: 'factories', label: 'Factories' },
+        { value: 'hotels', label: 'Hotels' }
+      ]
+    },
+    others: {
+      label: 'Others',
+      subTypes: [
+        { value: 'vehicles', label: 'Vehicles' },
+        { value: 'electronics', label: 'Electronics' },
+        { value: 'furnitures', label: 'Furniture' },
+        { value: 'construction-equipment', label: 'Construction Equipment' },
+        { value: 'agricultural-products', label: 'Agricultural Products' }
+      ]
+    }
+  };
 
-  // // Animate numbers on mount
-  // useEffect(() => {
-  //   const animateValue = (key, end) => {
-  //     let start = 0;
-  //     const duration = 2000;
-  //     const stepTime = Math.abs(Math.floor(duration / end));
-      
-  //     const timer = setInterval(() => {
-  //       start += Math.ceil(end / 100);
-  //       setAnimatedValues(prev => ({ ...prev, [key]: Math.min(start, end) }));
-  //       if (start >= end) clearInterval(timer);
-  //     }, stepTime);
-  //   };
-
-  //   stats.forEach(stat => {
-  //     animateValue(stat.key, stat.value);
-  //   });
-  // }, []);
-
-  // // Auto-rotate featured highlight
-  // useEffect(() => {
-  //   const interval = setInterval(() => {
-  //     setCurrentStatIndex((prev) => (prev + 1) % stats.length);
-  //   }, 4000);
-  //   return () => clearInterval(interval);
-  // }, []);
+  const priceRanges = [
+    { min: 0, max: 100000, label: 'Under 100K ETB' },
+    { min: 100000, max: 500000, label: '100K - 500K ETB' },
+    { min: 500000, max: 1000000, label: '500K - 1M ETB' },
+    { min: 1000000, max: 2000000, label: '1M - 2M ETB' },
+    { min: 2000000, max: 5000000, label: '2M - 5M ETB' },
+    { min: 5000000, max: 10000000, label: '5M - 10M ETB' },
+    { min: 10000000, max: 50000000, label: '10M - 50M ETB' },
+    { min: 50000000, max: null, label: 'Above 50M ETB' }
+  ];
 
   const handleSearch = async (e) => {
     e.preventDefault();
     setIsSearching(true);
     
     const params = new URLSearchParams();
+    
+    // Basic search parameters
     if (searchQuery) params.append('search', searchQuery);
-    if (location) params.append('location', location);
-    if (propertyType) params.append('propertyType', propertyType);
+    if (location) params.append('city', location);
+    
+    // Product type parameters
+    params.append('productType', searchType);
+    if (subProductType) params.append('subProductType', subProductType);
+    
+    // For real estate types, add listing type
+    if (['homes', 'plots', 'commercials'].includes(searchType)) {
+      params.append('listingType', listingType);
+    }
+    
+    // Price range
     if (priceRange) {
-      const range = PRICE_RANGES.find(r => r.label === priceRange);
+      const range = priceRanges.find(r => r.label === priceRange);
       if (range?.min) params.append('minPrice', range.min);
       if (range?.max) params.append('maxPrice', range.max);
     }
     
-    params.append('category', searchType === 'services' ? 'services' : 'real-estate');
-    if (searchType === 'rent') {
-      params.append('type', 'rental');
-    }
+    // Default sort
+    params.append('sort', 'featured');
     
     // Simulate search delay for better UX
     await new Promise(resolve => setTimeout(resolve, 800));
@@ -84,22 +114,48 @@ const HeroSection = () => {
   };
 
   const searchTabs = [
-    { id: 'buy', label: 'Buy Property', icon: HomeIcon, description: 'Find your dream home' },
-    { id: 'rent', label: 'Rent Property', icon: HomeIcon, description: 'Discover rental options' },
-    { id: 'services', label: 'Our Services', icon: CurrencyDollarIcon, description: 'Professional solutions' },
+    { 
+      id: 'homes', 
+      label: 'Homes', 
+      icon: HomeIcon, 
+      description: 'Houses, apartments, villas' 
+    },
+    { 
+      id: 'plots', 
+      label: 'Land & Plots', 
+      icon: MapPinIcon, 
+      description: 'Residential & commercial land' 
+    },
+    { 
+      id: 'commercials', 
+      label: 'Commercial', 
+      icon: BuildingOfficeIcon, 
+      description: 'Offices, shops, warehouses' 
+    },
+    { 
+      id: 'others', 
+      label: 'Others', 
+      icon: BuildingOffice2Icon, 
+      description: 'Vehicles, electronics & more' 
+    }
   ];
 
   const popularLocations = [
-    'Addis Ababa', 'Bole', 'Kazanchis', 'Kirkos', 'Piazza', 'Megenagna', 'Gerji', 'CMC'
+    'Addis Ababa', 'Bole', 'Kazanchis', 'Kirkos', 'Piazza', 'Megenagna', 'Gerji', 'CMC',
+    'Bahir Dar', 'Mekelle', 'Gondar', 'Awassa', 'Dire Dawa', 'Jimma', 'Dessie', 'Harar'
   ];
 
   const quickSearchTerms = [
-    { term: 'Luxury Villas in Bole', type: 'buy', trending: true },
-    { term: 'Modern Apartments', type: 'buy', trending: false },
-    { term: 'Commercial Spaces', type: 'buy', trending: true },
-    { term: 'Interior Design Services', type: 'services', trending: false },
-    { term: 'Project Management', type: 'services', trending: true }
+    { term: 'Luxury Villas in Bole', type: 'homes', subType: 'villas', trending: true },
+    { term: 'Modern Apartments', type: 'homes', subType: 'apartment', trending: false },
+    { term: 'Commercial Buildings', type: 'commercials', subType: 'buildings', trending: true },
+    { term: 'Residential Land', type: 'plots', subType: 'residential-land', trending: false },
+    { term: 'Toyota Vehicles', type: 'others', subType: 'vehicles', trending: true },
+    { term: 'Office Spaces', type: 'commercials', subType: 'offices', trending: false }
   ];
+
+  // Check if current search type supports rental
+  const supportsRental = ['homes', 'commercials'].includes(searchType);
 
   return (
     <section className="relative min-h-[60vh] bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 overflow-hidden">
@@ -118,72 +174,37 @@ const HeroSection = () => {
         <div className="text-center mb-8">
           <div className="inline-flex items-center px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-white/90 text-xs font-medium mb-4 border border-white/20">
             <SparklesIcon className="h-3 w-3 mr-1 text-yellow-400" />
-            Ethiopia's Premier Real Estate Platform
+            Ethiopia's Premier Real Estate & Marketplace
           </div>
           
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-4 leading-tight">
             Find Your Perfect
             <span className="block bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 bg-clip-text text-transparent">
-              Dream Property
+              Property & Products
             </span>
           </h1>
           
           <p className="text-base md:text-lg text-purple-100 max-w-2xl mx-auto mb-6 leading-relaxed">
-            Discover exceptional properties and premium services with{' '}
-            <span className="font-semibold text-yellow-400">CitiLights</span>. 
-            Your trusted partner for real estate, construction, and professional consulting.
-          </p>
-          
-          {/* Compact Animated Statistics */}
-          {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            {stats.map((stat, index) => {
-              const IconComponent = stat.icon;
-              const isHighlighted = currentStatIndex === index;
-              
-              return (
-                <div 
-                  key={stat.key}
-                  className={`group relative p-3 rounded-lg transition-all duration-500 transform ${
-                    isHighlighted 
-                      ? 'bg-white/20 backdrop-blur-md scale-105 border border-yellow-400/50' 
-                      : 'bg-white/10 backdrop-blur-md hover:bg-white/15 border border-white/10'
-                  }`}
-                >
-                  <div className="flex items-center justify-center mb-1">
-                    <IconComponent className={`h-5 w-5 transition-colors duration-300 ${
-                      isHighlighted ? 'text-yellow-400' : 'text-purple-300'
-                    }`} />
-                  </div>
-                  <div className={`text-xl lg:text-2xl font-bold transition-colors duration-300 ${
-                    isHighlighted ? 'text-yellow-400' : 'text-white'
-                  }`}>
-                    {animatedValues[stat.key].toLocaleString()}{stat.suffix}
-                  </div>
-                  <div className="text-purple-200 font-medium text-sm">{stat.label}</div>
-                  
-                  {isHighlighted && (
-                    <div className="absolute -top-1 -right-1">
-                      <div className="w-3 h-3 bg-yellow-400 rounded-full animate-ping"></div>
-                      <div className="absolute top-0 w-3 h-3 bg-yellow-400 rounded-full"></div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div> */}
+            Discover exceptional properties, vehicles, electronics and more with{' '}
+            <span className="font-semibold text-yellow-400">TesGold</span>. 
+            Your trusted marketplace for buying, selling, and renting in Ethiopia.
+          </p>                     
         </div>
 
         {/* Compact Search Form */}
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-5xl mx-auto">
           <div className="bg-white/95 backdrop-blur-lg rounded-xl shadow-xl p-4 lg:p-6 border border-white/20">
             {/* Compact Search Tabs */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
               {searchTabs.map((tab) => {
                 const IconComponent = tab.icon;
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setSearchType(tab.id)}
+                    onClick={() => {
+                      setSearchType(tab.id);
+                      setSubProductType(''); // Reset sub type when changing main type
+                    }}
                     className={`relative p-3 rounded-lg transition-all duration-300 text-left ${
                       searchType === tab.id
                         ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg transform scale-105'
@@ -208,151 +229,113 @@ const HeroSection = () => {
               })}
             </div>
 
-            <form onSubmit={handleSearch} className="space-y-4">
-              {searchType !== 'services' ? (
-                <>
-                  {/* Compact Main Search Row */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                    <div className="relative group">
-                      <MagnifyingGlassIcon className="absolute left-3 top-2.5 h-4 w-4 text-gray-400 group-focus-within:text-purple-500 transition-colors" />
-                      <input
-                        type="text"
-                        placeholder="Search properties, neighborhoods..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-sm bg-white/80 backdrop-blur-sm"
-                      />
-                    </div>
-                    
-                    <div className="relative group">
-                      <MapPinIcon className="absolute left-3 top-2.5 h-4 w-4 text-gray-400 group-focus-within:text-purple-500 transition-colors" />
-                      <select
-                        value={location}
-                        onChange={(e) => setLocation(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-sm appearance-none bg-white/80 backdrop-blur-sm"
-                      >
-                        <option value="">Select Location</option>
-                        {popularLocations.map((loc) => (
-                          <option key={loc} value={loc}>{loc}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Compact Filters Row */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    <select
-                      value={propertyType}
-                      onChange={(e) => setPropertyType(e.target.value)}
-                      className="px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-sm bg-white/80 backdrop-blur-sm"
-                    >
-                      <option value="">Property Type</option>
-                      {Object.entries(PROPERTY_TYPES).map(([key, value]) => (
-                        <option key={key} value={value}>
-                          {value.charAt(0).toUpperCase() + value.slice(1)}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
-                      value={priceRange}
-                      onChange={(e) => setPriceRange(e.target.value)}
-                      className="px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-sm bg-white/80 backdrop-blur-sm"
-                    >
-                      <option value="">Price Range</option>
-                      {PRICE_RANGES.map((range) => (
-                        <option key={range.label} value={range.label}>
-                          {range.label}
-                        </option>
-                      ))}
-                    </select>
-
-                    <Button 
-                      type="submit" 
-                      disabled={isSearching}
-                      className="w-full py-2.5 text-sm bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 transform hover:scale-105 transition-all duration-200 shadow-lg"
-                    >
-                      {isSearching ? (
-                        <div className="flex items-center justify-center">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Searching...
-                        </div>
-                      ) : (
-                        <>
-                          <MagnifyingGlassIcon className="h-4 w-4 mr-2" />
-                          Search Properties
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {/* Compact Services Search */}
-                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-3">
-                    <div className="relative group lg:col-span-3">
-                      <MagnifyingGlassIcon className="absolute left-3 top-2.5 h-4 w-4 text-gray-400 group-focus-within:text-purple-500 transition-colors" />
-                      <input
-                        type="text"
-                        placeholder="Search for project management, interior design..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-sm bg-white/80 backdrop-blur-sm"
-                      />
-                    </div>
-                    
-                    <Button 
-                      type="submit" 
-                      disabled={isSearching}
-                      className="w-full py-2.5 text-sm bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 transform hover:scale-105 transition-all duration-200 shadow-lg"
-                    >
-                      {isSearching ? (
-                        <div className="flex items-center justify-center">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Searching...
-                        </div>
-                      ) : (
-                        <>
-                          <MagnifyingGlassIcon className="h-4 w-4 mr-2" />
-                          Find Services
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </>
-              )}
-            </form>
-
-            {/* Compact Quick Search Terms */}
-            <div className="mt-4 pt-3 border-t border-gray-200">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-gray-600">Popular searches:</p>
-                <ChartBarIcon className="h-3 w-3 text-gray-400" />
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {quickSearchTerms.map((item) => (
+            {/* Listing Type Toggle for Real Estate */}
+            {supportsRental && (
+              <div className="flex items-center justify-center mb-4">
+                <div className="inline-flex bg-gray-100 rounded-lg p-1">
                   <button
-                    key={item.term}
-                    onClick={() => {
-                      setSearchQuery(item.term);
-                      setSearchType(item.type);
-                      const event = { preventDefault: () => {} };
-                      handleSearch(event);
-                    }}
-                    className="group relative inline-flex items-center px-2.5 py-1 text-xs bg-gradient-to-r from-gray-50 to-gray-100 text-gray-700 rounded-full hover:from-purple-50 hover:to-purple-100 hover:text-purple-700 transition-all duration-200 border border-gray-200 hover:border-purple-300"
+                    onClick={() => setListingType('sell')}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                      listingType === 'sell'
+                        ? 'bg-white text-purple-600 shadow-sm'
+                        : 'text-gray-600 hover:text-purple-600'
+                    }`}
                   >
-                    <span>{item.term}</span>
-                    {item.trending && (
-                      <span className="ml-1.5 px-1.5 py-0.5 text-xs bg-orange-100 text-orange-600 rounded-full font-medium">
-                        Hot
-                      </span>
-                    )}
+                    Buy
                   </button>
-                ))}
+                  <button
+                    onClick={() => setListingType('rent')}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                      listingType === 'rent'
+                        ? 'bg-white text-purple-600 shadow-sm'
+                        : 'text-gray-600 hover:text-purple-600'
+                    }`}
+                  >
+                    Rent
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
+
+            <form onSubmit={handleSearch} className="space-y-4">
+              {/* Main Search Row */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                <div className="relative group">
+                  <MagnifyingGlassIcon className="absolute left-3 top-2.5 h-4 w-4 text-gray-400 group-focus-within:text-purple-500 transition-colors" />
+                  <input
+                    type="text"
+                    placeholder={`Search ${productTypes[searchType]?.label.toLowerCase()}...`}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-sm bg-white/80 backdrop-blur-sm text-base"
+                  />
+                </div>
+                
+                <div className="relative group">
+                  <MapPinIcon className="absolute left-3 top-2.5 h-4 w-4 text-gray-400 group-focus-within:text-purple-500 transition-colors" />
+                  <select
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-sm appearance-none bg-white/80 backdrop-blur-sm text-base"
+                  >
+                    <option value="">Select Location</option>
+                    {popularLocations.map((loc) => (
+                      <option key={loc} value={loc}>{loc}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Filters Row */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <select
+                  value={subProductType}
+                  onChange={(e) => setSubProductType(e.target.value)}
+                  className="px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-sm bg-white/80 backdrop-blur-sm text-base"
+                >
+                  <option value="">{productTypes[searchType]?.label} Type</option>
+                  {productTypes[searchType]?.subTypes.map((type) => (
+                    <option key={type.value} value={type.value}>
+                      {type.label}
+                    </option>
+                  ))}
+                </select>
+
+                <select
+                  value={priceRange}
+                  onChange={(e) => setPriceRange(e.target.value)}
+                  className="px-3 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all text-sm bg-white/80 backdrop-blur-sm text-base"
+                >
+                  <option value="">Price Range</option>
+                  {priceRanges.map((range) => (
+                    <option key={range.label} value={range.label}>
+                      {range.label}
+                    </option>
+                  ))}
+                </select>
+
+                <Button 
+                  type="submit" 
+                  disabled={isSearching}
+                  className="w-full py-2.5 text-sm bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 transform hover:scale-105 transition-all duration-200 shadow-lg"
+                >
+                  {isSearching ? (
+                    <div className="flex items-center justify-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Searching...
+                    </div>
+                  ) : (
+                    <>
+                      <MagnifyingGlassIcon className="h-4 w-4 mr-2" />
+                      Search Now
+                    </>
+                  )}
+                </Button>
+              </div>
+            </form>          
           </div>
         </div>
+
       </div>
 
       {/* Custom CSS for animations */}
