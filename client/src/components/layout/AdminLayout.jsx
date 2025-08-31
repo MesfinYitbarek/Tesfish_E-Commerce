@@ -19,9 +19,12 @@ import {
   WrenchScrewdriverIcon,
   ClipboardDocumentListIcon,
   CurrencyDollarIcon,
-  CalendarIcon
+  CalendarIcon,
+  UserIcon,
+  ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline';
 import { logout } from '../../store/slices/authSlice';
+import NotificationPanel from '../../pages/dashboard/NotificationPanel';
 
 const AdminLayout = () => {
   const location = useLocation();
@@ -31,13 +34,15 @@ const AdminLayout = () => {
   const { stats } = useSelector((state) => state.serviceInquiry);
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   
-  // Mock admin stats (you can replace with actual data from Redux)
+  // Admin stats - replace with actual data from Redux
   const pendingApprovals = 12;
   const flaggedUsers = 3;
   const pendingServiceInquiries = stats?.statusDistribution?.find(s => s._id === 'pending')?.count || 0;
   const pendingQuotes = stats?.statusDistribution?.find(s => s._id === 'quoted')?.count || 0;
+  const totalNotifications = pendingApprovals + flaggedUsers + pendingServiceInquiries;
 
   useEffect(() => {
     // Check for dark mode preference
@@ -58,80 +63,28 @@ const AdminLayout = () => {
     navigate('/auth/login');
   };
 
-  const NavItem = ({ to, icon, label, badge, end = false, children = null }) => {
+  const NavItem = ({ to, icon, label, badge, end = false }) => {
     const isActive = end 
       ? location.pathname === to 
       : location.pathname.startsWith(to);
 
-    const [isExpanded, setIsExpanded] = useState(isActive);
-
-    return (
-      <div>
-        <Link
-          to={to}
-          className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-            isActive
-              ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300'
-              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-          }`}
-          onClick={(e) => {
-            if (children) {
-              e.preventDefault();
-              setIsExpanded(!isExpanded);
-            } else {
-              setSidebarOpen(false);
-            }
-          }}
-        >
-          <span className="mr-3">{icon}</span>
-          <span className="flex-1">{label}</span>
-          {badge && (
-            <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-              {badge}
-            </span>
-          )}
-          {children && (
-            <svg
-              className={`ml-2 h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          )}
-        </Link>
-        
-        {children && isExpanded && (
-          <div className="ml-6 mt-2 space-y-1">
-            {children}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const SubNavItem = ({ to, label, badge }) => {
-    const isActive = location.pathname === to;
-    
     return (
       <Link
         to={to}
-        className={`block px-3 py-2 text-sm rounded-lg transition-colors ${
+        className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
           isActive
-            ? 'bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400'
-            : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+            ? 'bg-primary-100 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
         }`}
         onClick={() => setSidebarOpen(false)}
       >
-        <div className="flex items-center justify-between">
-          <span>{label}</span>
-          {badge && (
-            <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-              {badge}
-            </span>
-          )}
-        </div>
+        <span className="mr-3">{icon}</span>
+        <span className="flex-1">{label}</span>
+        {badge && (
+          <span className="ml-auto bg-red-500 text-white text-xs px-2 py-1 rounded-full">
+            {badge}
+          </span>
+        )}
       </Link>
     );
   };
@@ -153,8 +106,8 @@ const AdminLayout = () => {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <Link to="/admin" className="text-xl font-bold text-red-600 dark:text-red-400">
-              Admin Panel
+            <Link to="/" className="text-xl font-bold text-primary-600 dark:text-primary-400">
+              CitiLights
             </Link>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -163,13 +116,58 @@ const AdminLayout = () => {
               <XMarkIcon className="h-6 w-6" />
             </button>
           </div>
+<div className="px-6 py-3 bg-red-50 dark:bg-red-900/20 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center space-x-2">
+              <ShieldCheckIcon className="h-5 w-5 text-red-600 dark:text-red-400" />
+              <div>
+                <p className="text-sm font-medium text-red-800 dark:text-red-200">Administrator Mode</p>
+                <p className="text-xs text-red-600 dark:text-red-400">Full system access</p>
+              </div>
+            </div>
+          </div>
+          {/* Quick Stats */}
+          {/* {totalNotifications > 0 && (
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="grid grid-cols-2 gap-3">
+                {pendingApprovals > 0 && (
+                  <Link
+                    to="/admin/listings"
+                    className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <BuildingOfficeIcon className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                      <div>
+                        <p className="text-sm font-medium text-orange-900 dark:text-orange-100">{pendingApprovals}</p>
+                        <p className="text-xs text-orange-700 dark:text-orange-300">Listings</p>
+                      </div>
+                    </div>
+                  </Link>
+                )}
+                
+                {flaggedUsers > 0 && (
+                  <Link
+                    to="/admin/users"
+                    className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <ExclamationTriangleIcon className="h-4 w-4 text-red-600 dark:text-red-400" />
+                      <div>
+                        <p className="text-sm font-medium text-red-900 dark:text-red-100">{flaggedUsers}</p>
+                        <p className="text-xs text-red-700 dark:text-red-300">Users</p>
+                      </div>
+                    </div>
+                  </Link>
+                )}
+              </div>
+            </div>
+          )} */}
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
             <NavItem 
               to="/admin" 
               icon={<HomeIcon className="h-5 w-5" />}
-              label="Dashboard"
+              label="Overview"
               end 
             />
             
@@ -177,37 +175,19 @@ const AdminLayout = () => {
               to="/admin/users" 
               icon={<UsersIcon className="h-5 w-5" />}
               label="User Management"
-              badge={flaggedUsers > 0 ? flaggedUsers : null}
             />
             
             <NavItem 
               to="/admin/listings" 
               icon={<BuildingOfficeIcon className="h-5 w-5" />}
               label="Listing Moderation"
-              badge={pendingApprovals > 0 ? pendingApprovals : null}
             />
 
-            {/* Service Management */}
             <NavItem 
               to="/admin/services" 
               icon={<WrenchScrewdriverIcon className="h-5 w-5" />}
               label="Service Management"
-              badge={pendingServiceInquiries + pendingQuotes > 0 ? pendingServiceInquiries + pendingQuotes : null}
-            >
-              <SubNavItem 
-                to="/admin/services" 
-                label="Overview" 
-              />
-              <SubNavItem 
-                to="/admin/services/inquiries" 
-                label="All Inquiries" 
-                badge={pendingServiceInquiries > 0 ? pendingServiceInquiries : null}
-              />
-              <SubNavItem 
-                to="/admin/services/analytics" 
-                label="Analytics" 
-              />
-            </NavItem>
+            />
             
             <NavItem 
               to="/admin/analytics" 
@@ -220,42 +200,20 @@ const AdminLayout = () => {
               icon={<ExclamationTriangleIcon className="h-5 w-5" />}
               label="Reports & Issues"
             />
-            
-            <NavItem 
-              to="/admin/content" 
-              icon={<DocumentTextIcon className="h-5 w-5" />}
-              label="Content Management"
-            />
-            
-            <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
-              <p className="px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
-                System
-              </p>
-              <NavItem 
-                to="/admin/settings" 
-                icon={<CogIcon className="h-5 w-5" />}
-                label="System Settings"
-              />
-              <NavItem 
-                to="/admin/security" 
-                icon={<ShieldCheckIcon className="h-5 w-5" />}
-                label="Security & Logs"
-              />
-            </div>
           </nav>
 
-          {/* Admin Profile */}
+          {/* User Profile */}
           <div className="p-4 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center">
-              <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center text-white font-semibold">
+              <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center text-white font-semibold">
                 {user?.firstName?.charAt(0) || 'A'}
               </div>
               <div className="ml-3 flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                   {user?.firstName} {user?.lastName}
                 </p>
-                <p className="text-xs text-red-600 dark:text-red-400 truncate">
-                  Administrator
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  {user?.email}
                 </p>
               </div>
               <button
@@ -263,9 +221,7 @@ const AdminLayout = () => {
                 className="ml-2 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                 title="Logout"
               >
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013 3v1" />
-                </svg>
+                <ArrowRightOnRectangleIcon className="h-4 w-4" />
               </button>
             </div>
           </div>
@@ -294,7 +250,7 @@ const AdminLayout = () => {
                   <input
                     type="text"
                     placeholder="Search users, listings, inquiries..."
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
                   />
                 </div>
               </div>
@@ -305,28 +261,22 @@ const AdminLayout = () => {
               <div className="hidden xl:flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-400">
                 {pendingServiceInquiries > 0 && (
                   <Link
-                    to="/admin/services/inquiries?status=pending"
-                    className="flex items-center space-x-1 hover:text-gray-800 dark:hover:text-gray-200"
+                    to="/admin/services"
+                    className="flex items-center space-x-1 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
                   >
                     <ClipboardDocumentListIcon className="h-4 w-4" />
-                    <span>{pendingServiceInquiries} pending</span>
+                    <span>{pendingServiceInquiries} inquiries</span>
                   </Link>
                 )}
                 {pendingQuotes > 0 && (
                   <Link
-                    to="/admin/services/inquiries?status=quoted"
-                    className="flex items-center space-x-1 hover:text-gray-800 dark:hover:text-gray-200"
+                    to="/admin/services"
+                    className="flex items-center space-x-1 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
                   >
                     <CurrencyDollarIcon className="h-4 w-4" />
                     <span>{pendingQuotes} quotes</span>
                   </Link>
                 )}
-              </div>
-
-              {/* Admin Badge */}
-              <div className="hidden md:flex items-center space-x-2 px-3 py-1 bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300 rounded-full text-sm font-medium">
-                <ShieldCheckIcon className="h-4 w-4" />
-                <span>Admin Mode</span>
               </div>
 
               {/* Dark mode toggle */}
@@ -342,21 +292,27 @@ const AdminLayout = () => {
               </button>
 
               {/* Notifications */}
-              <button className="relative p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors">
+              <button
+                onClick={() => setNotificationsOpen(true)}
+                className="relative p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
+              >
                 <BellIcon className="h-5 w-5" />
-                {(pendingApprovals + flaggedUsers + pendingServiceInquiries + pendingQuotes) > 0 && (
+                {totalNotifications > 0 && (
                   <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
                 )}
               </button>
 
-              {/* Quick Actions */}
-              <Link
-                to="/dashboard"
-                className="hidden md:flex items-center space-x-2 px-3 py-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
-              >
-                <HomeIcon className="h-4 w-4" />
-                <span>Back to Dashboard</span>
-              </Link>
+              {/* Profile dropdown */}
+              <div className="relative">
+                <button className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100">
+                  <div className="w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                    {user?.firstName?.charAt(0) || 'A'}
+                  </div>
+                  <span className="hidden lg:block font-medium">
+                    {user?.firstName} {user?.lastName}
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
         </header>
@@ -366,6 +322,12 @@ const AdminLayout = () => {
           <Outlet />
         </main>
       </div>
+
+      {/* Notification Panel */}
+      <NotificationPanel
+        isOpen={notificationsOpen}
+        onClose={() => setNotificationsOpen(false)}
+      />
     </div>
   );
 };
