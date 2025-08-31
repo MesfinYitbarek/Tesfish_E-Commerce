@@ -259,8 +259,12 @@ export const API_ENDPOINTS = {
   },
   NOTIFICATIONS: {
     LIST: '/notifications',
-    MARK_READ: '/notifications/:id/read',
-    MARK_ALL_READ: '/notifications/mark-all-read'
+    STATS: '/notifications/stats',
+    CREATE: '/notifications',
+    MARK_READ: '/notifications',
+    MARK_ALL_READ: '/notifications/mark-all-read',
+    DELETE: '/notifications',
+    CLEAR_READ: '/notifications/clear-read'
   },
   CATEGORIES: {
     LIST: '/categories',
@@ -417,7 +421,11 @@ export const NOTIFICATION_TYPES = {
   SYSTEM: 'system',
   PROMOTION: 'promotion'
 };
-
+export const NOTIFICATION_PRIORITIES = {
+  LOW: 'low',
+  MEDIUM: 'medium',
+  HIGH: 'high'
+};
 export const ETHIOPIAN_CITIES = [
   "Addis Ababa",
   "Dire Dawa",

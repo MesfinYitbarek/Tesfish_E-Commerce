@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import { 
   XMarkIcon,
   BellIcon,
@@ -8,125 +9,164 @@ import {
   TrashIcon,
   EnvelopeIcon,
   CalendarIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  CurrencyDollarIcon,
+  StarIcon,
+  CogIcon,
+  ShoppingCartIcon
 } from '@heroicons/react/24/outline';
+import { 
+  fetchNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  deleteNotification,
+  clearReadNotifications,
+  optimisticMarkAsRead,
+  optimisticDelete,
+  setNotificationFilters,
+  selectNotifications,
+  selectUnreadCount,
+  selectNotificationLoading,
+  selectNotificationError,
+  selectNotificationFilters
+} from '../../store/slices/notificationSlice';
 import { formatRelativeTime } from '../../utils/helpers';
 import Button from '../../components/ui/Button';
-
+import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { toast } from 'react-hot-toast';
+import { NOTIFICATION_TYPES } from '../../constants';
 
 const NotificationPanel = ({ isOpen, onClose }) => {
-  const [notifications, setNotifications] = useState([]);
+  const dispatch = useDispatch();
+  const notifications = useSelector(selectNotifications);
+  const unreadCount = useSelector(selectUnreadCount);
+  const loading = useSelector(selectNotificationLoading);
+  const error = useSelector(selectNotificationError);
+  const filters = useSelector(selectNotificationFilters);
+  
   const [filter, setFilter] = useState('all'); // all, unread, read
-  const [isLoading, setIsLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState({});
 
   useEffect(() => {
     if (isOpen) {
-      fetchNotifications();
+      // Fetch notifications when panel opens
+      dispatch(fetchNotifications({ 
+        page: 1, 
+        limit: 20,
+        ...(filter === 'unread' && { isRead: false }),
+        ...(filter === 'read' && { isRead: true })
+      }));
     }
-  }, [isOpen]);
+  }, [isOpen, dispatch, filter]);
 
-  const fetchNotifications = async () => {
-    setIsLoading(true);
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+    }
+  }, [error]);
+
+  const handleFilterChange = (newFilter) => {
+    setFilter(newFilter);
+    const filterParams = { page: 1, limit: 20 };
+    
+    if (newFilter === 'unread') {
+      filterParams.isRead = false;
+    } else if (newFilter === 'read') {
+      filterParams.isRead = true;
+    }
+    
+    dispatch(setNotificationFilters(filterParams));
+  };
+
+  const handleMarkAsRead = async (notificationId) => {
+    if (actionLoading[notificationId]) return;
+    
+    setActionLoading(prev => ({ ...prev, [notificationId]: true }));
+    
     try {
-      // Simulate API call
-      setTimeout(() => {
-        setNotifications([
-          {
-            id: '1',
-            type: 'inquiry',
-            title: 'New inquiry received',
-            message: 'Sarah Johnson is interested in your Modern 3BR Apartment listing',
-            read: false,
-            createdAt: new Date(Date.now() - 30 * 60 * 1000), // 30 minutes ago
-            actionUrl: '/dashboard/messages/1',
-            icon: EnvelopeIcon,
-            color: 'blue'
-          },
-          {
-            id: '2',
-            type: 'booking',
-            title: 'Booking confirmed',
-            message: 'Michael Chen has confirmed the Interior Design consultation for tomorrow at 2:00 PM',
-            read: false,
-            createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
-            actionUrl: '/dashboard/bookings/2',
-            icon: CalendarIcon,
-            color: 'green'
-          },
-          {
-            id: '3',
-            type: 'system',
-            title: 'Listing approved',
-            message: 'Your listing "Luxury Villa in Old Airport" has been approved and is now live',
-            read: true,
-            createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 hours ago
-            actionUrl: '/dashboard/products/3',
-            icon: CheckIcon,
-            color: 'green'
-          },
-          {
-            id: '4',
-            type: 'alert',
-            title: 'Payment reminder',
-            message: 'Your featured listing promotion expires in 2 days',
-            read: false,
-            createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 hours ago
-            actionUrl: '/dashboard/billing',
-            icon: ExclamationTriangleIcon,
-            color: 'yellow'
-          },
-          {
-            id: '5',
-            type: 'view',
-            title: 'High interest listing',
-            message: 'Your Project Management Service has received 50+ views today',
-            read: true,
-            createdAt: new Date(Date.now() - 8 * 60 * 60 * 1000), // 8 hours ago
-            actionUrl: '/dashboard/analytics',
-            icon: EyeIcon,
-            color: 'purple'
-          }
-        ]);
-        setIsLoading(false);
-      }, 500);
+      // Optimistic update for better UX
+      dispatch(optimisticMarkAsRead(notificationId));
+      
+      // Then update on server
+      await dispatch(markNotificationAsRead(notificationId)).unwrap();
     } catch (error) {
-      console.error('Error fetching notifications:', error);
-      setIsLoading(false);
+      toast.error('Failed to mark notification as read');
+      // Refetch to restore correct state
+      dispatch(fetchNotifications(filters));
+    } finally {
+      setActionLoading(prev => ({ ...prev, [notificationId]: false }));
     }
   };
 
-  const markAsRead = async (notificationId) => {
+  const handleMarkAllAsRead = async () => {
+    if (unreadCount === 0) return;
+    
     try {
-      setNotifications(prev => 
-        prev.map(notif => 
-          notif.id === notificationId 
-            ? { ...notif, read: true }
-            : notif
-        )
-      );
+      await dispatch(markAllNotificationsAsRead()).unwrap();
+      toast.success('All notifications marked as read');
     } catch (error) {
-      console.error('Error marking notification as read:', error);
+      toast.error('Failed to mark all notifications as read');
     }
   };
 
-  const markAllAsRead = async () => {
+  const handleDeleteNotification = async (notificationId) => {
+    if (actionLoading[notificationId]) return;
+    
+    setActionLoading(prev => ({ ...prev, [notificationId]: true }));
+    
     try {
-      setNotifications(prev => 
-        prev.map(notif => ({ ...notif, read: true }))
-      );
+      // Optimistic update
+      dispatch(optimisticDelete(notificationId));
+      
+      // Then delete on server
+      await dispatch(deleteNotification(notificationId)).unwrap();
+      toast.success('Notification deleted');
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
+      toast.error('Failed to delete notification');
+      // Refetch to restore correct state
+      dispatch(fetchNotifications(filters));
+    } finally {
+      setActionLoading(prev => ({ ...prev, [notificationId]: false }));
     }
   };
 
-  const deleteNotification = async (notificationId) => {
+  const handleClearReadNotifications = async () => {
     try {
-      setNotifications(prev => 
-        prev.filter(notif => notif.id !== notificationId)
-      );
+      await dispatch(clearReadNotifications()).unwrap();
+      toast.success('Read notifications cleared');
     } catch (error) {
-      console.error('Error deleting notification:', error);
+      toast.error('Failed to clear read notifications');
     }
+  };
+
+  const getNotificationIcon = (type) => {
+    const iconMap = {
+      [NOTIFICATION_TYPES.ORDER]: ShoppingCartIcon,
+      [NOTIFICATION_TYPES.PAYMENT]: CurrencyDollarIcon,
+      [NOTIFICATION_TYPES.BOOKING]: CalendarIcon,
+      [NOTIFICATION_TYPES.CHAT]: EnvelopeIcon,
+      [NOTIFICATION_TYPES.REVIEW]: StarIcon,
+      [NOTIFICATION_TYPES.SYSTEM]: CogIcon,
+      [NOTIFICATION_TYPES.PROMOTION]: ExclamationTriangleIcon
+    };
+    return iconMap[type] || BellIcon;
+  };
+
+  const getNotificationColor = (type, priority) => {
+    if (priority === 'high') {
+      return 'red';
+    }
+    
+    const colorMap = {
+      [NOTIFICATION_TYPES.ORDER]: 'blue',
+      [NOTIFICATION_TYPES.PAYMENT]: 'green',
+      [NOTIFICATION_TYPES.BOOKING]: 'purple',
+      [NOTIFICATION_TYPES.CHAT]: 'blue',
+      [NOTIFICATION_TYPES.REVIEW]: 'yellow',
+      [NOTIFICATION_TYPES.SYSTEM]: 'gray',
+      [NOTIFICATION_TYPES.PROMOTION]: 'orange'
+    };
+    return colorMap[type] || 'blue';
   };
 
   const getColorClasses = (color) => {
@@ -135,18 +175,49 @@ const NotificationPanel = ({ isOpen, onClose }) => {
       green: 'bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400',
       yellow: 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400',
       purple: 'bg-purple-100 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400',
-      red: 'bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400'
+      red: 'bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400',
+      orange: 'bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400',
+      gray: 'bg-gray-100 dark:bg-gray-900/20 text-gray-600 dark:text-gray-400'
     };
     return colors[color] || colors.blue;
   };
 
+  const getPriorityIndicator = (priority) => {
+    if (priority === 'high') {
+      return <div className="w-2 h-2 bg-red-500 rounded-full"></div>;
+    }
+    if (priority === 'medium') {
+      return <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>;
+    }
+    return null;
+  };
+
+  const getActionUrl = (notification) => {
+    // Generate action URL based on notification type and related data
+    if (notification.actionUrl) {
+      return notification.actionUrl;
+    }
+    
+    if (notification.relatedOrder) {
+      return `/dashboard/orders/${notification.relatedOrder._id}`;
+    }
+    
+    if (notification.relatedProduct) {
+      return `/dashboard/products/${notification.relatedProduct._id}`;
+    }
+    
+    if (notification.relatedBooking) {
+      return `/dashboard/bookings/${notification.relatedBooking._id}`;
+    }
+    
+    return null;
+  };
+
   const filteredNotifications = notifications.filter(notif => {
-    if (filter === 'unread') return !notif.read;
-    if (filter === 'read') return notif.read;
+    if (filter === 'unread') return !notif.isRead;
+    if (filter === 'read') return notif.isRead;
     return true;
   });
-
-  const unreadCount = notifications.filter(notif => !notif.read).length;
 
   if (!isOpen) return null;
 
@@ -192,7 +263,7 @@ const NotificationPanel = ({ isOpen, onClose }) => {
               ].map(filterOption => (
                 <button
                   key={filterOption.key}
-                  onClick={() => setFilter(filterOption.key)}
+                  onClick={() => handleFilterChange(filterOption.key)}
                   className={`flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                     filter === filterOption.key
                       ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
@@ -204,114 +275,175 @@ const NotificationPanel = ({ isOpen, onClose }) => {
               ))}
             </div>
 
-            {unreadCount > 0 && (
-              <div className="mt-3">
+            {/* Action Buttons */}
+            <div className="mt-3 space-y-2">
+              {unreadCount > 0 && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={markAllAsRead}
+                  onClick={handleMarkAllAsRead}
                   className="w-full"
+                  disabled={loading}
                 >
                   Mark All as Read
                 </Button>
-              </div>
-            )}
+              )}
+              
+              {notifications.some(n => n.isRead) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearReadNotifications}
+                  className="w-full text-red-600 hover:text-red-700"
+                  disabled={loading}
+                >
+                  Clear Read Notifications
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Notifications List */}
           <div className="flex-1 overflow-y-auto">
-            {isLoading ? (
+            {loading && notifications.length === 0 ? (
+              <div className="flex items-center justify-center p-8">
+                <LoadingSpinner size="md" />
+              </div>
+            ) : error ? (
               <div className="p-4">
-                {[...Array(5)].map((_, index) => (
-                  <div key={index} className="animate-pulse mb-4">
-                    <div className="flex space-x-3">
-                      <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
-                      <div className="flex-1 space-y-2">
-                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
-                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 text-center">
+                  <ExclamationTriangleIcon className="h-8 w-8 text-red-500 mx-auto mb-2" />
+                  <p className="text-red-700 dark:text-red-300 text-sm">{error}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => dispatch(fetchNotifications(filters))}
+                    className="mt-2"
+                  >
+                    Retry
+                  </Button>
+                </div>
               </div>
             ) : filteredNotifications.length > 0 ? (
               <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredNotifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
-                      !notification.read ? 'bg-blue-50 dark:bg-blue-900/10' : ''
-                    }`}
-                  >
-                    <div className="flex items-start space-x-3">
-                      {/* Icon */}
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        getColorClasses(notification.color)
-                      }`}>
-                        <notification.icon className="h-5 w-5" />
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <h4 className={`text-sm font-medium mb-1 ${
-                              !notification.read 
-                                ? 'text-gray-900 dark:text-gray-100' 
-                                : 'text-gray-700 dark:text-gray-300'
-                            }`}>
-                              {notification.title}
-                            </h4>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
-                              {notification.message}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                              {formatRelativeTime(notification.createdAt)}
-                            </p>
+                {filteredNotifications.map((notification) => {
+                  const IconComponent = getNotificationIcon(notification.type);
+                  const color = getNotificationColor(notification.type, notification.priority);
+                  const actionUrl = getActionUrl(notification);
+                  
+                  return (
+                    <div
+                      key={notification._id}
+                      className={`p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+                        !notification.isRead ? 'bg-blue-50 dark:bg-blue-900/10' : ''
+                      }`}
+                    >
+                      <div className="flex items-start space-x-3">
+                        {/* Icon with Priority Indicator */}
+                        <div className="relative flex-shrink-0">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            getColorClasses(color)
+                          }`}>
+                            <IconComponent className="h-5 w-5" />
                           </div>
-
-                          {/* Actions */}
-                          <div className="flex items-center space-x-1 ml-2">
-                            {!notification.read && (
-                              <button
-                                onClick={() => markAsRead(notification.id)}
-                                className="p-1 text-gray-400 hover:text-blue-500"
-                                title="Mark as read"
-                              >
-                                <CheckIcon className="h-4 w-4" />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => deleteNotification(notification.id)}
-                              className="p-1 text-gray-400 hover:text-red-500"
-                              title="Delete notification"
-                            >
-                              <TrashIcon className="h-4 w-4" />
-                            </button>
-                          </div>
+                          {/* Priority indicator */}
+                          {getPriorityIndicator(notification.priority) && (
+                            <div className="absolute -top-1 -right-1">
+                              {getPriorityIndicator(notification.priority)}
+                            </div>
+                          )}
                         </div>
 
-                        {/* Action Link */}
-                        {notification.actionUrl && (
-                          <div className="mt-2">
-                            <Link
-                              to={notification.actionUrl}
-                              onClick={() => {
-                                if (!notification.read) {
-                                  markAsRead(notification.id);
-                                }
-                                onClose();
-                              }}
-                              className="text-xs text-primary-500 hover:text-primary-600 font-medium"
-                            >
-                              View Details →
-                            </Link>
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h4 className={`text-sm font-medium mb-1 ${
+                                !notification.isRead 
+                                  ? 'text-gray-900 dark:text-gray-100' 
+                                  : 'text-gray-700 dark:text-gray-300'
+                              }`}>
+                                {notification.title}
+                              </h4>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                                {notification.message}
+                              </p>
+                              
+                              {/* Related Data Preview */}
+                              {notification.relatedProduct && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                  Property: {notification.relatedProduct.title}
+                                </p>
+                              )}
+                              {notification.relatedOrder && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                  Order: #{notification.relatedOrder.orderNumber}
+                                </p>
+                              )}
+                              {notification.relatedBooking && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                  Booking: {notification.relatedBooking.bookingType}
+                                </p>
+                              )}
+                              
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                {formatRelativeTime(notification.createdAt)}
+                              </p>
+                            </div>
+
+                            {/* Actions */}
+                            <div className="flex items-center space-x-1 ml-2">
+                              {!notification.isRead && (
+                                <button
+                                  onClick={() => handleMarkAsRead(notification._id)}
+                                  disabled={actionLoading[notification._id]}
+                                  className="p-1 text-gray-400 hover:text-blue-500 disabled:opacity-50"
+                                  title="Mark as read"
+                                >
+                                  {actionLoading[notification._id] ? (
+                                    <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                  ) : (
+                                    <CheckIcon className="h-4 w-4" />
+                                  )}
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDeleteNotification(notification._id)}
+                                disabled={actionLoading[notification._id]}
+                                className="p-1 text-gray-400 hover:text-red-500 disabled:opacity-50"
+                                title="Delete notification"
+                              >
+                                {actionLoading[notification._id] ? (
+                                  <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                  <TrashIcon className="h-4 w-4" />
+                                )}
+                              </button>
+                            </div>
                           </div>
-                        )}
+
+                          {/* Action Link */}
+                          {actionUrl && (
+                            <div className="mt-2">
+                              <Link
+                                to={actionUrl}
+                                onClick={() => {
+                                  if (!notification.isRead) {
+                                    handleMarkAsRead(notification._id);
+                                  }
+                                  onClose();
+                                }}
+                                className="text-xs text-primary-500 hover:text-primary-600 font-medium inline-flex items-center"
+                              >
+                                {notification.actionLabel || 'View Details'} →
+                              </Link>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="p-8 text-center">
@@ -322,7 +454,7 @@ const NotificationPanel = ({ isOpen, onClose }) => {
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   {filter === 'unread' 
                     ? 'All caught up! Check back later for new updates.' 
-                    : 'You\'ll see notifications about inquiries, bookings, and updates here.'
+                    : 'You\'ll see notifications about orders, bookings, and updates here.'
                   }
                 </p>
               </div>
