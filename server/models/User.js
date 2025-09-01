@@ -12,13 +12,20 @@ const userSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true,
-    minlength: 6
+    minlength: 6,
+    select: false // prevent returning by default (safe for Google users with dummy password)
   },
   userType: {
     type: String,
     enum: ['company', 'individual', 'customer', 'admin'],
     required: true
+  },
+
+  // Social Logins
+  googleId: {
+    type: String,
+    unique: true,
+    sparse: true // allows null for non-Google users
   },
   
   // Account Status

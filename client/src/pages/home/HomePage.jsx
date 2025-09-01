@@ -3,11 +3,11 @@ import { useDispatch } from 'react-redux';
 import HeroSection from '../../components/home/HeroSection';
 import FeaturedProperties from '../../components/home/FeaturedProperties';
 import ServicesShowcase from '../../components/home/ServicesShowcase';
-import StatsSection from '../../components/home/StatsSection';
+//import StatsSection from '../../components/home/StatsSection';
 import TestimonialsSection from '../../components/home/TestimonialsSection';
 import CategoryShowcase from '../../components/home/CategoryShowcase';
 import RecentListings from '../../components/home/RecentListings';
-import NewsletterSection from '../../components/home/NewsletterSection';
+//import NewsletterSection from '../../components/home/NewsletterSection';
 import CallToActionSection from '../../components/home/CallToActionSection';
 import { setLoading } from '../../store/slices/uiSlice';
 
@@ -40,9 +40,6 @@ const HomePage = () => {
       {/* Services Showcase */}
       <ServicesShowcase />
       
-      {/* Stats Section */}
-      {/* <StatsSection /> */}
-      
       {/* Recent Listings */}
       <RecentListings />
       
@@ -51,9 +48,7 @@ const HomePage = () => {
       
       {/* Call to Action */}
       <CallToActionSection />
-      
-      {/* Newsletter */}
-      {/* <NewsletterSection /> */}
+
     </div>
   );
 };

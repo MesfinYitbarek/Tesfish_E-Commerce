@@ -10,6 +10,7 @@ import {
   getMe,
   updateProfile
 } from '../../controllers/auth/authController.js';
+import { googleLogin } from '../../controllers/auth/googleAuthController.js'; // ✅ import google login controller
 import { protect } from '../../middleware/auth/authMiddleware.js';
 
 const router = express.Router();
@@ -26,9 +27,14 @@ const loginValidation = [
   body('password').exists()
 ];
 
+const googleLoginValidation = [
+  body('token').notEmpty().withMessage('Google ID token is required') // ✅ validate token
+];
+
 // Public routes
 router.post('/register', registerValidation, register);
-router.post('/login', loginValidation, login);
+router.post('/login', login);
+router.post('/google-login', googleLogin);
 router.post('/logout', logout);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password/:token', resetPassword);

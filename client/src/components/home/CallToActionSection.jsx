@@ -1,3 +1,4 @@
+// components/home/CallToActionSection.jsx
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { 
@@ -11,7 +12,8 @@ import {
   CheckCircleIcon,
   StarIcon,
   ClockIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon,
+  CubeIcon
 } from '@heroicons/react/24/outline';
 import Button from '../ui/Button';
 
@@ -22,17 +24,17 @@ const CallToActionSection = () => {
     {
       type: 'buyer',
       title: 'Looking to Buy or Rent?',
-      subtitle: 'Find Your Dream Property',
-      description: 'Discover your perfect property from thousands of verified listings across Ethiopia with advanced search and filtering options.',
+      subtitle: 'Find Your Perfect Property',
+      description: 'Discover your ideal property from thousands of verified listings across Ethiopia with advanced search and filtering options.',
       icon: HomeIcon,
       color: 'from-blue-500 to-blue-600',
       lightColor: 'from-blue-50 to-blue-100',
       darkColor: 'from-blue-900 to-blue-800',
-      image: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop',
+      image: 'https://pfst.cf2.poecdn.net/base/image/cd7b1680a45c74758acc3c4d8f1ffd52cdcefba38b486e3b1224552df90611c6?w=400&h=300',
       actions: [
         {
           label: 'Browse Properties',
-          href: '/products?category=real-estate',
+          href: '/products?productType=homes',
           variant: 'primary',
           icon: MagnifyingGlassIcon
         },
@@ -43,16 +45,13 @@ const CallToActionSection = () => {
           icon: ArrowRightIcon
         }
       ],
-      stats: [
-        { label: 'Properties', value: '10K+', icon: HomeIcon },
-        { label: 'Locations', value: '50+', icon: CheckCircleIcon },
-        { label: 'Price Range', value: 'All Budgets', icon: StarIcon }
-      ],
       features: [
-        'Verified listings only',
+        'Verified property listings',
         'Virtual property tours',
-        'Expert guidance available',
-        'Flexible financing options'
+        'Direct seller contact',
+        'Flexible viewing options',
+        'All property types available',
+        'Secure transaction process'
       ]
     },
     {
@@ -64,7 +63,7 @@ const CallToActionSection = () => {
       color: 'from-green-500 to-green-600',
       lightColor: 'from-green-50 to-green-100',
       darkColor: 'from-green-900 to-green-800',
-      image: 'https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?w=400&h=300&fit=crop',
+      image: 'https://pfst.cf2.poecdn.net/base/image/c74ce0df0a232131752ff4a283afe51f3b93c6ceac55cfc3dc239d2a80d16c85?w=400&h=300',
       actions: [
         {
           label: 'List Property',
@@ -74,57 +73,51 @@ const CallToActionSection = () => {
         },
         {
           label: 'Learn More',
-          href: '/how-it-works/selling',
+          href: '/how-it-works',
           variant: 'outline',
           icon: ArrowRightIcon
         }
       ],
-      stats: [
-        { label: 'Free Listing', value: 'No Cost', icon: CheckCircleIcon },
-        { label: 'Avg. Sale Time', value: '30 Days', icon: ClockIcon },
-        { label: 'Success Rate', value: '85%', icon: StarIcon }
-      ],
       features: [
-        'Professional photography',
-        'Marketing across channels',
-        'Dedicated support team',
-        'Legal documentation help'
+        'Free property listing',
+        'Professional photo upload',
+        'Marketing across platforms',
+        'Direct buyer communication',
+        'Listing management tools',
+        'Sales tracking dashboard'
       ]
     },
     {
-      type: 'service',
-      title: 'Offer Professional Services?',
-      subtitle: 'Join Our Service Network',
-      description: 'Connect with clients looking for construction, design, and consulting services. Grow your business with our platform.',
-      icon: UserGroupIcon,
+      type: 'trader',
+      title: 'Want to Sell Products?',
+      subtitle: 'Join Our Marketplace',
+      description: 'Sell vehicles, electronics, furniture, and more. Connect with buyers across Ethiopia and grow your business online.',
+      icon: CubeIcon,
       color: 'from-purple-500 to-purple-600',
       lightColor: 'from-purple-50 to-purple-100',
       darkColor: 'from-purple-900 to-purple-800',
-      image: 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=400&h=300&fit=crop',
+      image: 'https://pfst.cf2.poecdn.net/base/image/9d9c71dec12723ff6b004d13a2d69d305620727d248be7b4c82a1d30974c4425?w=400&h=300',
       actions: [
         {
-          label: 'Join as Professional',
-          href: '/auth/register?type=company',
+          label: 'Start Selling',
+          href: '/auth/register?type=individual',
           variant: 'primary',
-          icon: UserGroupIcon
+          icon: CubeIcon
         },
         {
-          label: 'View Services',
-          href: '/products?category=services',
+          label: 'View Products',
+          href: '/products?productType=others',
           variant: 'outline',
           icon: ArrowRightIcon
         }
       ],
-      stats: [
-        { label: 'Active Projects', value: '1K+', icon: CheckCircleIcon },
-        { label: 'Professionals', value: '500+', icon: UserGroupIcon },
-        { label: 'Avg. Rating', value: '4.8★', icon: StarIcon }
-      ],
       features: [
-        'Verified professional badge',
-        'Project management tools',
-        'Client communication portal',
-        'Payment protection system'
+        'Multiple product categories',
+        'Easy listing management',
+        'Secure payment options',
+        'Buyer communication tools',
+        'Inventory tracking',
+        'Sales analytics dashboard'
       ]
     }
   ];
@@ -155,8 +148,8 @@ const CallToActionSection = () => {
             </span>
           </h2>
           <p className="text-sm lg:text-base text-purple-100 max-w-2xl mx-auto leading-relaxed">
-            Whether you're buying, selling, or offering services, CitiLights provides 
-            the perfect platform to achieve your goals with cutting-edge tools and expert support.
+            Whether you're buying, selling properties, or trading products, TesGold provides 
+            the perfect marketplace to achieve your goals with cutting-edge tools and support.
           </p>
         </div>
 
@@ -174,7 +167,7 @@ const CallToActionSection = () => {
           ))}
         </div>
 
-        {/* Company Registration CTA */}
+        {/* Business Registration CTA */}
         <div className="relative">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-700 rounded-2xl blur-xl opacity-20"></div>
           <div className="relative bg-gradient-to-r from-blue-600/90 to-purple-700/90 backdrop-blur-lg rounded-2xl p-8 lg:p-10 text-center text-white border border-white/20">
@@ -187,58 +180,88 @@ const CallToActionSection = () => {
                   <BuildingOfficeIcon className="h-8 w-8 text-white" />
                 </div>
                 <h3 className="text-2xl lg:text-3xl font-bold mb-3">
-                  Partner with CitiLights
+                  Partner with TesGold
                 </h3>
                 <p className="text-sm lg:text-base text-blue-100 leading-relaxed max-w-2xl mx-auto">
-                  Join as a real estate company or service provider and access powerful tools 
-                  to grow your business. Get verified, showcase your portfolio, and connect with customers.
+                  Join as a business seller and access powerful tools to grow your sales. 
+                  Get verified, showcase your products, and connect with customers across Ethiopia.
                 </p>
               </div>
               
               <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-                <Link to="/auth/register?type=company">
+                <Link to="auth/register">
                   <Button size="md" className="min-w-[200px] bg-white text-blue-600 hover:bg-gray-100 transform hover:scale-105 transition-all duration-200 shadow-xl">
                     <BuildingOfficeIcon className="h-4 w-4 mr-2" />
-                    Register Your Company
-                  </Button>
-                </Link>
-                <Link to="/partnership">
-                  <Button size="md" variant="outline" className="min-w-[200px] border-white text-white hover:bg-white/10 transform hover:scale-105 transition-all duration-200">
-                    <ShieldCheckIcon className="h-4 w-4 mr-2" />
-                    Partnership Benefits
+                    Register Your Business
                   </Button>
                 </Link>
               </div>
 
-              {/* Company Benefits Grid */}
+              {/* Business Benefits Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-white/20">
                 <div className="text-center group">
                   <div className="inline-flex items-center justify-center w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full mb-3 group-hover:scale-110 transition-transform duration-300">
                     <ClockIcon className="h-6 w-6 text-yellow-400" />
                   </div>
                   <div className="text-2xl font-bold text-yellow-400 mb-1">24/7</div>
-                  <div className="text-blue-100 font-medium text-sm">Support Available</div>
-                  <div className="text-blue-200 text-xs mt-1">Round-the-clock assistance</div>
+                  <div className="text-blue-100 font-medium text-sm">Platform Access</div>
+                  <div className="text-blue-200 text-xs mt-1">Always available</div>
                 </div>
                 <div className="text-center group">
                   <div className="inline-flex items-center justify-center w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full mb-3 group-hover:scale-110 transition-transform duration-300">
                     <UserGroupIcon className="h-6 w-6 text-yellow-400" />
                   </div>
-                  <div className="text-2xl font-bold text-yellow-400 mb-1">50K+</div>
-                  <div className="text-blue-100 font-medium text-sm">Potential Customers</div>
-                  <div className="text-blue-200 text-xs mt-1">Active user base</div>
+                  <div className="text-2xl font-bold text-yellow-400 mb-1">Wide</div>
+                  <div className="text-blue-100 font-medium text-sm">Customer Reach</div>
+                  <div className="text-blue-200 text-xs mt-1">All across Ethiopia</div>
                 </div>
                 <div className="text-center group">
                   <div className="inline-flex items-center justify-center w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full mb-3 group-hover:scale-110 transition-transform duration-300">
-                    <StarIcon className="h-6 w-6 text-yellow-400" />
+                    <CubeIcon className="h-6 w-6 text-yellow-400" />
                   </div>
                   <div className="text-2xl font-bold text-yellow-400 mb-1">Free</div>
-                  <div className="text-blue-100 font-medium text-sm">Marketing Tools</div>
-                  <div className="text-blue-200 text-xs mt-1">Premium features included</div>
+                  <div className="text-blue-100 font-medium text-sm">Listing Tools</div>
+                  <div className="text-blue-200 text-xs mt-1">Essential features included</div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Quick Category Links */}
+        <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Link 
+            to="/products?productType=homes" 
+            className="group p-4 bg-white/10 backdrop-blur-lg rounded-xl border border-white/20 hover:bg-white/20 transition-all duration-300 text-center"
+          >
+            <HomeIcon className="h-8 w-8 mx-auto mb-2 text-blue-400 group-hover:scale-110 transition-transform" />
+            <div className="text-white font-medium text-sm">Homes</div>
+            <div className="text-blue-200 text-xs">Buy & Rent</div>
+          </Link>
+          <Link 
+            to="/products?productType=commercials" 
+            className="group p-4 bg-white/10 backdrop-blur-lg rounded-xl border border-white/20 hover:bg-white/20 transition-all duration-300 text-center"
+          >
+            <BuildingOfficeIcon className="h-8 w-8 mx-auto mb-2 text-green-400 group-hover:scale-110 transition-transform" />
+            <div className="text-white font-medium text-sm">Commercial</div>
+            <div className="text-green-200 text-xs">Properties</div>
+          </Link>
+          <Link 
+            to="/products?productType=plots" 
+            className="group p-4 bg-white/10 backdrop-blur-lg rounded-xl border border-white/20 hover:bg-white/20 transition-all duration-300 text-center"
+          >
+            <ChatBubbleLeftRightIcon className="h-8 w-8 mx-auto mb-2 text-purple-400 group-hover:scale-110 transition-transform" />
+            <div className="text-white font-medium text-sm">Land & Plots</div>
+            <div className="text-purple-200 text-xs">All Types</div>
+          </Link>
+          <Link 
+            to="/products?productType=others" 
+            className="group p-4 bg-white/10 backdrop-blur-lg rounded-xl border border-white/20 hover:bg-white/20 transition-all duration-300 text-center"
+          >
+            <CubeIcon className="h-8 w-8 mx-auto mb-2 text-orange-400 group-hover:scale-110 transition-transform" />
+            <div className="text-white font-medium text-sm">Products</div>
+            <div className="text-orange-200 text-xs">Electronics & More</div>
+          </Link>
         </div>
       </div>
     </section>
@@ -264,6 +287,7 @@ const CTACard = ({ userType, index, isActive, onHover, onLeave }) => {
           src={userType.image}
           alt={userType.title}
           className="w-full h-full object-cover"
+          loading="lazy"
         />
       </div>
 
@@ -308,24 +332,6 @@ const CTACard = ({ userType, index, isActive, onHover, onLeave }) => {
               </div>
             )}
           </div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-2 mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
-          {userType.stats.map((stat, index) => {
-            const StatIcon = stat.icon;
-            return (
-              <div key={index} className="text-center">
-                <StatIcon className={`h-4 w-4 mx-auto mb-1 text-gray-600 dark:text-gray-400`} />
-                <div className="text-sm font-bold text-gray-900 dark:text-gray-100">
-                  {stat.value}
-                </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">
-                  {stat.label}
-                </div>
-              </div>
-            );
-          })}
         </div>
 
         {/* Action Buttons */}

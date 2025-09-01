@@ -1,15 +1,13 @@
+// components/home/ServicesShowcase.jsx
 import { Link } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { 
   BuildingOfficeIcon, 
-  PaintBrushIcon, 
+  HomeIcon, 
   CogIcon, 
-  ChatBubbleLeftRightIcon,
+  ChartBarIcon,
   ArrowRightIcon,
-  StarIcon,
-  ClockIcon,
   CheckCircleIcon,
-  FireIcon,
   SparklesIcon
 } from '@heroicons/react/24/outline';
 import Button from '../ui/Button';
@@ -26,93 +24,76 @@ const ServicesShowcase = () => {
     {
       id: 'project-management',
       title: 'Project Management',
-      subtitle: 'Complete Construction Oversight',
-      description: 'End-to-end project management services for construction and real estate development projects with proven track record.',
+      subtitle: 'Complete Project Oversight',
+      description: 'Comprehensive project management from initiation to completion. We are multidisciplinary company consisting of seasoned construction, design, finance and real estate professionals.',
       icon: CogIcon,
       features: [
-        'Construction oversight & supervision',
-        'Timeline & milestone management',
-        'Quality assurance & control',
-        'Budget monitoring & optimization',
-        'Risk assessment & mitigation',
-        'Vendor coordination & management'
+        'Manage projects from initiation to completion',
+        'Defining Project Cost, Quality Time, Scope Risk and Resource',
+        'Contract Administration',
+        'Tender, Procurement and contract document preparation',
+        'Project proposals and feasibility study',
+        'Project work and budget planning',
+        'Project resource planning (Human, Equipment)',
+        'Project stakeholders Management service',
+        'Company Auditing'
       ],
-      startingPrice: 50000,
-      rating: 4.9,
-      completedProjects: 150,
-      avgDuration: '6-12 months',
-      image: 'https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=400&h=300&fit=crop',
+      image: 'https://pfst.cf2.poecdn.net/base/image/1bb7fd6d7e0e6473ab8834058b1c6904cfd20565b89779c7cbf20418684e4f89?w=400&h=300',
       color: 'from-blue-500 to-blue-700',
-      trending: true,
       badge: 'Most Popular'
     },
     {
       id: 'engineering-design',
       title: 'Engineering Design',
-      subtitle: 'Professional Architectural Solutions',
-      description: 'Professional engineering and architectural design services for residential and commercial projects with innovative approaches.',
+      subtitle: 'Professional Design Solutions',
+      description: 'Professional design services for Roads, Buildings and Bridges with complete engineering design solutions covering civil, architectural, and MEP systems.',
       icon: BuildingOfficeIcon,
       features: [
-        'Structural & architectural design',
-        'MEP system integration',
-        '3D modeling & visualization',
-        'Building permits assistance',
-        'Site analysis & planning',
-        'Sustainability consulting'
+        'Engineering Design (Civil)',
+        'Architectural Design',
+        'MEP (Mechanical, Electrical and Plumbing & sanitary)',
+        'Bill of Quantity (BoQ) and Cost estimation Preparation',
+        'Tender Document Preparations',
+        'Supervision Contract administration'
       ],
-      startingPrice: 75000,
-      rating: 4.8,
-      completedProjects: 200,
-      avgDuration: '2-4 months',
-      image: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=400&h=300&fit=crop',
+      image: 'https://pfst.cf2.poecdn.net/base/image/9d9c71dec12723ff6b004d13a2d69d305620727d248be7b4c82a1d30974c4425?w=400&h=300',
       color: 'from-purple-500 to-purple-700',
-      trending: false,
       badge: 'Expert Level'
     },
     {
       id: 'interior-design',
       title: 'Interior Design',
-      subtitle: 'Transform Your Living Spaces',
-      description: 'Transform your space with our expert interior design services tailored to your style, budget, and lifestyle preferences.',
-      icon: PaintBrushIcon,
+      subtitle: 'Transform Your Spaces',
+      description: 'Interior design services for Residential and Commercial buildings. Professional interior design and build services for villas, apartments, offices, and hotels.',
+      icon: HomeIcon,
       features: [
-        'Comprehensive space planning',
-        'Photorealistic 3D visualization',
-        'Custom furniture selection',
-        'Color & material consultation',
-        'Lighting design optimization',
-        'Project execution management'
+        'Interior Design and Build service',
+        'Residential Villas design',
+        'Residential Apartments design',
+        'Commercial Buildings design',
+        'Offices interior design',
+        'Hotels interior design'
       ],
-      startingPrice: 30000,
-      rating: 4.7,
-      completedProjects: 300,
-      avgDuration: '1-3 months',
-      image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&h=300&fit=crop',
+      image: 'https://pfst.cf2.poecdn.net/base/image/5bab658522015ee3abf88c85f1755af8038236b71e3c9cc074de2d8a41803170?w=400&h=300',
       color: 'from-pink-500 to-pink-700',
-      trending: true,
       badge: 'Creative Excellence'
     },
     {
-      id: 'consultancy',
+      id: 'real-estate-consultancy',
       title: 'Real Estate Consultancy',
-      subtitle: 'Strategic Investment Guidance',
-      description: 'Expert advice and consultation for real estate investments, market analysis, and property valuation with data-driven insights.',
-      icon: ChatBubbleLeftRightIcon,
+      subtitle: 'Expert Advisory Services',
+      description: 'We strongly Advice you Not to buy your house before consulting us. Comprehensive advisory services covering technical, legal, and investment aspects.',
+      icon: ChartBarIcon,
       features: [
-        'Comprehensive market analysis',
-        'Investment strategy development',
-        'Property valuation & appraisal',
-        'Legal compliance guidance',
-        'Portfolio optimization',
-        'Risk assessment & management'
+        'Technical advisory service (studying architectural and engineering nature)',
+        'Future economical livability analysis',
+        'Legal advisory service',
+        'Investment feasibility assessment',
+        'Property valuation',
+        'Market analysis'
       ],
-      startingPrice: 25000,
-      rating: 4.9,
-      completedProjects: 500,
-      avgDuration: '2-6 weeks',
-      image: 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop',
+      image: 'https://pfst.cf2.poecdn.net/base/image/43875ca6e5f1a019f28ea1a431fcc98a0bf59f6ac2348bc78af804be97cf7b77?w=400&h=300',
       color: 'from-green-500 to-green-700',
-      trending: false,
       badge: 'Trusted Advisors'
     }
   ];
@@ -133,7 +114,7 @@ const ServicesShowcase = () => {
             Professional Services
           </div>
           <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-3">
-            Beyond Properties
+            Expert Solutions
           </h2>
           <p className="text-sm text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
             We offer comprehensive professional services to support your real estate 
@@ -155,31 +136,31 @@ const ServicesShowcase = () => {
           ))}
         </div>
 
-        {/* Stats Section */}
+        {/* Why Choose Our Services */}
         <div className="bg-gradient-to-r from-blue-600 to-purple-700 rounded-2xl p-6 text-white mb-8">
           <div className="text-center mb-4">
             <h3 className="text-xl font-bold mb-2">Why Choose Our Services?</h3>
             <p className="text-sm text-blue-100 max-w-xl mx-auto">
-              Join hundreds of satisfied clients who trust us with their projects
+              Professional expertise and comprehensive solutions for all your construction and real estate needs
             </p>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-yellow-400 mb-1">1150+</div>
-              <div className="text-xs text-blue-100">Completed Projects</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            <div>
+              <div className="text-2xl font-bold text-yellow-400 mb-1">Expert</div>
+              <div className="text-xs text-blue-100">Team</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-yellow-400 mb-1">4.8★</div>
-              <div className="text-xs text-blue-100">Average Rating</div>
+            <div>
+              <div className="text-2xl font-bold text-yellow-400 mb-1">Quality</div>
+              <div className="text-xs text-blue-100">Service</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-yellow-400 mb-1">98%</div>
-              <div className="text-xs text-blue-100">Client Satisfaction</div>
+            <div>
+              <div className="text-2xl font-bold text-yellow-400 mb-1">Full</div>
+              <div className="text-xs text-blue-100">Support</div>
             </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-yellow-400 mb-1">24/7</div>
-              <div className="text-xs text-blue-100">Support Available</div>
+            <div>
+              <div className="text-2xl font-bold text-yellow-400 mb-1">Proven</div>
+              <div className="text-xs text-blue-100">Results</div>
             </div>
           </div>
         </div>
@@ -220,47 +201,23 @@ const ServiceCard = ({ service, index, isActive, onHover, onLeave }) => {
           src={service.image}
           alt={service.title}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+          loading="lazy"
         />
         
         {/* Overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
         
-        {/* Badges */}
-        <div className="absolute top-2 left-2 flex space-x-1">
+        {/* Badge */}
+        <div className="absolute top-2 left-2">
           <div className={`px-2 py-0.5 bg-gradient-to-r ${service.color} text-white text-xs font-bold rounded-full`}>
             {service.badge}
           </div>
-          {service.trending && (
-            <div className="px-2 py-0.5 bg-orange-500 text-white text-xs font-bold rounded-full flex items-center">
-              <FireIcon className="h-2 w-2 mr-0.5" />
-              Hot
-            </div>
-          )}
         </div>
 
         {/* Icon */}
         <div className="absolute top-2 right-2">
           <div className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
             <Icon className={`h-4 w-4 text-blue-600`} />
-          </div>
-        </div>
-
-        {/* Stats Overlay */}
-        <div className="absolute bottom-2 left-2 right-2 flex justify-between text-white">
-          <div className="bg-black/40 backdrop-blur-sm rounded-md px-2 py-1">
-            <div className="text-xs font-bold">{service.completedProjects}+</div>
-            <div className="text-xs opacity-90">Projects</div>
-          </div>
-          <div className="bg-black/40 backdrop-blur-sm rounded-md px-2 py-1">
-            <div className="text-xs font-bold flex items-center">
-              <StarIcon className="h-2 w-2 mr-0.5 text-yellow-400" />
-              {service.rating}
-            </div>
-            <div className="text-xs opacity-90">Rating</div>
-          </div>
-          <div className="bg-black/40 backdrop-blur-sm rounded-md px-2 py-1">
-            <div className="text-xs font-bold">{service.avgDuration}</div>
-            <div className="text-xs opacity-90">Duration</div>
           </div>
         </div>
       </div>
@@ -280,7 +237,7 @@ const ServiceCard = ({ service, index, isActive, onHover, onLeave }) => {
         </div>
 
         {/* Features */}
-        <div className="mb-3">
+        <div className="mb-4">
           <h4 className="text-xs font-semibold text-gray-900 dark:text-gray-100 mb-2">What's Included:</h4>
           <div className="grid grid-cols-1 gap-1">
             {service.features.slice(0, 3).map((feature, index) => (
@@ -291,36 +248,30 @@ const ServiceCard = ({ service, index, isActive, onHover, onLeave }) => {
             ))}
             {service.features.length > 3 && (
               <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-                +{service.features.length - 3} more features
+                +{service.features.length - 3} more services
               </div>
             )}
           </div>
         </div>
 
-        {/* Pricing */}
-        <div className="mb-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="text-xs text-gray-500 dark:text-gray-400">Starting from</div>
-              <div className="text-lg font-bold text-gray-900 dark:text-gray-100">
-                ETB {service.startingPrice.toLocaleString()}
-              </div>
-            </div>
-            <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
-              <ClockIcon className="h-3 w-3 mr-1" />
-              {service.avgDuration}
-            </div>
+        {/* Contact for Quote */}
+        <div className="mb-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
+          <div className="text-sm font-bold text-gray-900 dark:text-gray-100">
+            Contact for Quote
+          </div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">
+            Custom pricing based on your needs
           </div>
         </div>
 
         {/* Action Buttons */}
         <div className="grid grid-cols-2 gap-2">
-          <Link to={`/services/${service.id}`} className="block">
+          <Link to={`/services#${service.id}`} className="block">
             <Button variant="primary" size="sm" className="w-full text-xs">
               Learn More
             </Button>
           </Link>
-          <Link to={`/services/${service.id}/quote`} className="block">
+          <Link to="/contact" className="block">
             <Button variant="outline" size="sm" className="w-full text-xs">
               Get Quote
             </Button>

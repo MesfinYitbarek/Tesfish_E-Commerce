@@ -155,15 +155,16 @@ export const DAYS_OF_WEEK = [
 
 // API Endpoints
 export const API_ENDPOINTS = {
-  AUTH: {
+   AUTH: {
     LOGIN: '/auth/login',
+    GOOGLE_LOGIN: '/auth/google-login', // <-- add this
     REGISTER: '/auth/register',
     LOGOUT: '/auth/logout',
+    ME: '/auth/me',
+    UPDATE_PROFILE: '/auth/update-profile',
     VERIFY_EMAIL: '/auth/verify-email',
     FORGOT_PASSWORD: '/auth/forgot-password',
     RESET_PASSWORD: '/auth/reset-password',
-    ME: '/auth/me',
-    UPDATE_PROFILE: '/auth/profile'
   },
   PROPERTY_REGISTRATIONS: {
     CREATE: '/property-registrations',

@@ -8,6 +8,12 @@ const authService = {
     return response.data;
   },
 
+  // Google login
+  googleLogin: async (idToken) => {
+    const response = await api.post(API_ENDPOINTS.AUTH.GOOGLE_LOGIN, { token: idToken });
+    return response.data;
+  },
+
   // Register
   register: async (userData) => {
     const response = await api.post(API_ENDPOINTS.AUTH.REGISTER, userData);
@@ -46,7 +52,10 @@ const authService = {
 
   // Reset password
   resetPassword: async (token, password) => {
-    const response = await api.post(`${API_ENDPOINTS.AUTH.RESET_PASSWORD}/${token}`, { password });
+    const response = await api.post(
+      `${API_ENDPOINTS.AUTH.RESET_PASSWORD}/${token}`,
+      { password }
+    );
     return response.data;
   },
 };
