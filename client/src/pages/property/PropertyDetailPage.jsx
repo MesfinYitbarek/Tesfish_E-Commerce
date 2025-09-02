@@ -25,7 +25,7 @@ import {
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 import Button from '../../components/ui/Button';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
-import CustomerRegistrationModal from '../../components/customer/CustomerRegistrationModal';
+import CustomerRegistrationModal from '../../components/Customer/CustomerRegistrationModal';
 import PropertyInquiryModal from '../../components/properties/PropertyInquiryModal';
 import { formatCurrency,formatRelativeTime } from '../../utils/helpers';
 import { toast } from 'react-hot-toast';
