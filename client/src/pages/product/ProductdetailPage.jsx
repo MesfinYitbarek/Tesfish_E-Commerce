@@ -22,7 +22,7 @@ import {
   toggleWishlist,
   clearCurrentProduct 
 } from '../../store/slices/productSlice';
-import ProductImageGallery from '../../components/product/ProductImageGallery';
+import ProductImageGallery from '../../components/product/productImageGallery'
 import ProductInfo from '../../components/product/ProductInfo';
 import ProductDescription from '../../components/product/ProductDescription';
 import SellerInfo from '../../components/product/SellerInfo';
