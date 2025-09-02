@@ -26,8 +26,8 @@ const Profile = lazy(() => import('../pages/profile/Profile'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 
 // Services - Public Pages
-const ServicesPage = lazy(() => import('../pages/Services/ServicesPage'));
-const ServiceDetailPage = lazy(() => import('../pages/Services/ServiceDetailPage'));
+const ServicesPage = lazy(() => import('../pages/services/ServicesPage'));
+const ServiceDetailPage = lazy(() => import('../pages/services/ServiceDetailPage'));
 
 // Dashboard Pages - Regular Users (Sellers)
 const DashboardOverview = lazy(() => import('../pages/dashboard/DashboardOverview'));
