@@ -5,7 +5,7 @@ import path from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react(),tailwindcss()],
+  plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -21,9 +21,14 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true,
+    proxy: {
+      // So API calls hit your backend during local dev
+      '/api': 'http://localhost:5000',
+    },
   },
   build: {
     outDir: 'dist',
     sourcemap: true,
   },
+  base: './', // 👈 important for Render/production so assets load correctly
 })

@@ -12,8 +12,8 @@ import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import mongoSanitize from 'express-mongo-sanitize';
-// import { injectSocketIO } from '../controllers/chat/chatController.js';
-// Import routes
+import path from "path";
+import { fileURLToPath } from "url";
 import authRoutes from './routes/auth/authRoutes.js';
 import cartRoutes from './routes/cart/cartRoutes.js';
 import productRoutes from './routes/product/productRoutes.js';
@@ -44,6 +44,7 @@ dotenv.config();
 // Connect to database
 connectDB();
 
+
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
@@ -65,6 +66,19 @@ app.use((req, res, next) => {
   next();
 });
 
+//
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Serve frontend in production
+if (process.env.NODE_ENV === "production") {
+  const clientBuildPath = path.join(__dirname, "../client/dist");
+  app.use(express.static(clientBuildPath));
+
+  app.get("*", (req, res) => {
+    res.sendFile(path.resolve(clientBuildPath, "index.html"));
+  });
+}
 
 // Rate limiting
 const limiter = rateLimit({

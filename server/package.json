@@ -4,15 +4,12 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "nodemon server.js",
-    "start": "node server.js",
-    "seed": "node scripts/seedDatabase.js",
-    "test": "jest",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "build": "echo 'Build process for production'",
-    "clean": "rm -rf uploads/* && echo 'Uploads cleaned'"
-  },
+  "dev": "nodemon server.js",
+  "start": "node server.js",
+  "build": "cd ../client && npm install && npm run build",
+  "postinstall": "npm run build"
+}
+,
   "keywords": [],
   "author": "",
   "license": "ISC",
