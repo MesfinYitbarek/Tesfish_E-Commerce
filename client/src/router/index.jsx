@@ -11,11 +11,12 @@ import AdminLayout from '../components/layout/AdminLayout';
 import CustomerDashboardLayout from '../components/layout/CustomerDashboardLayout';
 import CustomerNotificationsPage from '../pages/customer/CustomerNotificationsPage';
 import BusinessProfile from '../pages/dashboard/BusinessProfile';
+import ProductDetailPage from '../pages/product/ProductdetailPage';
 
 // Lazy Pages - Existing
 const HomePage = lazy(() => import('../pages/home/HomePage'));
 const ProductsPage = lazy(() => import('../pages/product/ProductsPage'));
-const ProductDetailPage = lazy(() => import('../pages/product/ProductDetailPage'));
+// const ProductDetailPage = lazy(() => import('../pages/product/ProductDetailPage'));
 const PropertiesPage = lazy(() => import('../pages/property/PropertiesPage'));
 const PropertyDetailPage = lazy(() => import('../pages/property/PropertyDetailPage'));
 const ForgotPasswordPage = lazy(() => import('../pages/auth/ForgetPasswordPage'));
