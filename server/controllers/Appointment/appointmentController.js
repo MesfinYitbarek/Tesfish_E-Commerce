@@ -2,7 +2,7 @@ import Appointment from '../../models/Appointment.js';
 import Product from '../../models/Product.js';
 import User from '../../models/User.js';
 import { validationResult } from 'express-validator';
-import { scheduleNotification } from '../../services/notificationScheduler.js';
+import { scheduleNotification } from '../../Services/notificationScheduler.js';
 import { sendEmail } from '../../utils/email/emailService.js';
 import { sendNotification } from '../../Services/NotificationService.js';
 
