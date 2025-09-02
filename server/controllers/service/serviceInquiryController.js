@@ -1,7 +1,7 @@
 import ServiceInquiry from '../../models/ServiceInquiry.js';
 import User from '../../models/User.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
-import { AppError } from '../../utils/appError.js';
+import { AppError } from '../../utils/AppError.js';
 import { sendNotification } from '../../Services/NotificationService.js';
 import { uploadToCloudinary } from '../../utils/upload/cloudinaryService.js';
 import { v4 as uuidv4 } from "uuid";
