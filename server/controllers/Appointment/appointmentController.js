@@ -1,12 +1,10 @@
-// controllers/property/appointmentController.js
 import Appointment from '../../models/Appointment.js';
 import Product from '../../models/Product.js';
 import User from '../../models/User.js';
 import { validationResult } from 'express-validator';
-import { sendNotification } from '../../services/notificationService.js';
-// import { sendEmail } from '../../services/emailService.js';
 import { scheduleNotification } from '../../services/notificationScheduler.js';
 import { sendEmail } from '../../utils/email/emailService.js';
+import { sendNotification } from '../../Services/NotificationService.js';
 
 // @desc    Book appointment
 // @route   POST /api/appointments
