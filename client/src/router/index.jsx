@@ -14,7 +14,6 @@ import BusinessProfile from '../pages/dashboard/BusinessProfile';
 
 // Lazy Pages - Existing
 const HomePage = lazy(() => import('../pages/home/HomePage'));
-const CartPage = lazy(() => import('../pages/cart/CartPage'));
 const ProductsPage = lazy(() => import('../pages/product/ProductsPage'));
 const ProductDetailPage = lazy(() => import('../pages/product/ProductDetailPage'));
 const PropertiesPage = lazy(() => import('../pages/property/PropertiesPage'));
@@ -126,10 +125,6 @@ export const router = createBrowserRouter([
   },
 
   // Cart Route (Public/Protected)
-  {
-    path: '/cart',
-    element: <LazyWrapper><CartPage /></LazyWrapper>
-  },
 
   // Profile Route (Protected)
   {
