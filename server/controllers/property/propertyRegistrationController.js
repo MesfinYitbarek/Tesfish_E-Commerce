@@ -4,7 +4,7 @@ import User from '../../models/User.js';
 import { validationResult } from 'express-validator';
 import { uploadToCloudinary } from '../../utils/upload/cloudinaryService.js';
 import { sendNotification } from '../../Services/NotificationService.js';
-import { initiatePayment, verifyPayment } from '../../services/paymentService.js';
+import { initiatePayment, verifyPayment } from '../../Services/paymentService.js';
 import { generatePDF } from '../../utils/pdfGenerator.js';
 import { sendEmail } from '../../utils/email/emailService.js';
 
