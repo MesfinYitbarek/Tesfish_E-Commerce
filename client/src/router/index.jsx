@@ -50,7 +50,7 @@ const ServicesDashboard = lazy(() => import('../pages/admin/ServicesDashboard'))
 const ServiceInquiryDetail = lazy(() => import('../pages/services/ServiceInquiryDetail'));
 
 // Customer Pages
-const CustomerDashboard = lazy(() => import('../pages/Customer/CustomerDashboard'));
+const CustomerDashboard = lazy(() => import('../pages/customer/CustomerDashboard'));
 const CustomerRegistrations = lazy(() => import('../pages/customer/CustomerRegistrations'));
 const PaymentProcessing = lazy(() => import('../pages/customer/PaymentProcessing'));
 const ServiceInquiries = lazy(() => import('../pages/Customer/ServiceInquiries'));
