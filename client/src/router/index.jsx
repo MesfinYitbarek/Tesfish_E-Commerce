@@ -53,8 +53,8 @@ const ServiceInquiryDetail = lazy(() => import('../pages/services/ServiceInquiry
 const CustomerDashboard = lazy(() => import('../pages/customer/CustomerDashboard'));
 const CustomerRegistrations = lazy(() => import('../pages/customer/CustomerRegistrations'));
 const PaymentProcessing = lazy(() => import('../pages/customer/PaymentProcessing'));
-const ServiceInquiries = lazy(() => import('../pages/Customer/ServiceInquiries'));
-const SavedProperties = lazy(() => import('../pages/Customer/SavedProperties'));
+const ServiceInquiries = lazy(() => import('../pages/customer/ServiceInquiries'));
+const SavedProperties = lazy(() => import('../pages/customer/SavedProperties'));
 
 // Protected Route Component
 const ProtectedRoute = ({ children, requiredRole = null }) => {
