@@ -1,7 +1,6 @@
-// services/notificationScheduler.js
 import schedule from "node-schedule";
 import Notification from "../models/Notification.js";
-import { sendNotification } from "./notificationService.js";
+import { sendNotification } from "./NotificationService.js";
 
 /**
  * Schedule a notification for a future time

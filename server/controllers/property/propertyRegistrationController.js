@@ -1,10 +1,9 @@
-// controllers/property/propertyRegistrationController.js
 import PropertyRegistration from '../../models/PropertyRegistration.js';
 import Product from '../../models/Product.js';
 import User from '../../models/User.js';
 import { validationResult } from 'express-validator';
 import { uploadToCloudinary } from '../../utils/upload/cloudinaryService.js';
-import { sendNotification } from '../../services/notificationService.js';
+import { sendNotification } from '../../Services/NotificationService.js';
 import { initiatePayment, verifyPayment } from '../../services/paymentService.js';
 import { generatePDF } from '../../utils/pdfGenerator.js';
 import { sendEmail } from '../../utils/email/emailService.js';
