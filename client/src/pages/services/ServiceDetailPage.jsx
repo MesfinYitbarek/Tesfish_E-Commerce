@@ -34,10 +34,10 @@ import {
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 import Button from '../../components/ui/Button';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
-import ServiceInquiryModal from '../../components/services/ServiceInquiryModal';
 import { fetchProduct, fetchRelatedProducts, toggleWishlist } from '../../store/slices/productSlice';
-import { formatCurrency, formatDate, formatRelativeTime } from '../../utils/helpers';
+import { formatCurrency,formatRelativeTime } from '../../utils/helpers';
 import { toast } from 'react-hot-toast';
+import ServiceInquiryModal from '../../components/Services/ServiceInquiryModal';
 
 const ServiceDetailPage = () => {
   const { serviceId } = useParams();
