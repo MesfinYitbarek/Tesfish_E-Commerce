@@ -1,7 +1,7 @@
 import Payment from "../../models/Payment.js";
 import Order from "../../models/Order.js";
 import Booking from "../../models/Booking.js";
-import { initiatePayment, verifyPayment } from "../../services/paymentService.js";
+import { initiatePayment, verifyPayment } from "../../Services/paymentService.js";
 
 // @desc    Process payment with Chapa
 // @route   POST /api/payments/process
