@@ -47,7 +47,7 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL,
+    origin: process.env.CLIENT_URL || "*",
     methods: ["GET", "POST"]
   }
 });
@@ -90,7 +90,7 @@ app.use('/api/', limiter);
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.CLIENT_URL,
+  origin: process.env.CLIENT_URL || "*",
   credentials: true,
   optionsSuccessStatus: 200
 }));
@@ -157,7 +157,7 @@ server.listen(PORT, () => {
   console.log(`
 🚀 Server running in ${process.env.NODE_ENV} mode on port ${PORT}
 📊 Database: ${process.env.MONGODB_URI}
-🌐 Client URL: ${process.env.CLIENT_URL}
+🌐 Client URL: ${process.env.CLIENT_URL || "*" }
 ⚡ Socket.io enabled
   `);
 });
