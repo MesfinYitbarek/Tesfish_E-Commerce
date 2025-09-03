@@ -14,6 +14,7 @@ import rateLimit from 'express-rate-limit';
 import mongoSanitize from 'express-mongo-sanitize';
 import path from "path";
 import { fileURLToPath } from "url";
+
 import authRoutes from './routes/auth/authRoutes.js';
 import productRoutes from './routes/product/productRoutes.js';
 import paymentRoutes from './routes/payment/paymentRoutes.js';
@@ -27,6 +28,7 @@ import userRoutes from './routes/user/userRoutes.js';
 import categoryRoutes from './routes/category/categoryRoutes.js';
 import propertyRegistrationRoutes from './routes/property/propertyRegistrationRoutes.js';
 import appointmentRoutes from './routes/property/appointmentRoutes.js';
+
 // Import middleware
 import { errorHandler, notFound } from './middleware/error/errorMiddleware.js';
 import { protect } from './middleware/auth/authMiddleware.js';
@@ -41,7 +43,6 @@ dotenv.config();
 
 // Connect to database
 connectDB();
-
 
 const app = express();
 const server = createServer(app);
@@ -64,7 +65,6 @@ app.use((req, res, next) => {
   next();
 });
 
-//
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -73,6 +73,7 @@ if (process.env.NODE_ENV === "production") {
   const clientBuildPath = path.join(__dirname, "../client/dist");
   app.use(express.static(clientBuildPath));
 
+  // ✅ Use "*" (Express 5 safe)
   app.get("*", (req, res) => {
     res.sendFile(path.resolve(clientBuildPath, "index.html"));
   });
@@ -144,8 +145,9 @@ app.use('/api/admin', protect, adminRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/property-registrations', propertyRegistrationRoutes);
 app.use('/api/appointments', appointmentRoutes);
-// Static file serving for uploads
-app.use('/uploads', express.static('uploads'));
+
+// ✅ Static file serving for uploads (Express 5 safe)
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Error handling middleware
 app.use(notFound);
