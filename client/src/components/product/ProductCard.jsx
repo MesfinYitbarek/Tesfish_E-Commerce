@@ -2,9 +2,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { 
-  HeartIcon, 
-  ShareIcon, 
+import {
+  HeartIcon,
+  ShareIcon,
   MapPinIcon,
   HomeIcon,
   EyeIcon,
@@ -35,12 +35,12 @@ const formatCurrency = (amount, currency = 'ETB') => {
 const formatRelativeTime = (date) => {
   const now = new Date();
   const diffInSeconds = Math.floor((now - new Date(date)) / 1000);
-  
+
   if (diffInSeconds < 60) return 'Just now';
   if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
   if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-  
+
   return new Date(date).toLocaleDateString();
 };
 
@@ -48,7 +48,7 @@ const ProductCard = ({ product, variant = 'default' }) => {
   const dispatch = useDispatch();
   const { wishlistedItems = [], isLoading } = useSelector((state) => state.products || {});
   const { isAuthenticated } = useSelector((state) => state.auth || {});
-  
+
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showShareModal, setShowShareModal] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
@@ -59,12 +59,12 @@ const ProductCard = ({ product, variant = 'default' }) => {
   const handleWishlist = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     if (!isAuthenticated) {
       toast.error('Please login to add to wishlist');
       return;
     }
-    
+
     setWishlistLoading(true);
     try {
       await dispatch(toggleWishlist(product._id)).unwrap();
@@ -110,16 +110,16 @@ const ProductCard = ({ product, variant = 'default' }) => {
   // Get property features based on product type
   const getPropertyFeatures = () => {
     const features = [];
-    
+
     if (['homes', 'plots', 'commercials'].includes(product.productType) && product.propertyDetails) {
       const { bedrooms, bathrooms, area, parkingSpaces } = product.propertyDetails;
-      
+
       if (bedrooms) features.push(`${bedrooms} bed${bedrooms > 1 ? 's' : ''}`);
       if (bathrooms) features.push(`${bathrooms} bath${bathrooms > 1 ? 's' : ''}`);
       if (area?.value) features.push(`${area.value} ${area.unit || 'sqm'}`);
       if (parkingSpaces) features.push(`${parkingSpaces} parking`);
     }
-    
+
     // For other product types, show different features
     if (product.productType === 'others') {
       if (product.vehicleDetails) {
@@ -131,7 +131,7 @@ const ProductCard = ({ product, variant = 'default' }) => {
       if (product.brand) features.push(product.brand);
       if (product.condition) features.push(product.condition);
     }
-    
+
     return features.slice(0, 3); // Limit to 3 features for compact display
   };
 
@@ -166,7 +166,7 @@ const ProductCard = ({ product, variant = 'default' }) => {
         };
       }
     }
-    
+
     // Fallback for when seller is just an ID or minimal info
     return {
       name: product.sellerType === 'company' ? 'Company' : 'Individual',
@@ -182,13 +182,13 @@ const ProductCard = ({ product, variant = 'default' }) => {
     if (['homes', 'plots', 'commercials'].includes(product.productType) && product.propertyDetails?.location) {
       const location = product.propertyDetails.location;
       const parts = [];
-      
+
       if (location.subcity) parts.push(location.subcity);
       if (location.city) parts.push(location.city);
-      
+
       return parts.length > 0 ? parts.join(', ') : (location.city || 'Ethiopia');
     }
-    
+
     return 'Ethiopia';
   };
 
@@ -217,7 +217,7 @@ const ProductCard = ({ product, variant = 'default' }) => {
       'agricultural-products': 'Agricultural Products',
       'construction-equipment': 'Construction Equipment'
     };
-    
+
     return typeMap[product.subProductType] || product.productType || 'Product';
   };
 
@@ -229,7 +229,7 @@ const ProductCard = ({ product, variant = 'default' }) => {
 
     const { basePrice, salePrice, currency, priceType, rentPrice } = product.pricing;
     const finalPrice = salePrice || basePrice || 0;
-    
+
     // For rental properties
     if (product.listingType === 'rent' && rentPrice?.monthly) {
       return {
@@ -238,7 +238,7 @@ const ProductCard = ({ product, variant = 'default' }) => {
         original: null
       };
     }
-    
+
     // For sale properties/products
     return {
       display: formatCurrency(finalPrice, currency),
@@ -252,7 +252,8 @@ const ProductCard = ({ product, variant = 'default' }) => {
   const location = getLocation();
   const productType = getProductTypeDisplay();
   const priceInfo = getPriceInfo();
-  const mainImage = product.media?.images?.[currentImageIndex]?.url || '/api/placeholder/400/300';
+  const mainImage = product.media?.images?.[currentImageIndex]?.url || null;
+
 
   return (
     <>
@@ -260,17 +261,21 @@ const ProductCard = ({ product, variant = 'default' }) => {
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 border border-gray-200 dark:border-gray-800">
           {/* Image Gallery */}
           <div className="relative h-48 overflow-hidden">
-            <img
-              src={mainImage}
-              alt={product.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              onLoad={() => setImageLoading(false)}
-              onError={(e) => {
-                setImageLoading(false);
-                e.target.src = '/api/placeholder/400/300';
-              }}
-            />
-            
+            {mainImage ? (
+              <img
+                src={mainImage}
+                alt={product.title}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                onLoad={() => setImageLoading(false)}
+                onError={() => setImageLoading(false)}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                No Image
+              </div>
+            )}
+
+
             {imageLoading && (
               <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse flex items-center justify-center">
                 <div className="w-8 h-8 bg-gray-300 dark:bg-gray-600 rounded"></div>
@@ -292,15 +297,14 @@ const ProductCard = ({ product, variant = 'default' }) => {
                 >
                   <ChevronRightIcon className="h-4 w-4" />
                 </button>
-                
+
                 {/* Image Indicators */}
                 <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1">
                   {product.media.images.slice(0, 5).map((_, index) => (
                     <div
                       key={index}
-                      className={`w-2 h-2 rounded-full ${
-                        index === currentImageIndex ? 'bg-white' : 'bg-white/50'
-                      }`}
+                      className={`w-2 h-2 rounded-full ${index === currentImageIndex ? 'bg-white' : 'bg-white/50'
+                        }`}
                     />
                   ))}
                   {product.media.images.length > 5 && (
@@ -319,19 +323,19 @@ const ProductCard = ({ product, variant = 'default' }) => {
                   Featured
                 </span>
               )}
-              
+
               {product.isPromoted && (
                 <span className="px-2 py-1 bg-blue-500 text-white text-xs font-medium rounded-full">
                   Promoted
                 </span>
               )}
-              
+
               {product.listingType && (
                 <span className="px-2 py-1 bg-indigo-500 text-white text-xs font-medium rounded-full">
                   For {product.listingType === 'sell' ? 'Sale' : 'Rent'}
                 </span>
               )}
-              
+
               <span className="px-2 py-1 bg-gray-600 text-white text-xs font-medium rounded-full">
                 {productType}
               </span>
@@ -350,7 +354,7 @@ const ProductCard = ({ product, variant = 'default' }) => {
                   <HeartIcon className="h-5 w-5 text-gray-600" />
                 )}
               </button>
-              
+
               <button
                 onClick={handleShare}
                 className="p-2 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-colors shadow-lg"
@@ -390,7 +394,7 @@ const ProductCard = ({ product, variant = 'default' }) => {
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 group-hover:text-indigo-500 transition-colors line-clamp-2 mb-2">
                 {product.title}
               </h3>
-              
+
               <div className="flex items-center text-gray-600 dark:text-gray-400 mb-2">
                 <MapPinIcon className="h-4 w-4 mr-1 flex-shrink-0" />
                 <span className="text-sm truncate">{location}</span>
@@ -450,7 +454,7 @@ const ProductCard = ({ product, variant = 'default' }) => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="flex items-center space-x-3 text-xs text-gray-500">
                 <div className="flex items-center">
                   <EyeIcon className="h-4 w-4 mr-1" />
@@ -470,11 +474,10 @@ const ProductCard = ({ product, variant = 'default' }) => {
                   {[...Array(5)].map((_, i) => (
                     <StarIcon
                       key={i}
-                      className={`h-4 w-4 ${
-                        i < Math.floor(product.reviews.average)
+                      className={`h-4 w-4 ${i < Math.floor(product.reviews.average)
                           ? 'text-yellow-400 fill-current'
                           : 'text-gray-300'
-                      }`}
+                        }`}
                     />
                   ))}
                   <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">

@@ -1,4 +1,3 @@
-// services/paymentService.js
 import axios from "axios";
 
 const CHAPA_BASE_URL = "https://api.chapa.co/v1";
@@ -6,14 +5,12 @@ const CHAPA_SECRET_KEY = process.env.CHAPA_SECRET_KEY;
 
 /**
  * Initiate a payment
- * @param {Object} paymentData
- * @returns {Object} { success, data }
  */
 export const initiatePayment = async (paymentData) => {
   try {
     const payload = {
       amount: paymentData.amount,
-      currency: paymentData.currency || "ETB",
+      currency: "ETB",
       email: paymentData.email,
       first_name: paymentData.firstName,
       last_name: paymentData.lastName,
@@ -21,7 +18,7 @@ export const initiatePayment = async (paymentData) => {
       tx_ref: `tx-${Date.now()}-${Math.floor(Math.random() * 10000)}`, // unique reference
       callback_url: paymentData.callbackUrl,
       return_url: paymentData.returnUrl,
-      customization: paymentData.customization || {
+      customization: {
         title: "Payment",
         description: "Payment transaction",
       },
@@ -42,7 +39,7 @@ export const initiatePayment = async (paymentData) => {
       return {
         success: true,
         data: {
-          checkout_url: response.data.data.checkout_url,
+          checkoutUrl: response.data.data.checkout_url,
           tx_ref: payload.tx_ref,
         },
       };
@@ -56,9 +53,7 @@ export const initiatePayment = async (paymentData) => {
 };
 
 /**
- * Verify a payment with Chapa
- * @param {String} tx_ref
- * @returns {Object} { success, data }
+ * Verify a payment
  */
 export const verifyPayment = async (tx_ref) => {
   try {
@@ -72,10 +67,7 @@ export const verifyPayment = async (tx_ref) => {
     );
 
     if (response.data.status === "success") {
-      return {
-        success: true,
-        data: response.data.data,
-      };
+      return { success: true, data: response.data.data };
     }
 
     return { success: false, message: response.data.message || "Verification failed" };

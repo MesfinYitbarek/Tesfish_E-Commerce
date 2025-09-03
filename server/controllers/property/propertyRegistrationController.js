@@ -33,129 +33,55 @@ export const submitRegistration = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Validation failed',
-        errors: errors.array().map(error => ({
-          field: error.path,
-          message: error.msg
-        }))
+        errors: errors.array().map(err => ({ field: err.path, message: err.msg }))
       });
     }
 
     const { propertyId, personalInfo, address, emergencyContact, financialInfo } = req.body;
 
-    console.log('Received registration data:', {
-      propertyId,
-      personalInfo,
-      address,
-      emergencyContact,
-      financialInfo
-    });
-
-    // Verify property exists and has registration fee
+    // Verify property
     const property = await Product.findById(propertyId).populate('seller');
-    if (!property) {
-      return res.status(404).json({
-        success: false,
-        message: 'Property not found'
-      });
-    }
-
+    if (!property) return res.status(404).json({ success: false, message: 'Property not found' });
     if (!property.propertyDetails?.registrationFee || property.propertyDetails.registrationFee <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'This property does not require registration'
-      });
+      return res.status(400).json({ success: false, message: 'Property does not require registration' });
     }
 
-    // Check if user already registered for this property
+    // Check for existing registration
     const existingRegistration = await PropertyRegistration.findOne({
       property: propertyId,
       customer: req.user.id,
       status: { $in: ['pending', 'approved', 'under-review'] }
     });
-
-    if (existingRegistration) {
-      return res.status(400).json({
-        success: false,
-        message: 'You have already registered for this property'
-      });
-    }
+    if (existingRegistration) return res.status(400).json({ success: false, message: 'Already registered for this property' });
 
     // Generate registration number
     const registrationNumber = await generateRegistrationNumber();
 
     // Handle document uploads
-    let documents = [];
-    if (req.files && req.files.length > 0) {
+    const documents = [];
+    if (req.files?.length > 0) {
       for (const file of req.files) {
         try {
           const uploadResult = await uploadToCloudinary(file.path, 'registrations/documents');
-          documents.push({
-            type: file.fieldname === 'documents' ? 'other' : file.fieldname,
-            name: file.originalname,
-            url: uploadResult.secure_url,
-            publicId: uploadResult.public_id
-          });
-        } catch (uploadError) {
-          console.error('Document upload error:', uploadError);
+          documents.push({ type: file.fieldname, name: file.originalname, url: uploadResult.secure_url, publicId: uploadResult.public_id });
+        } catch (err) {
+          console.error('Document upload error:', err);
         }
       }
     }
 
-    // Ensure permanent address is set correctly
-    if (address.permanent.sameAsCurrent) {
-      address.permanent = {
-        ...address.current,
-        sameAsCurrent: true
-      };
-    }
+    // Permanent address
+    if (address.permanent.sameAsCurrent) address.permanent = { ...address.current, sameAsCurrent: true };
 
-    // Prepare registration data
-    const registrationData = {
+    // Create registration
+    const registration = await PropertyRegistration.create({
       registrationNumber,
       property: propertyId,
       customer: req.user.id,
-      personalInfo: {
-        firstName: personalInfo.firstName,
-        lastName: personalInfo.lastName,
-        email: personalInfo.email,
-        phone: personalInfo.phone,
-        alternatePhone: personalInfo.alternatePhone || '',
-        dateOfBirth: personalInfo.dateOfBirth || null,
-        nationality: personalInfo.nationality || 'Ethiopian',
-        occupation: personalInfo.occupation,
-        employer: personalInfo.employer || '',
-        monthlyIncome: personalInfo.monthlyIncome ? parseFloat(personalInfo.monthlyIncome) : null
-      },
-      address: {
-        current: {
-          street: address.current.street,
-          city: address.current.city,
-          region: address.current.region,
-          country: address.current.country || 'Ethiopia',
-          zipCode: address.current.zipCode || ''
-        },
-        permanent: {
-          street: address.permanent.street,
-          city: address.permanent.city,
-          region: address.permanent.region,
-          country: address.permanent.country || 'Ethiopia',
-          zipCode: address.permanent.zipCode || '',
-          sameAsCurrent: address.permanent.sameAsCurrent || false
-        }
-      },
-      emergencyContact: {
-        name: emergencyContact.name,
-        relationship: emergencyContact.relationship,
-        phone: emergencyContact.phone,
-        email: emergencyContact.email || ''
-      },
-      financialInfo: {
-        bankName: financialInfo.bankName || '',
-        accountNumber: financialInfo.accountNumber || '',
-        hasLoan: financialInfo.hasLoan || false,
-        loanDetails: financialInfo.loanDetails || '',
-        monthlyExpenses: financialInfo.monthlyExpenses ? parseFloat(financialInfo.monthlyExpenses) : null
-      },
+      personalInfo,
+      address,
+      emergencyContact,
+      financialInfo,
       documents,
       payment: {
         registrationFee: property.propertyDetails.registrationFee,
@@ -163,52 +89,29 @@ export const submitRegistration = async (req, res) => {
         paymentMethod: 'chapa',
         paymentStatus: 'pending'
       }
-    };
+    });
 
-    console.log('Creating registration with data:', registrationData);
+    await registration.populate([{ path: 'property', select: 'title propertyDetails.registrationFee pricing.currency' }, { path: 'customer', select: 'individualProfile companyProfile email' }]);
 
-    // Create registration
-    const registration = await PropertyRegistration.create(registrationData);
-
-    console.log('Registration created successfully:', registration._id);
-
-    // Populate the registration
-    await registration.populate([
-      { path: 'property', select: 'title propertyDetails.registrationFee pricing.currency' },
-      { path: 'customer', select: 'individualProfile companyProfile email' }
-    ]);
-
-    // Initiate payment
-    const paymentData = {
+    // Initiate Chapa payment
+    const paymentResponse = await initiatePayment({
       amount: property.propertyDetails.registrationFee,
       currency: property.pricing?.currency || 'ETB',
       email: personalInfo.email,
       phone: personalInfo.phone,
       firstName: personalInfo.firstName,
       lastName: personalInfo.lastName,
-      description: `Property registration for ${property.title}`,
       callbackUrl: `${process.env.FRONTEND_URL}/registration/${registration._id}/payment-callback`,
       returnUrl: `${process.env.FRONTEND_URL}/registration/${registration._id}/payment-success`,
-      customization: {
-        title: 'Property Registration Fee',
-        description: `Registration fee for ${property.title}`
-      }
-    };
+      customization: { title: 'Property Registration Fee', description: `Registration fee for ${property.title}` }
+    });
 
-    let paymentResponse = { success: false };
-    try {
-      paymentResponse = await initiatePayment(paymentData);
-      
-      if (paymentResponse.success) {
-        registration.payment.transactionId = paymentResponse.data.tx_ref;
-        await registration.save();
-      }
-    } catch (paymentError) {
-      console.error('Payment initiation error:', paymentError);
-      // Continue without payment for now
+    if (paymentResponse.success) {
+      registration.payment.transactionId = paymentResponse.data.tx_ref;
+      await registration.save();
     }
 
-    // Notify property seller/company
+    // Notify seller
     try {
       await sendNotification(property.seller, {
         type: 'new_registration',
@@ -216,58 +119,32 @@ export const submitRegistration = async (req, res) => {
         message: `${personalInfo.firstName} ${personalInfo.lastName} registered for ${property.title}`,
         data: { registrationId: registration._id, propertyId }
       });
-    } catch (notificationError) {
-      console.error('Notification error:', notificationError);
-      // Continue without notification
-    }
+    } catch (err) { console.error('Notification error:', err); }
 
     res.status(201).json({
       success: true,
       message: 'Registration submitted successfully',
-      data: {
-        registration,
-        paymentUrl: paymentResponse.data?.checkout_url || null
-      }
+      data: { registration, paymentUrl: paymentResponse.data?.checkout_url || null }
     });
 
   } catch (error) {
     console.error('Submit registration error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while submitting registration',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    res.status(500).json({ success: false, message: 'Server error while submitting registration' });
   }
 };
+
 
 // Rest of the functions remain the same as in the previous version...
 export const verifyRegistrationPayment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { tx_ref, status } = req.body;
+    const { tx_ref } = req.body;
 
-    const registration = await PropertyRegistration.findById(id)
-      .populate('property', 'title seller')
-      .populate('customer', 'individualProfile companyProfile email');
+    const registration = await PropertyRegistration.findById(id).populate('property', 'title seller').populate('customer', 'individualProfile companyProfile email');
+    if (!registration) return res.status(404).json({ success: false, message: 'Registration not found' });
 
-    if (!registration) {
-      return res.status(404).json({
-        success: false,
-        message: 'Registration not found'
-      });
-    }
-
-    // Verify payment with Chapa (mock for now)
-    let paymentVerification = { success: false };
-    try {
-      paymentVerification = await verifyPayment(tx_ref);
-    } catch (verifyError) {
-      console.error('Payment verification error:', verifyError);
-      // Mock successful payment for development
-      if (process.env.NODE_ENV === 'development') {
-        paymentVerification = { success: true, data: { status: 'success' } };
-      }
-    }
+    // Verify payment with Chapa
+    const paymentVerification = await verifyPayment(tx_ref);
 
     if (paymentVerification.success && paymentVerification.data.status === 'success') {
       registration.payment.paymentStatus = 'completed';
@@ -276,77 +153,19 @@ export const verifyRegistrationPayment = async (req, res) => {
       registration.status = 'under-review';
       await registration.save();
 
-      // Generate receipt (mock for now)
-      try {
-        const receiptData = {
-          registrationNumber: registration.registrationNumber,
-          customerName: `${registration.personalInfo.firstName} ${registration.personalInfo.lastName}`,
-          propertyTitle: registration.property.title,
-          amount: registration.payment.registrationFee,
-          currency: registration.payment.currency,
-          paymentDate: registration.payment.paymentDate,
-          transactionId: tx_ref
-        };
-
-        // Mock receipt URL for development
-        registration.payment.receiptUrl = `${process.env.API_BASE_URL}/receipts/${registration._id}.pdf`;
-        await registration.save();
-      } catch (receiptError) {
-        console.error('Receipt generation error:', receiptError);
-      }
-
-      // Send confirmation emails (mock for now)
-      try {
-        await sendEmail({
-          to: registration.personalInfo.email,
-          subject: 'Property Registration Confirmed',
-          template: 'registration-confirmation',
-          data: {
-            customerName: `${registration.personalInfo.firstName} ${registration.personalInfo.lastName}`,
-            propertyTitle: registration.property.title,
-            registrationNumber: registration.registrationNumber,
-            receiptUrl: registration.payment.receiptUrl
-          }
-        });
-      } catch (emailError) {
-        console.error('Email sending error:', emailError);
-      }
-
-      // Notify seller
-      try {
-        await sendNotification(registration.property.seller, {
-          type: 'registration_payment_completed',
-          title: 'Registration Payment Completed',
-          message: `Payment completed for ${registration.property.title} registration`,
-          data: { registrationId: registration._id }
-        });
-      } catch (notificationError) {
-        console.error('Notification error:', notificationError);
-      }
-
-      res.status(200).json({
-        success: true,
-        message: 'Payment verified successfully',
-        data: { registration }
-      });
+      res.status(200).json({ success: true, message: 'Payment verified successfully', data: { registration } });
     } else {
       registration.payment.paymentStatus = 'failed';
       await registration.save();
-
-      res.status(400).json({
-        success: false,
-        message: 'Payment verification failed'
-      });
+      res.status(400).json({ success: false, message: 'Payment verification failed' });
     }
 
   } catch (error) {
     console.error('Verify payment error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while verifying payment'
-    });
+    res.status(500).json({ success: false, message: 'Server error while verifying payment' });
   }
 };
+
 
 export const getMyRegistrations = async (req, res) => {
   try {

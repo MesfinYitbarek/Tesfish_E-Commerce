@@ -1,60 +1,44 @@
-import Payment from '../../models/Payment.js';
-import Order from '../../models/Order.js';
-import Booking from '../../models/Booking.js';
-import { processTelebirrPayment, processPayPalPayment } from '../../utils/payment/paymentService.js';
+import Payment from "../../models/Payment.js";
+import Order from "../../models/Order.js";
+import Booking from "../../models/Booking.js";
+import { initiatePayment, verifyPayment } from "../../services/paymentService.js";
 
-// @desc    Process payment
+// @desc    Process payment with Chapa
 // @route   POST /api/payments/process
 // @access  Private
 export const processPayment = async (req, res) => {
   try {
-    const {
-      orderId,
-      bookingId,
-      amount,
-      paymentMethod,
-      paymentData
-    } = req.body;
+    const { orderId, bookingId, amount, paymentData } = req.body;
 
     let relatedOrder = null;
     let relatedBooking = null;
     let payee = null;
 
-    // Validate order or booking
     if (orderId) {
-      relatedOrder = await Order.findById(orderId).populate('items.seller');
+      relatedOrder = await Order.findById(orderId).populate("items.seller");
       if (!relatedOrder) {
-        return res.status(404).json({
-          success: false,
-          message: 'Order not found'
-        });
+        return res.status(404).json({ success: false, message: "Order not found" });
       }
-      payee = relatedOrder.items[0].seller._id; // Assuming single seller for now
+      payee = relatedOrder.items[0].seller._id;
     }
 
     if (bookingId) {
       relatedBooking = await Booking.findById(bookingId);
       if (!relatedBooking) {
-        return res.status(404).json({
-          success: false,
-          message: 'Booking not found'
-        });
+        return res.status(404).json({ success: false, message: "Booking not found" });
       }
       payee = relatedBooking.seller;
     }
 
     if (!payee) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid payment request'
-      });
+      return res.status(400).json({ success: false, message: "Invalid payment request" });
     }
 
-    // Calculate platform fee (e.g., 3% of transaction)
+    // Platform fee (3%)
     const platformFee = amount * 0.03;
     const netAmount = amount - platformFee;
 
-    // Create payment record
+    // Create pending payment
     const payment = await Payment.create({
       paymentId: `PAY-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       order: orderId,
@@ -62,106 +46,94 @@ export const processPayment = async (req, res) => {
       payer: req.user.id,
       payee,
       amount,
-      paymentMethod,
+      paymentMethod: "chapa",
       platformFee,
       netAmount,
-      status: 'pending'
+      status: "pending",
     });
 
-    let paymentResult;
+    // Initiate Chapa
+    const chapaResponse = await initiatePayment({
+      amount,
+      email: paymentData.email,
+      firstName: paymentData.firstName,
+      lastName: paymentData.lastName,
+      phone: paymentData.phone,
+      callbackUrl: `${process.env.BASE_URL}/api/payments/chapa/callback`,
+      returnUrl: paymentData.returnUrl,
+    });
 
-    try {
-      // Process payment based on method
-      switch (paymentMethod) {
-        case 'stripe':
-          paymentResult = await processStripePayment({
-            amount,
-            currency: 'ETB',
-            paymentMethodId: paymentData.paymentMethodId,
-            metadata: {
-              paymentId: payment.paymentId,
-              orderId,
-              bookingId
-            }
-          });
-          break;
-
-        case 'telebirr':
-          paymentResult = await processTelebirrPayment({
-            amount,
-            phone: paymentData.phone,
-            reference: payment.paymentId
-          });
-          break;
-
-        case 'paypal':
-          paymentResult = await processPayPalPayment({
-            amount,
-            currency: 'USD', // PayPal might require USD
-            reference: payment.paymentId
-          });
-          break;
-
-        default:
-          throw new Error('Unsupported payment method');
-      }
-
-      // Update payment status
-      if (paymentResult.success) {
-        payment.status = 'completed';
-        payment.externalPaymentId = paymentResult.transactionId;
-        payment.gatewayResponse = paymentResult.response;
-        payment.paidAt = new Date();
-
-        // Update related order/booking
-        if (relatedOrder) {
-          relatedOrder.paymentStatus = 'paid';
-          relatedOrder.paymentId = payment.paymentId;
-          relatedOrder.status = 'confirmed';
-          await relatedOrder.save();
-        }
-
-        if (relatedBooking) {
-          relatedBooking.paymentStatus = 'paid';
-          relatedBooking.paymentId = payment.paymentId;
-          relatedBooking.status = 'confirmed';
-          await relatedBooking.save();
-        }
-      } else {
-        payment.status = 'failed';
-        payment.gatewayResponse = paymentResult.error;
-      }
-
+    if (!chapaResponse.success) {
+      payment.status = "failed";
       await payment.save();
-
-      res.status(paymentResult.success ? 200 : 400).json({
-        success: paymentResult.success,
-        message: paymentResult.success ? 'Payment processed successfully' : 'Payment failed',
-        data: { 
-          payment,
-          transactionId: paymentResult.transactionId
-        }
-      });
-
-    } catch (paymentError) {
-      console.error('Payment processing error:', paymentError);
-      
-      payment.status = 'failed';
-      payment.gatewayResponse = { error: paymentError.message };
-      await payment.save();
-
-      res.status(500).json({
-        success: false,
-        message: 'Payment processing failed',
-        error: paymentError.message
-      });
+      return res.status(400).json({ success: false, message: chapaResponse.message });
     }
-  } catch (error) {
-    console.error('Process payment error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while processing payment'
+
+    res.status(200).json({
+      success: true,
+      message: "Chapa payment initiated",
+      data: {
+        payment,
+        checkoutUrl: chapaResponse.data.checkoutUrl,
+      },
     });
+  } catch (error) {
+    console.error("Process payment error:", error);
+    res.status(500).json({ success: false, message: "Server error while processing payment" });
+  }
+};
+
+// @desc    Chapa callback (verification)
+// @route   POST /api/payments/chapa/callback
+// @access  Public
+export const chapaCallback = async (req, res) => {
+  try {
+    const { tx_ref } = req.body;
+
+    const verifyResponse = await verifyPayment(tx_ref);
+
+    if (!verifyResponse.success) {
+      return res.status(400).json({ success: false, message: "Payment verification failed" });
+    }
+
+    const payment = await Payment.findOne({ paymentId: tx_ref });
+    if (!payment) {
+      return res.status(404).json({ success: false, message: "Payment record not found" });
+    }
+
+    // Update payment
+    payment.status = "completed";
+    payment.externalPaymentId = verifyResponse.data.transaction_id;
+    payment.gatewayResponse = verifyResponse.data;
+    payment.paidAt = new Date();
+
+    // Update related order/booking
+    if (payment.order) {
+      const relatedOrder = await Order.findById(payment.order);
+      if (relatedOrder) {
+        relatedOrder.paymentStatus = "paid";
+        relatedOrder.paymentId = payment.paymentId;
+        relatedOrder.status = "confirmed";
+        await relatedOrder.save();
+      }
+    }
+
+    if (payment.booking) {
+      const relatedBooking = await Booking.findById(payment.booking);
+      if (relatedBooking) {
+        relatedBooking.paymentStatus = "paid";
+        relatedBooking.paymentId = payment.paymentId;
+        relatedBooking.status = "confirmed";
+        await relatedBooking.save();
+      }
+    }
+
+    await payment.save();
+
+    res.status(200).json({ success: true, message: "Payment verified successfully" });
+  } catch (error) {
+    console.error("Chapa callback error:", error);
+    res.status(500).json({ success: false, message: "Server error during callback" });
   }
 };
 

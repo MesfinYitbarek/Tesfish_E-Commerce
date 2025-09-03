@@ -15,9 +15,7 @@ import mongoSanitize from 'express-mongo-sanitize';
 import path from "path";
 import { fileURLToPath } from "url";
 import authRoutes from './routes/auth/authRoutes.js';
-import cartRoutes from './routes/cart/cartRoutes.js';
 import productRoutes from './routes/product/productRoutes.js';
-import orderRoutes from './routes/order/orderRoutes.js';
 import paymentRoutes from './routes/payment/paymentRoutes.js';
 import bookingRoutes from './routes/booking/bookingRoutes.js';
 import chatRoutes from './routes/chat/chatRoutes.js';
@@ -136,8 +134,6 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
-app.use('/api/cart', cartRoutes);
-app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/chat', injectSocketIO(io), chatRoutes);
