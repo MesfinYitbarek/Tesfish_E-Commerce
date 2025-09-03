@@ -129,14 +129,14 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
-
+injectSocketIO(io);
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/bookings', bookingRoutes);
-app.use('/api/chat', injectSocketIO(io), chatRoutes);
+app.use('/api/chat', chatRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/service-inquiries', serviceInquiryRoutes);
