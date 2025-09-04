@@ -15,6 +15,7 @@ import mongoSanitize from 'express-mongo-sanitize';
 import path from "path";
 import { fileURLToPath } from "url";
 
+// Routes
 import authRoutes from './routes/auth/authRoutes.js';
 import productRoutes from './routes/product/productRoutes.js';
 import paymentRoutes from './routes/payment/paymentRoutes.js';
@@ -29,19 +30,19 @@ import categoryRoutes from './routes/category/categoryRoutes.js';
 import propertyRegistrationRoutes from './routes/property/propertyRegistrationRoutes.js';
 import appointmentRoutes from './routes/property/appointmentRoutes.js';
 
-// Import middleware
+// Middleware
 import { errorHandler, notFound } from './middleware/error/errorMiddleware.js';
 import { protect } from './middleware/auth/authMiddleware.js';
 
-// Import utils
+// Utils
 import connectDB from './config/database.js';
 import { initializeSocket } from './config/socket.js';
 import { injectSocketIO } from './controllers/chat/chatController.js';
 
-// Load environment variables
+// Load env
 dotenv.config();
 
-// Connect to database
+// Connect DB
 connectDB();
 
 const app = express();
@@ -53,7 +54,7 @@ const io = new Server(server, {
   }
 });
 
-// Initialize Socket.io
+// Init socket
 initializeSocket(io);
 
 // Security middleware
@@ -61,27 +62,16 @@ app.use(helmet());
 app.use((req, res, next) => {
   if (req.body) req.body = mongoSanitize.sanitize(req.body);
   if (req.params) req.params = mongoSanitize.sanitize(req.params);
-  // Skip req.query to avoid Express 5 error
   next();
 });
 
+// Paths
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Serve frontend in production
-if (process.env.NODE_ENV === "production") {
-  const clientBuildPath = path.join(__dirname, "../client/dist");
-  app.use(express.static(clientBuildPath));
-
-  // ✅ Use "*" (Express 5 safe)
-  app.get("*", (req, res) => {
-    res.sendFile(path.resolve(clientBuildPath, "index.html"));
-  });
-}
-
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
@@ -89,19 +79,19 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// CORS configuration
+// CORS
 app.use(cors({
   origin: process.env.CLIENT_URL || "*",
   credentials: true,
   optionsSuccessStatus: 200
 }));
 
-// Body parsing middleware
+// Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
-// Session configuration
+// Session
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
@@ -112,17 +102,17 @@ app.use(session({
   cookie: {
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    maxAge: 24 * 60 * 60 * 1000
   }
 }));
 
-// Compression and logging
+// Compression & logging
 app.use(compression());
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// Health check route
+// Health check
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'success',
@@ -131,7 +121,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API routes
+// ---------------- API ROUTES ----------------
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
@@ -146,10 +136,20 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/property-registrations', propertyRegistrationRoutes);
 app.use('/api/appointments', appointmentRoutes);
 
-// ✅ Static file serving for uploads (Express 5 safe)
+// ✅ Static uploads
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// Error handling middleware
+// ---------------- FRONTEND ----------------
+if (process.env.NODE_ENV === "production") {
+  const clientBuildPath = path.join(__dirname, "../client/dist");
+  app.use(express.static(clientBuildPath));
+
+  app.get("*", (req, res) => {
+    res.sendFile(path.resolve(clientBuildPath, "index.html"));
+  });
+}
+
+// ---------------- ERRORS ----------------
 app.use(notFound);
 app.use(errorHandler);
 
