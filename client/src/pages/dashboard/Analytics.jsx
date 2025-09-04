@@ -9,7 +9,6 @@ import {
   ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import StatsCard from '../../components/dashboard/StatsCard';
-import PerformanceChart from '../../components/dashboard/PerformanceChart';
 import TopPerformingListings from '../../components/dashboard/TopPerformingListings';
 import TrafficSources from '../../components/dashboard/TrafficSources';
 import Button from '../../components/ui/Button';
@@ -199,10 +198,6 @@ const Analytics = () => {
 
       {/* Main Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Performance Chart */}
-        <div className="lg:col-span-2">
-          <PerformanceChart data={analyticsData.timeData.daily} />
-        </div>
 
         {/* Traffic Sources */}
         <div>
