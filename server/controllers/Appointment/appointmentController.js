@@ -1,10 +1,44 @@
+// controllers/Appointment/appointmentController.js
 import Appointment from '../../models/Appointment.js';
 import Product from '../../models/Product.js';
 import User from '../../models/User.js';
 import { validationResult } from 'express-validator';
-import { scheduleNotification } from '../../Services/notificationScheduler.js';
-import { sendEmail } from '../../utils/email/emailService.js';
-import { sendNotification } from '../../Services/NotificationService.js';
+
+// Helper function to get available admin for appointment assignment
+const getAvailableAdmin = async (scheduledDateTime) => {
+  try {
+    // Get all admin users
+    const admins = await User.find({ userType: 'admin', isActive: true });
+    
+    if (admins.length === 0) {
+      throw new Error('No admin users available');
+    }
+
+    // Simple round-robin assignment - get admin with least appointments for that day
+    const appointmentDate = new Date(scheduledDateTime);
+    const dayStart = new Date(appointmentDate.setHours(0, 0, 0, 0));
+    const dayEnd = new Date(appointmentDate.setHours(23, 59, 59, 999));
+
+    const adminAppointmentCounts = await Promise.all(
+      admins.map(async (admin) => {
+        const count = await Appointment.countDocuments({
+          seller: admin._id,
+          scheduledDateTime: { $gte: dayStart, $lte: dayEnd },
+          status: { $in: ['pending', 'confirmed'] }
+        });
+        return { admin, count };
+      })
+    );
+
+    // Sort by appointment count (ascending) and return admin with least appointments
+    adminAppointmentCounts.sort((a, b) => a.count - b.count);
+    return adminAppointmentCounts[0].admin;
+  } catch (error) {
+    // Fallback to first admin
+    const firstAdmin = await User.findOne({ userType: 'admin', isActive: true });
+    return firstAdmin;
+  }
+};
 
 // @desc    Book appointment
 // @route   POST /api/appointments
@@ -24,12 +58,12 @@ export const bookAppointment = async (req, res) => {
       propertyId,
       contactInfo,
       scheduledDateTime,
-      appointmentType,
+      appointmentType = 'property-viewing',
       meetingDetails,
       customerNotes
     } = req.body;
 
-    // Verify property exists
+    // Verify property exists (seller can be company/individual)
     const property = await Product.findById(propertyId).populate('seller');
     if (!property) {
       return res.status(404).json({
@@ -55,9 +89,30 @@ export const bookAppointment = async (req, res) => {
       });
     }
 
-    // Check for conflicts (same seller, overlapping time)
+    // Check business hours if defined
+    const hour = appointmentDate.getHours();
+    if (property.viewingDetails?.businessHours) {
+      const { startTime, endTime } = property.viewingDetails.businessHours;
+      if (hour < startTime || hour >= endTime) {
+        return res.status(400).json({
+          success: false,
+          message: `Appointments are only available between ${startTime}:00 and ${endTime}:00`
+        });
+      }
+    }
+
+    // Get available admin to handle this appointment
+    const assignedAdmin = await getAvailableAdmin(appointmentDate);
+    if (!assignedAdmin) {
+      return res.status(500).json({
+        success: false,
+        message: 'No admin available to handle appointment. Please try again later.'
+      });
+    }
+
+    // Check for conflicts with assigned admin
     const conflictingAppointment = await Appointment.findOne({
-      seller: property.seller._id,
+      seller: assignedAdmin._id,
       scheduledDateTime: {
         $gte: new Date(appointmentDate.getTime() - 60 * 60 * 1000), // 1 hour before
         $lte: new Date(appointmentDate.getTime() + 60 * 60 * 1000)  // 1 hour after
@@ -68,67 +123,51 @@ export const bookAppointment = async (req, res) => {
     if (conflictingAppointment) {
       return res.status(400).json({
         success: false,
-        message: 'The selected time conflicts with another appointment'
+        message: 'The selected time is not available. Please choose a different time.'
       });
     }
 
-    // Create appointment
+    // Set default meeting details
+    const defaultMeetingDetails = {
+      location: 'property-site',
+      address: property.propertyDetails?.location?.street || 'Property Location',
+      ...meetingDetails
+    };
+
+    // Create appointment (seller field points to admin, not property owner)
     const appointment = await Appointment.create({
       property: propertyId,
       customer: req.user.id,
-      seller: property.seller._id,
+      seller: assignedAdmin._id, // Admin handles the appointment
       contactInfo,
       scheduledDateTime: appointmentDate,
       appointmentType,
-      meetingDetails,
+      meetingDetails: defaultMeetingDetails,
       customerNotes
     });
 
     await appointment.populate([
-      { path: 'property', select: 'title media.images propertyDetails.location' },
-      { path: 'customer', select: 'firstName lastName email' },
+      { path: 'property', select: 'title media.images propertyDetails.location seller' },
+      { path: 'customer', select: 'customerProfile email' },
       { path: 'seller', select: 'companyProfile individualProfile email' }
     ]);
 
-    // Send notifications
-    await sendNotification(property.seller._id, {
-      type: 'new_appointment',
-      title: 'New Appointment Request',
-      message: `${contactInfo.name} requested an appointment for ${property.title}`,
-      data: { appointmentId: appointment._id, propertyId }
-    });
-
-    // Send confirmation email to customer
-    await sendEmail({
-      to: contactInfo.email,
-      subject: `Appointment Request Submitted - ${property.title}`,
-      template: 'appointment-request',
-      data: {
-        customerName: contactInfo.name,
-        propertyTitle: property.title,
-        appointmentDate: appointmentDate.toLocaleDateString(),
-        appointmentTime: appointmentDate.toLocaleTimeString(),
-        appointmentNumber: appointment.appointmentNumber
-      }
-    });
-
-    // Schedule reminder notification (24 hours before)
-    const reminderTime = new Date(appointmentDate.getTime() - 24 * 60 * 60 * 1000);
-    if (reminderTime > new Date()) {
-      await scheduleNotification({
-        userId: req.user.id,
-        scheduledFor: reminderTime,
-        type: 'appointment_reminder',
-        title: 'Appointment Reminder',
-        message: `You have an appointment tomorrow for ${property.title}`,
-        data: { appointmentId: appointment._id }
-      });
-    }
+    const adminEmail = assignedAdmin.companyProfile?.email || 
+                      assignedAdmin.individualProfile?.email || 
+                      assignedAdmin.email;
 
     res.status(201).json({
       success: true,
       message: 'Appointment booked successfully',
-      data: { appointment }
+      data: { 
+        appointment,
+        assignedAdmin: {
+          id: assignedAdmin._id,
+          name: assignedAdmin.companyProfile?.companyName || 
+                `${assignedAdmin.individualProfile?.firstName} ${assignedAdmin.individualProfile?.lastName}`,
+          email: adminEmail
+        }
+      }
     });
 
   } catch (error) {
@@ -159,19 +198,42 @@ export const getMyAppointments = async (req, res) => {
       query.scheduledDateTime = { $gte: new Date() };
     }
 
+    if (req.query.past === 'true') {
+      query.scheduledDateTime = { $lt: new Date() };
+    }
+
     const appointments = await Appointment.find(query)
-      .populate('property', 'title media.images propertyDetails.location pricing')
-      .populate('seller', 'companyProfile individualProfile email')
+      .populate('property', 'title media.images propertyDetails.location pricing seller')
+      .populate({
+        path: 'property',
+        populate: {
+          path: 'seller',
+          select: 'companyProfile individualProfile'
+        }
+      })
+      .populate('seller', 'companyProfile individualProfile email') // Admin who handles appointment
       .sort({ scheduledDateTime: req.query.upcoming === 'true' ? 1 : -1 })
       .skip(skip)
       .limit(limit);
 
     const total = await Appointment.countDocuments(query);
 
+    // Get appointment stats for customer
+    const stats = await Appointment.aggregate([
+      { $match: { customer: req.user._id } },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
     res.status(200).json({
       success: true,
       data: {
         appointments,
+        stats,
         pagination: {
           currentPage: page,
           totalPages: Math.ceil(total / limit),
@@ -189,16 +251,24 @@ export const getMyAppointments = async (req, res) => {
   }
 };
 
-// @desc    Get seller appointments
-// @route   GET /api/appointments/seller-appointments
-// @access  Private (Seller)
-export const getSellerAppointments = async (req, res) => {
+// @desc    Get admin appointments (renamed from getSellerAppointments)
+// @route   GET /api/appointments/admin-appointments
+// @access  Private (Admin)
+export const getAdminAppointments = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const query = { seller: req.user.id };
+    // Only admins can access this
+    if (req.user.userType !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin role required.'
+      });
+    }
+
+    const query = { seller: req.user.id }; // seller field contains admin ID
     
     if (req.query.status) {
       query.status = req.query.status;
@@ -214,9 +284,26 @@ export const getSellerAppointments = async (req, res) => {
       query.property = req.query.property;
     }
 
+    if (req.query.upcoming === 'true') {
+      query.scheduledDateTime = { $gte: new Date() };
+    }
+
+    if (req.query.propertyOwner) {
+      // Filter by property owner
+      const ownerProperties = await Product.find({ seller: req.query.propertyOwner }).select('_id');
+      query.property = { $in: ownerProperties.map(p => p._id) };
+    }
+
     const appointments = await Appointment.find(query)
-      .populate('property', 'title media.images propertyDetails.location')
-      .populate('customer', 'firstName lastName email avatar')
+      .populate({
+        path: 'property',
+        select: 'title media.images propertyDetails.location seller',
+        populate: {
+          path: 'seller',
+          select: 'companyProfile individualProfile email'
+        }
+      })
+      .populate('customer', 'customerProfile email')
       .sort({ scheduledDateTime: 1 })
       .skip(skip)
       .limit(limit);
@@ -234,11 +321,50 @@ export const getSellerAppointments = async (req, res) => {
       status: { $in: ['pending', 'confirmed'] }
     });
 
+    // Get upcoming appointments count (next 7 days)
+    const weekEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const upcomingCount = await Appointment.countDocuments({
+      seller: req.user.id,
+      scheduledDateTime: { $gte: new Date(), $lte: weekEnd },
+      status: { $in: ['pending', 'confirmed'] }
+    });
+
+    // Get property owners who have appointments with this admin
+    const propertyOwners = await Appointment.aggregate([
+      { $match: { seller: req.user._id } },
+      {
+        $lookup: {
+          from: 'products',
+          localField: 'property',
+          foreignField: '_id',
+          as: 'propertyDetails'
+        }
+      },
+      { $unwind: '$propertyDetails' },
+      {
+        $group: {
+          _id: '$propertyDetails.seller',
+          appointmentCount: { $sum: 1 }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'ownerDetails'
+        }
+      },
+      { $unwind: '$ownerDetails' }
+    ]);
+
     res.status(200).json({
       success: true,
       data: {
         appointments,
         todayCount,
+        upcomingCount,
+        propertyOwners,
         pagination: {
           currentPage: page,
           totalPages: Math.ceil(total / limit),
@@ -248,7 +374,7 @@ export const getSellerAppointments = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Get seller appointments error:', error);
+    console.error('Get admin appointments error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error while fetching appointments'
@@ -258,14 +384,29 @@ export const getSellerAppointments = async (req, res) => {
 
 // @desc    Update appointment status
 // @route   PUT /api/appointments/:id/status
-// @access  Private (Seller)
+// @access  Private (Admin)
 export const updateAppointmentStatus = async (req, res) => {
   try {
     const { status, sellerNotes, outcome } = req.body;
 
+    // Only admins can update appointment status
+    if (req.user.userType !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin role required.'
+      });
+    }
+
     const appointment = await Appointment.findById(req.params.id)
-      .populate('property', 'title seller')
-      .populate('customer', 'firstName lastName email');
+      .populate({
+        path: 'property',
+        select: 'title seller',
+        populate: {
+          path: 'seller',
+          select: 'companyProfile individualProfile email'
+        }
+      })
+      .populate('customer', 'customerProfile email');
 
     if (!appointment) {
       return res.status(404).json({
@@ -274,8 +415,8 @@ export const updateAppointmentStatus = async (req, res) => {
       });
     }
 
-    // Check authorization
-    if (appointment.seller.toString() !== req.user.id && req.user.userType !== 'admin') {
+    // Check if this admin is assigned to handle this appointment
+    if (appointment.seller.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to update this appointment'
@@ -300,37 +441,6 @@ export const updateAppointmentStatus = async (req, res) => {
 
     await appointment.save();
 
-    // Send notification to customer
-    const statusMessages = {
-      'confirmed': 'Your appointment has been confirmed!',
-      'cancelled': 'Your appointment has been cancelled.',
-      'completed': 'Your appointment has been completed.',
-      'rescheduled': 'Your appointment has been rescheduled.'
-    };
-
-    await sendNotification(appointment.customer._id, {
-      type: 'appointment_status_update',
-      title: 'Appointment Status Updated',
-      message: statusMessages[status] || `Appointment status updated to ${status}`,
-      data: { appointmentId: appointment._id, status }
-    });
-
-    // Send email notification
-    await sendEmail({
-      to: appointment.customer.email,
-      subject: `Appointment ${status} - ${appointment.property.title}`,
-      template: 'appointment-status-update',
-      data: {
-        customerName: `${appointment.customer.firstName} ${appointment.customer.lastName}`,
-        propertyTitle: appointment.property.title,
-        status,
-        sellerNotes,
-        appointmentNumber: appointment.appointmentNumber,
-        appointmentDate: appointment.scheduledDateTime.toLocaleDateString(),
-        appointmentTime: appointment.scheduledDateTime.toLocaleTimeString()
-      }
-    });
-
     res.status(200).json({
       success: true,
       message: `Appointment status updated from ${oldStatus} to ${status}`,
@@ -346,16 +456,71 @@ export const updateAppointmentStatus = async (req, res) => {
   }
 };
 
+// @desc    Assign appointment to different admin
+// @route   PUT /api/appointments/:id/assign
+// @access  Private (Admin)
+export const assignAppointmentToAdmin = async (req, res) => {
+  try {
+    const { adminId, reason } = req.body;
+
+    if (req.user.userType !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin role required.'
+      });
+    }
+
+    const appointment = await Appointment.findById(req.params.id)
+      .populate('property', 'title')
+      .populate('customer', 'customerProfile email');
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Appointment not found'
+      });
+    }
+
+    // Verify target admin exists
+    const targetAdmin = await User.findOne({ _id: adminId, userType: 'admin' });
+    if (!targetAdmin) {
+      return res.status(404).json({
+        success: false,
+        message: 'Target admin not found'
+      });
+    }
+
+    const oldAdminId = appointment.seller;
+    appointment.seller = adminId;
+    appointment.sellerNotes = `${appointment.sellerNotes || ''}\n\nReassigned: ${reason || 'No reason provided'}`.trim();
+    
+    await appointment.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Appointment reassigned successfully',
+      data: { appointment }
+    });
+
+  } catch (error) {
+    console.error('Assign appointment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while assigning appointment'
+    });
+  }
+};
+
 // @desc    Reschedule appointment
 // @route   PUT /api/appointments/:id/reschedule
-// @access  Private (Customer/Seller)
+// @access  Private (Customer/Admin)
 export const rescheduleAppointment = async (req, res) => {
   try {
     const { newDateTime, reason } = req.body;
 
     const appointment = await Appointment.findById(req.params.id)
-      .populate('property', 'title')
-      .populate('customer', 'firstName lastName email')
+      .populate('property', 'title seller')
+      .populate('customer', 'customerProfile email')
       .populate('seller', 'companyProfile individualProfile email');
 
     if (!appointment) {
@@ -365,11 +530,11 @@ export const rescheduleAppointment = async (req, res) => {
       });
     }
 
-    // Check authorization
+    // Check authorization - either customer or assigned admin
     const isCustomer = appointment.customer._id.toString() === req.user.id;
-    const isSeller = appointment.seller._id.toString() === req.user.id;
+    const isAssignedAdmin = appointment.seller._id.toString() === req.user.id && req.user.userType === 'admin';
 
-    if (!isCustomer && !isSeller) {
+    if (!isCustomer && !isAssignedAdmin) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to reschedule this appointment'
@@ -384,44 +549,35 @@ export const rescheduleAppointment = async (req, res) => {
       });
     }
 
+    // Check for conflicts with assigned admin
+    const conflictingAppointment = await Appointment.findOne({
+      seller: appointment.seller._id,
+      scheduledDateTime: {
+        $gte: new Date(newDate.getTime() - 60 * 60 * 1000),
+        $lte: new Date(newDate.getTime() + 60 * 60 * 1000)
+      },
+      status: { $in: ['pending', 'confirmed'] },
+      _id: { $ne: appointment._id }
+    });
+
+    if (conflictingAppointment) {
+      return res.status(400).json({
+        success: false,
+        message: 'The selected time conflicts with another appointment'
+      });
+    }
+
     // Add to rescheduling history
     appointment.reschedulingHistory.push({
       originalDate: appointment.scheduledDateTime,
       newDate: newDate,
       reason,
-      rescheduledBy: isCustomer ? 'customer' : 'seller'
+      rescheduledBy: isCustomer ? 'customer' : 'admin'
     });
 
     appointment.scheduledDateTime = newDate;
     appointment.status = 'rescheduled';
     await appointment.save();
-
-    // Notify the other party
-    const recipientId = isCustomer ? appointment.seller._id : appointment.customer._id;
-    const recipientEmail = isCustomer ? 
-      (appointment.seller.companyProfile?.email || appointment.seller.email) :
-      appointment.customer.email;
-
-    await sendNotification(recipientId, {
-      type: 'appointment_rescheduled',
-      title: 'Appointment Rescheduled',
-      message: `Appointment for ${appointment.property.title} has been rescheduled`,
-      data: { appointmentId: appointment._id }
-    });
-
-    await sendEmail({
-      to: recipientEmail,
-      subject: `Appointment Rescheduled - ${appointment.property.title}`,
-      template: 'appointment-reschedule',
-      data: {
-        propertyTitle: appointment.property.title,
-        oldDate: appointment.reschedulingHistory[appointment.reschedulingHistory.length - 1].originalDate.toLocaleDateString(),
-        newDate: newDate.toLocaleDateString(),
-        newTime: newDate.toLocaleTimeString(),
-        reason,
-        rescheduledBy: isCustomer ? 'customer' : 'property owner'
-      }
-    });
 
     res.status(200).json({
       success: true,
@@ -438,3 +594,133 @@ export const rescheduleAppointment = async (req, res) => {
   }
 };
 
+// @desc    Get appointment statistics
+// @route   GET /api/appointments/stats
+// @access  Private (Admin)
+export const getAppointmentStats = async (req, res) => {
+  try {
+    if (req.user.userType !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin role required.'
+      });
+    }
+
+    const stats = await Appointment.aggregate([
+      { $match: { seller: req.user._id } },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const monthlyStats = await Appointment.aggregate([
+      { 
+        $match: { 
+          seller: req.user._id,
+          scheduledDateTime: {
+            $gte: new Date(new Date().getFullYear(), 0, 1) // Start of current year
+          }
+        }
+      },
+      {
+        $group: {
+          _id: {
+            month: { $month: '$scheduledDateTime' },
+            year: { $year: '$scheduledDateTime' }
+          },
+          count: { $sum: 1 }
+        }
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1 } }
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        statusStats: stats,
+        monthlyStats
+      }
+    });
+
+  } catch (error) {
+    console.error('Get appointment stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching appointment statistics'
+    });
+  }
+};
+
+// @desc    Export appointments to CSV
+// @route   GET /api/appointments/export-csv
+// @access  Private (Admin)
+export const exportAppointmentsCSV = async (req, res) => {
+  try {
+    if (req.user.userType !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Admin role required.'
+      });
+    }
+
+    const appointments = await Appointment.find({ seller: req.user.id })
+      .populate('property', 'title propertyDetails.location')
+      .populate('customer', 'customerProfile email')
+      .populate({
+        path: 'property',
+        populate: {
+          path: 'seller',
+          select: 'companyProfile individualProfile'
+        }
+      })
+      .sort({ createdAt: -1 });
+
+    // Generate CSV content
+    const csvHeader = [
+      'Appointment Number',
+      'Property Title',
+      'Property Owner',
+      'Customer Name',
+      'Customer Email',
+      'Customer Phone',
+      'Appointment Date',
+      'Appointment Time',
+      'Status',
+      'Type',
+      'Meeting Location',
+      'Created Date'
+    ].join(',');
+
+    const csvRows = appointments.map(appt => [
+      appt.appointmentNumber,
+      `"${appt.property.title}"`,
+      `"${appt.property.seller.companyProfile?.companyName || 
+          `${appt.property.seller.individualProfile?.firstName} ${appt.property.seller.individualProfile?.lastName}`}"`,
+      `"${appt.contactInfo.name}"`,
+      appt.contactInfo.email,
+      appt.contactInfo.phone,
+      appt.scheduledDateTime.toLocaleDateString(),
+      appt.scheduledDateTime.toLocaleTimeString(),
+      appt.status,
+      appt.appointmentType,
+      appt.meetingDetails.location,
+      appt.createdAt.toLocaleDateString()
+    ].join(','));
+
+    const csvContent = [csvHeader, ...csvRows].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="appointments-${new Date().toISOString().split('T')[0]}.csv"`);
+    res.status(200).send(csvContent);
+
+  } catch (error) {
+    console.error('Export appointments CSV error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while exporting appointments'
+    });
+  }
+};

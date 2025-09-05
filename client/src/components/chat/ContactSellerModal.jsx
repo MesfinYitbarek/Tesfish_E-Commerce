@@ -1,3 +1,4 @@
+// components/chat/ContactSellerModal.jsx - Fixed input visibility
 import { useState, useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -8,7 +9,7 @@ import {
   PaperAirplaneIcon,
   CheckBadgeIcon,
   ExclamationTriangleIcon,
-  UserIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 import { io } from 'socket.io-client';
 import Modal from '../ui/Modal';
@@ -41,6 +42,8 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
   const [localMessages, setLocalMessages] = useState([]);
   const [connectionAttempts, setConnectionAttempts] = useState(0);
   const [chatError, setChatError] = useState(null);
+  const [adminOnline, setAdminOnline] = useState(false);
+  const [initializingChat, setInitializingChat] = useState(false);
   
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -56,7 +59,7 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
   // Check authentication when modal opens
   useEffect(() => {
     if (isOpen && !isAuthenticated) {
-      toast.error('Please log in to contact the seller');
+      toast.error('Please log in to inquire about this product');
       onClose();
       navigate('/auth/login');
       return;
@@ -73,13 +76,13 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
     }
   }, [isOpen, isAuthenticated, token, navigate, onClose, dispatch, user?.id]);
 
-  // Initialize socket connection with better error handling and reconnection
+  // Initialize socket connection
   useEffect(() => {
     if (isOpen && token && isAuthenticated && !authError) {
       const initializeSocket = () => {
         const serverUrl = 'http://localhost:5000';
         
-        console.log('🔌 Initializing socket connection...');
+        console.log('🔌 Initializing socket connection for product inquiry...');
         
         const newSocket = io(serverUrl, {
           auth: { token },
@@ -92,7 +95,7 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
         });
 
         newSocket.on('connect', () => {
-          console.log('✅ ContactSellerModal connected to chat server');
+          console.log('✅ Connected to chat server for product inquiry');
           setSocketConnected(true);
           setSocket(newSocket);
           socketRef.current = newSocket;
@@ -102,7 +105,7 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
         });
 
         newSocket.on('connect_error', (error) => {
-          console.error('❌ ContactSellerModal socket connection error:', error);
+          console.error('❌ Socket connection error:', error);
           setSocketConnected(false);
           setConnectionAttempts(prev => prev + 1);
           
@@ -121,36 +124,34 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
             }, 2000 * (connectionAttempts + 1));
           } else {
             console.warn('⚠️ Chat server unavailable after multiple attempts');
-            setChatError('Real-time chat unavailable. Messages will still be delivered.');
+            setChatError('Real-time chat unavailable. Your message will still be delivered.');
           }
         });
 
         newSocket.on('disconnect', (reason) => {
-          console.log('🔌 ContactSellerModal socket disconnected:', reason);
+          console.log('🔌 Socket disconnected:', reason);
           setSocketConnected(false);
-          
-          if (reason === 'io server disconnect' || reason === 'transport close') {
-            setAuthError(true);
-          } else if (reason !== 'io client disconnect') {
-            // Try to reconnect for non-intentional disconnects
-            setTimeout(() => {
-              if (isOpen && !socketRef.current?.connected) {
-                initializeSocket();
-              }
-            }, 2000);
-          }
+          setAdminOnline(false);
         });
 
         newSocket.on('reconnect', () => {
-          console.log('🔄 ContactSellerModal socket reconnected');
+          console.log('🔄 Socket reconnected');
           setSocketConnected(true);
           setConnectionAttempts(0);
           setChatError(null);
           
-          // Rejoin chat room if we have an active chat
           if (currentChat?._id) {
             newSocket.emit('join-chat', currentChat._id);
           }
+        });
+
+        // Listen for admin status
+        newSocket.on('admin-online', () => {
+          setAdminOnline(true);
+        });
+
+        newSocket.on('admin-offline', () => {
+          setAdminOnline(false);
         });
 
         return newSocket;
@@ -168,34 +169,34 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
         }
         setSocket(null);
         setSocketConnected(false);
+        setAdminOnline(false);
         socketRef.current = null;
       };
     }
   }, [isOpen, token, isAuthenticated, authError, dispatch, navigate, onClose, connectionAttempts, currentChat?._id]);
 
-  // Socket event listeners with improved error handling
+  // Socket event listeners
   useEffect(() => {
     if (!socket || !socketConnected || !currentChat) return;
 
-    console.log('🏠 ContactSellerModal joining chat room:', currentChat._id);
-
-    // Join chat room
+    console.log('🏠 Joining chat room for product inquiry:', currentChat._id);
     socket.emit('join-chat', currentChat._id);
 
-    // Listen for new messages - IMPROVED
     const handleNewMessage = (data) => {
-      console.log('📨 ContactSellerModal received new message:', data);
+      console.log('📨 Received new message in product inquiry:', data);
       try {
         if (data.chatId === currentChat._id) {
-          console.log('✅ Adding message to ContactSellerModal');
+          console.log('✅ Adding admin response to product inquiry');
           
-          // Add to Redux store for consistency
+          if (data.message.sender?.userType === 'admin') {
+            toast.success('CitiLights team responded about your product inquiry', { duration: 3000 });
+          }
+          
           dispatch(addMessage({
             ...data.message,
             chatId: data.chatId
           }));
           
-          // Also add to local state for immediate UI update
           setLocalMessages(prev => {
             const messageExists = prev.some(msg => 
               msg._id === data.message._id || 
@@ -212,15 +213,13 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
             return prev;
           });
           
-          // Scroll to bottom after message is added
           setTimeout(() => scrollToBottom(), 100);
         }
       } catch (error) {
-        console.error('Error handling new message in ContactSellerModal:', error);
+        console.error('Error handling new message:', error);
       }
     };
 
-    // Listen for typing events
     const handleUserTyping = (data) => {
       try {
         if (data.chatId === currentChat._id && data.userId !== user?._id) {
@@ -234,7 +233,6 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
       }
     };
 
-    // Listen for message updates
     const handleMessageEdited = (data) => {
       try {
         if (data.chatId === currentChat._id) {
@@ -265,11 +263,9 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
       }
     };
 
-    // Listen for read status
     const handleMessagesRead = (data) => {
       try {
         if (data.chatId === currentChat._id) {
-          console.log('📖 Messages marked as read by other user');
           setLocalMessages(prev => prev.map(msg => ({
             ...msg,
             isRead: msg.sender?._id === user?._id ? true : msg.isRead
@@ -280,9 +276,8 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
       }
     };
 
-    // Listen for errors
     const handleError = (error) => {
-      console.error('Socket error in ContactSellerModal:', error);
+      console.error('Socket error:', error);
       if (error.message && error.message.includes('Authentication')) {
         setAuthError(true);
         toast.error('Session expired. Please log in again.');
@@ -300,7 +295,7 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
     socket.on('error', handleError);
 
     return () => {
-      console.log('🚪 ContactSellerModal leaving chat room:', currentChat._id);
+      console.log('🚪 Leaving product inquiry chat room:', currentChat._id);
       socket.off('new-message', handleNewMessage);
       socket.off('user-typing', handleUserTyping);
       socket.off('message-edited', handleMessageEdited);
@@ -325,6 +320,7 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
   useEffect(() => {
     if (isOpen) {
       setChatInitialized(false);
+      setInitializingChat(false);
       setMessage('');
       setAttachments([]);
       setOtherUserTyping(false);
@@ -332,6 +328,7 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
       setLocalMessages([]);
       setConnectionAttempts(0);
       setChatError(null);
+      setAdminOnline(false);
     } else {
       dispatch(resetChat());
       setLocalMessages([]);
@@ -340,6 +337,7 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
       }
       setSocket(null);
       setSocketConnected(false);
+      setAdminOnline(false);
       
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
@@ -350,12 +348,12 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
     }
   }, [isOpen, dispatch]);
 
-  // Initialize chat when modal opens and product is available
+  // Initialize chat when modal opens - Auto initialize
   useEffect(() => {
-    if (isOpen && product?.seller?._id && !chatInitialized && isAuthenticated && !authError) {
+    if (isOpen && product?._id && !chatInitialized && !initializingChat && isAuthenticated && !authError) {
       initializeChat();
     }
-  }, [isOpen, product, chatInitialized, isAuthenticated, authError]);
+  }, [isOpen, product, chatInitialized, initializingChat, isAuthenticated, authError]);
 
   // Handle Redux errors
   useEffect(() => {
@@ -379,33 +377,37 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
 
   const initializeChat = async () => {
     if (!isAuthenticated || !token) {
-      toast.error('Please log in to start a conversation');
+      toast.error('Please log in to inquire about this product');
       onClose();
       navigate('/auth/login');
       return;
     }
 
+    if (initializingChat) return; // Prevent multiple initialization attempts
+
+    setInitializingChat(true);
+
     try {
-      console.log('🚀 Initializing chat with seller:', product.seller._id);
+      console.log('🚀 Starting product inquiry chat');
       
+      // Create chat - backend will route to admin automatically
       const result = await dispatch(createChat({
-        participantId: product.seller._id,
+        participantId: 'admin', // Signal that this should go to admin
         relatedProduct: product._id
       })).unwrap();
       
-      console.log('✅ Chat initialized:', result);
+      console.log('✅ Product inquiry chat initialized:', result);
       
       dispatch(setCurrentChat(result.chat));
       setLocalMessages(result.chat?.messages || []);
       setChatInitialized(true);
       
-      // Join chat room once chat is created
       if (socketRef.current?.connected) {
         socketRef.current.emit('join-chat', result.chat._id);
       }
       
     } catch (error) {
-      console.error('Failed to initialize chat:', error);
+      console.error('Failed to initialize product inquiry chat:', error);
       
       if (error.includes && (error.includes('Authentication') || error.includes('Unauthorized'))) {
         toast.error('Session expired. Please log in again.');
@@ -413,9 +415,11 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
         onClose();
         navigate('/auth/login');
       } else {
-        toast.error('Failed to start conversation. Please try again.');
-        setChatError('Failed to start conversation');
+        toast.error('Failed to start product inquiry. Please try again.');
+        setChatError('Failed to start product inquiry');
       }
+    } finally {
+      setInitializingChat(false);
     }
   };
 
@@ -464,13 +468,26 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
       return;
     }
 
-    if ((!message.trim() && attachments.length === 0) || !currentChat?._id) return;
+    // If chat is not initialized yet, try to initialize it first
+    if (!currentChat && !initializingChat) {
+      toast.info('Setting up your chat...');
+      await initializeChat();
+      return;
+    }
+
+    if ((!message.trim() && attachments.length === 0)) return;
+    
+    // If chat is still not ready, queue the message
+    if (!currentChat) {
+      toast.error('Please wait for chat to initialize');
+      return;
+    }
     
     setIsSubmitting(true);
-    handleTyping(false); // Stop typing indicator
+    handleTyping(false);
     
     try {
-      console.log('📤 Sending message from ContactSellerModal');
+      console.log('📤 Sending product inquiry message');
       
       const messageData = {
         content: message,
@@ -483,9 +500,8 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
         messageData
       })).unwrap();
       
-      console.log('✅ Message sent successfully:', result);
+      console.log('✅ Product inquiry message sent:', result);
       
-      // Add message to local state immediately for UI responsiveness
       const newMessage = {
         ...result.message,
         sender: {
@@ -508,7 +524,6 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
       setMessage('');
       setAttachments([]);
       
-      // Scroll to bottom after sending
       setTimeout(() => scrollToBottom(), 100);
       
     } catch (error) {
@@ -551,71 +566,22 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
     setAttachments(newAttachments);
   };
 
-  const getSellerInfo = (seller) => {
-    if (!seller) return { name: 'Unknown', type: 'User', verified: false };
-
-    // Check if seller has display info (from updated backend)
-    if (seller.displayName) {
-      return {
-        name: seller.displayName,
-        type: seller.userType === 'company' ? 'Company' : 
-              seller.userType === 'individual' ? 'Individual Seller' : 
-              'User',
-        verified: seller.isVerified || false,
-        avatar: seller.avatar
-      };
-    }
-
-    // Fallback to old structure
-    if (seller.userType === 'company') {
-      return {
-        name: seller.companyProfile?.companyName || 'Company',
-        type: 'Company',
-        verified: seller.isVerified,
-        avatar: seller.companyProfile?.logo
-      };
-    } else if (seller.userType === 'individual') {
-      return {
-        name: `${seller.individualProfile?.firstName || ''} ${seller.individualProfile?.lastName || ''}`.trim() || 'Individual',
-        type: 'Individual Seller',
-        verified: seller.isVerified,
-        avatar: seller.individualProfile?.avatar
-      };
-    }
-    
-    return {
-      name: 'User',
-      type: 'Seller',
-      verified: false,
-      avatar: null
-    };
-  };
-
   const getMessageSenderName = (message) => {
     const sender = message.sender;
     if (!sender) return 'Unknown';
     
     if (sender._id === user?._id) return 'You';
     
-    // Check if sender has display info (from updated backend)
+    // Handle admin sender - always show as CitiLights Team
+    if (sender.userType === 'admin' || sender.displayName === 'CitiLights Support' || sender.displayName === 'CitiLights Team') {
+      return 'CitiLights Team';
+    }
+    
     if (sender.displayName) {
       return sender.displayName;
     }
 
-    // Fallback to old structure
-    if (sender.companyProfile?.companyName) {
-      return sender.companyProfile.companyName;
-    }
-    
-    if (sender.individualProfile?.firstName) {
-      return `${sender.individualProfile.firstName} ${sender.individualProfile.lastName || ''}`.trim();
-    }
-
-    if (sender.customerProfile?.firstName) {
-      return `${sender.customerProfile.firstName} ${sender.customerProfile.lastName || ''}`.trim();
-    }
-    
-    return 'User';
+    return 'CitiLights Team'; // Default for any non-customer sender
   };
 
   // Show login prompt if not authenticated
@@ -628,7 +594,7 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
             Please Log In
           </h3>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            You need to be logged in to contact the seller.
+            You need to be logged in to inquire about this product.
           </p>
           <div className="flex space-x-3 justify-center">
             <Button onClick={onClose} variant="outline">
@@ -646,11 +612,11 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
     );
   }
 
-  if (!product?.seller) {
+  if (!product) {
     return (
-      <Modal isOpen={isOpen} onClose={onClose} title="Contact Seller" size="xl">
+      <Modal isOpen={isOpen} onClose={onClose} title="Product Inquiry" size="xl">
         <div className="p-4 text-center">
-          <p className="text-red-500">Seller information is not available</p>
+          <p className="text-red-500">Product information is not available</p>
           <Button onClick={onClose} className="mt-4">
             Close
           </Button>
@@ -659,8 +625,8 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
     );
   }
 
-  const sellerInfo = getSellerInfo(product.seller);
   const displayMessages = localMessages.length > 0 ? localMessages : messages;
+  const isInputDisabled = !isAuthenticated || isSubmitting || isSending;
 
   return (
     <Modal
@@ -671,34 +637,30 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
       className="flex flex-col h-[85vh]"
     >
       <div className="flex flex-col h-full">
-        {/* Header with seller info */}
-        <div className="border-b border-gray-200 dark:border-gray-700 p-4">
+        {/* Header with CitiLights Team info */}
+        <div className="border-b border-gray-200 dark:border-gray-700 p-4 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
-                {sellerInfo.avatar ? (
-                  <img
-                    src={sellerInfo.avatar}
-                    alt={sellerInfo.name}
-                    className="w-12 h-12 rounded-full object-cover"
-                  />
-                ) : (
-                  <UserIcon className="h-6 w-6 text-gray-600 dark:text-gray-300" />
-                )}
+              <div className="w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                <ShieldCheckIcon className="h-6 w-6 text-blue-600 dark:text-blue-400" />
               </div>
               <div className="flex-1">
                 <div className="flex items-center space-x-2">
                   <h3 className="font-semibold text-gray-900 dark:text-gray-100">
-                    {sellerInfo.name}
+                    CitiLights Team
                   </h3>
-                  {sellerInfo.verified && (
-                    <CheckBadgeIcon className="h-5 w-5 text-blue-500" />
-                  )}
+                  <CheckBadgeIcon className="h-5 w-5 text-blue-500" />
+                  <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded-full">
+                    Official
+                  </span>
                 </div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {sellerInfo.type}
+                  Product Support Specialists
                   {otherUserTyping && socketConnected && (
                     <span className="ml-2 text-green-500">typing...</span>
+                  )}
+                  {adminOnline && socketConnected && !otherUserTyping && (
+                    <span className="ml-2 text-green-500">online</span>
                   )}
                 </p>
               </div>
@@ -706,7 +668,7 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
                 <div className="flex items-center space-x-1">
                   <div className={`w-2 h-2 rounded-full ${socketConnected ? 'bg-green-500' : 'bg-gray-400'}`}></div>
                   <span className={`text-xs ${socketConnected ? 'text-green-600' : 'text-gray-500'}`}>
-                    {socketConnected ? 'Online' : 'Offline'}
+                    {socketConnected ? 'Connected' : 'Offline'}
                   </span>
                 </div>            
               </div>
@@ -731,7 +693,7 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
         </div>
 
         {/* Product info banner */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 p-4">
+        <div className="bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800 p-4 flex-shrink-0">
           <div className="flex items-center space-x-4">
             <img
               src={product?.media?.images?.[0]?.url || '/api/placeholder/60/60'}
@@ -740,7 +702,7 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
             />
             <div className="flex-1 min-w-0">
               <h4 className="text-base font-semibold text-blue-900 dark:text-blue-100 truncate">
-                {product?.title || 'Product'}
+                Product Inquiry: {product?.title || 'Product'}
               </h4>
               <p className="text-sm text-blue-700 dark:text-blue-200 truncate">
                 {product?.productType === 'real-estate' 
@@ -760,36 +722,33 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
           </div>
         </div>
 
-        {/* Chat messages area */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {isLoading && !chatInitialized ? (
-            <div className="h-full flex items-center justify-center">
-              <LoadingSpinner size="md" text="Starting conversation..." />
-            </div>
-          ) : !currentChat && !chatInitialized ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-8">
-              <ChatBubbleLeftRightIcon className="h-16 w-16 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-                {chatError ? 'Unable to start conversation' : 'Loading conversation...'}
-              </h3>
-              <p className="text-gray-500 dark:text-gray-400 mb-4">
-                {chatError || 'Please wait while we connect you with the seller.'}
+        {/* Chat Status */}
+        {initializingChat && (
+          <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border-b border-yellow-200 dark:border-yellow-800 flex-shrink-0">
+            <div className="flex items-center space-x-2">
+              <LoadingSpinner size="sm" />
+              <p className="text-yellow-700 dark:text-yellow-300 text-sm">
+                Setting up your chat with our team...
               </p>
-              {chatError && (
-                <Button onClick={initializeChat} size="sm">
-                  Retry
-                </Button>
-              )}
+            </div>
+          </div>
+        )}
+
+        {/* Chat messages area */}
+        <div className="flex-1 overflow-y-auto p-4 min-h-0">
+          {(isLoading || initializingChat) && displayMessages.length === 0 ? (
+            <div className="h-full flex items-center justify-center">
+              <LoadingSpinner size="md" text="Connecting to our team..." />
             </div>
           ) : displayMessages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center p-8">
-              <ChatBubbleLeftRightIcon className="h-12 w-12 text-gray-400 mb-4" />
+              <ShieldCheckIcon className="h-12 w-12 text-blue-500 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-                Start a conversation with {sellerInfo.name}
+                Welcome to CitiLights Product Support
               </h3>
               <p className="text-gray-500 dark:text-gray-400 max-w-md">
-                Ask questions about this {product?.productType === 'real-estate' ? 'property' : 'service'}, 
-                discuss pricing, or arrange a {product?.productType === 'real-estate' ? 'viewing' : 'consultation'}.
+                Ask any questions about this {product?.productType === 'real-estate' ? 'property' : 'service'}. 
+                Our team will provide you with detailed information, pricing, availability, and help you make the best decision.
               </p>
             </div>
           ) : (
@@ -797,6 +756,7 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
               {displayMessages.map((msg) => {
                 const isOwnMessage = msg.sender?._id === user?._id;
                 const senderName = getMessageSenderName(msg);
+                const isTeamMessage = senderName === 'CitiLights Team';
                 
                 return (
                   <div 
@@ -805,20 +765,33 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
                   >
                     <div className="max-w-xs md:max-w-md lg:max-w-lg">
                       {!isOwnMessage && (
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 px-1">
-                          {senderName}
-                        </p>
+                        <div className="flex items-center space-x-2 mb-1 px-1">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {senderName}
+                          </p>
+                          {isTeamMessage && (
+                            <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded">
+                              Team
+                            </span>
+                          )}
+                        </div>
                       )}
                       <div 
                         className={`rounded-lg p-3 ${
                           isOwnMessage 
                             ? 'bg-primary-500 text-white rounded-br-sm' 
+                            : isTeamMessage
+                            ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100 rounded-bl-sm border border-blue-200 dark:border-blue-800'
                             : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-bl-sm'
                         }`}
                       >
                         <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
                         <div className={`text-xs mt-1 flex items-center justify-between ${
-                          isOwnMessage ? 'text-primary-100' : 'text-gray-500 dark:text-gray-400'
+                          isOwnMessage 
+                            ? 'text-primary-100' 
+                            : isTeamMessage 
+                            ? 'text-blue-600 dark:text-blue-400'
+                            : 'text-gray-500 dark:text-gray-400'
                         }`}>
                           <span>{formatRelativeTime(msg.createdAt || msg.timestamp)}</span>
                           {msg.isEdited && (
@@ -839,11 +812,14 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
               {/* Typing indicator */}
               {otherUserTyping && (
                 <div className="flex justify-start">
-                  <div className="bg-gray-100 dark:bg-gray-700 rounded-lg px-3 py-2">
-                    <div className="flex space-x-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                  <div className="bg-blue-100 dark:bg-blue-900 rounded-lg px-3 py-2 border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs text-blue-700 dark:text-blue-300">CitiLights Team is typing</span>
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -854,87 +830,91 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
           )}
         </div>
 
-        {/* Message input area */}
-        {chatInitialized && currentChat && (
-          <div className="border-t border-gray-200 dark:border-gray-700 p-4">
-            {/* Attachments preview */}
-            {attachments.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-3">
-                {attachments.map((file, index) => (
-                  <div key={index} className="relative bg-gray-100 dark:bg-gray-700 rounded-md p-2">
-                    <div className="flex items-center space-x-2">
-                      <PaperClipIcon className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm truncate max-w-xs">{file.name}</span>
-                      <button 
-                        onClick={() => removeAttachment(index)}
-                        className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-                      >
-                        <XMarkIcon className="h-4 w-4" />
-                      </button>
-                    </div>
+        {/* Message input area - Always visible */}
+        <div className="border-t border-gray-200 dark:border-gray-700 p-4 flex-shrink-0">
+          {/* Attachments preview */}
+          {attachments.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {attachments.map((file, index) => (
+                <div key={index} className="relative bg-gray-100 dark:bg-gray-700 rounded-md p-2">
+                  <div className="flex items-center space-x-2">
+                    <PaperClipIcon className="h-4 w-4 text-gray-500" />
+                    <span className="text-sm truncate max-w-xs">{file.name}</span>
+                    <button 
+                      onClick={() => removeAttachment(index)}
+                      className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                    >
+                      <XMarkIcon className="h-4 w-4" />
+                    </button>
                   </div>
-                ))}
-              </div>
-            )}
-            
-            <form onSubmit={handleSendMessage} className="flex items-end space-x-2">
-              <div className="flex-1">
-                <textarea
-                  value={message}
-                  onChange={handleMessageChange}
-                  placeholder={`Message ${sellerInfo.name}...`}
-                  rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none text-base"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage(e);
-                    }
-                  }}
-                  disabled={!isAuthenticated || !chatInitialized}
-                />
-              </div>
-              
-              <div className="flex flex-col space-y-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  onChange={handleAttachmentChange}
-                  className="hidden"
-                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
-                  disabled={!isAuthenticated || !chatInitialized}
-                />
-                
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Attach file"
-                  disabled={!isAuthenticated || !chatInitialized}
-                >
-                  <PaperClipIcon className="h-5 w-5" />
-                </button>
-                
-                <Button
-                  type="submit"
-                  size="sm"
-                  loading={isSubmitting || isSending}
-                  disabled={(!message.trim() && attachments.length === 0) || !isAuthenticated || !chatInitialized}
-                  className="h-10 px-3"
-                >
-                  <PaperAirplaneIcon className="h-4 w-4" />
-                </Button>
-              </div>
-            </form>
-            
-            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              Press Enter to send, Shift+Enter for new line
-              {socketConnected && <span className="ml-2">• Real-time connected</span>}
-              {!socketConnected && !authError && <span className="ml-2">• Real-time unavailable</span>}
+                </div>
+              ))}
             </div>
+          )}
+          
+          <form onSubmit={handleSendMessage} className="flex items-end space-x-2">
+            <div className="flex-1">
+              <textarea
+                value={message}
+                onChange={handleMessageChange}
+                placeholder={
+                  initializingChat 
+                    ? "Setting up chat..." 
+                    : `Ask about ${product?.title || 'this product'}...`
+                }
+                rows={2}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none text-base disabled:opacity-60"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage(e);
+                  }
+                }}
+                disabled={isInputDisabled || initializingChat}
+              />
+            </div>
+            
+            <div className="flex flex-col space-y-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                onChange={handleAttachmentChange}
+                className="hidden"
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                disabled={isInputDisabled || initializingChat}
+              />
+              
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Attach file"
+                disabled={isInputDisabled || initializingChat}
+              >
+                <PaperClipIcon className="h-5 w-5" />
+              </button>
+              
+              <Button
+                type="submit"
+                size="sm"
+                loading={isSubmitting || isSending || initializingChat}
+                disabled={(!message.trim() && attachments.length === 0) || isInputDisabled || initializingChat}
+                className="h-10 px-3"
+              >
+                <PaperAirplaneIcon className="h-4 w-4" />
+              </Button>
+            </div>
+          </form>
+          
+          <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            Press Enter to send, Shift+Enter for new line
+            {socketConnected && <span className="ml-2">• Connected to our team</span>}
+            {!socketConnected && !authError && <span className="ml-2">• Connecting...</span>}
+            {adminOnline && <span className="ml-2">• Team online</span>}
+            {initializingChat && <span className="ml-2">• Setting up chat...</span>}
           </div>
-        )}
+        </div>
       </div>
     </Modal>
   );

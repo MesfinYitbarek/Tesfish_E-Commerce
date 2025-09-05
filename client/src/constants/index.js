@@ -166,18 +166,6 @@ export const API_ENDPOINTS = {
     FORGOT_PASSWORD: '/auth/forgot-password',
     RESET_PASSWORD: '/auth/reset-password',
   },
-  PROPERTY_REGISTRATIONS: {
-    CREATE: '/property-registrations',
-    MY_REGISTRATIONS: '/property-registrations/my-registrations',
-    COMPANY_REGISTRATIONS: '/property-registrations/company-registrations',
-    DETAIL: '/property-registrations',
-    UPDATE_STATUS: '/property-registrations',
-    VERIFY_PAYMENT: '/property-registrations',
-    EXPORT_CSV: '/property-registrations/export-csv',
-    STATS: '/property-registrations/stats',
-    CANCEL: '/property-registrations',
-    RECEIPT: '/property-registrations'
-  },
   PRODUCTS: {
     LIST: '/products',
     DETAIL: '/products',
@@ -215,19 +203,7 @@ export const API_ENDPOINTS = {
     CHECK_INVENTORY: '/orders/cart/check-inventory',
     CALCULATE_SHIPPING: '/orders/cart/calculate-shipping'
   },
-  // Property Registration endpoints
-  PROPERTY_REGISTRATIONS: {
-    CREATE: '/property-registrations',
-    MY_REGISTRATIONS: '/property-registrations/my-registrations',
-    COMPANY_REGISTRATIONS: '/property-registrations/company-registrations',
-    DETAIL: '/property-registrations',
-    UPDATE_STATUS: '/property-registrations',
-    VERIFY_PAYMENT: '/property-registrations',
-    EXPORT_CSV: '/property-registrations/export-csv',
-    STATS: '/property-registrations/stats',
-    CANCEL: '/property-registrations',
-    RECEIPT: '/property-registrations'
-  },
+ 
   // Appointment endpoints
   APPOINTMENTS: {
     LIST: '/appointments',
@@ -242,11 +218,39 @@ export const API_ENDPOINTS = {
     STATS: '/appointments/stats'
   },
   CHAT: {
-    LIST: '/chat',
-    DETAIL: '/chat',
-    CREATE: '/chat/create',
-    SEND_MESSAGE: '/chat/:id/message'
-  },
+  LIST: '/chat',
+  DETAIL: '/chat/:id',
+  CREATE: '/chat/create',
+  SEND_MESSAGE: '/chat/:id/message',
+  EDIT_MESSAGE: '/chat/:id/message/:messageId',
+  DELETE_MESSAGE: '/chat/:id/message/:messageId',
+  MARK_READ: '/chat/:id/read',
+  BLOCK_USER: '/chat/:id/block',
+  UNBLOCK_USER: '/chat/:id/unblock',
+  DELETE_CHAT: '/chat/:id',
+  ARCHIVE_CHAT: '/chat/:id/archive',
+  PARTICIPANTS: '/chat/:id/participants',
+  SEARCH_MESSAGES: '/chat/:id/search',
+  MESSAGE_HISTORY: '/chat/:id/messages',
+  UPLOAD_FILE: '/chat/upload',
+  // Admin endpoints
+  ADMIN_STATS: '/chat/admin/stats'
+},
+
+PROPERTY_REGISTRATIONS: {
+  CREATE: '/property-registrations',
+  MY_REGISTRATIONS: '/property-registrations/my-registrations',
+  ADMIN_REGISTRATIONS: '/property-registrations/admin-registrations', // Updated from company-registrations
+  COMPANY_REGISTRATIONS: '/property-registrations/company-registrations', // Deprecated but kept for compatibility
+  DETAIL: '/property-registrations/:id',
+  UPDATE_STATUS: '/property-registrations/:id/status',
+  VERIFY_PAYMENT: '/property-registrations/:id/verify-payment',
+  EXPORT_CSV: '/property-registrations/export-csv',
+  STATS: '/property-registrations/stats',
+  CANCEL: '/property-registrations/:id/cancel',
+  CERTIFICATE: '/property-registrations/:id/certificate',
+  RECEIPT: '/property-registrations/:id/receipt'
+},
   BOOKINGS: {
     LIST: '/bookings',
     CREATE: '/bookings',
@@ -830,49 +834,6 @@ export const PROPERTY_TYPES = {
   OFFICE: 'office',
   WAREHOUSE: 'warehouse'
 };
-
-// Property Registration Status
-// export const REGISTRATION_STATUS = {
-//   PENDING: 'pending',
-//   UNDER_REVIEW: 'under-review',
-//   APPROVED: 'approved',
-//   REJECTED: 'rejected',
-//   COMPLETED: 'completed',
-//   CANCELLED: 'cancelled',
-//   EXPIRED: 'expired'
-// };
-
-// Payment Status for Registration
-// export const REGISTRATION_PAYMENT_STATUS = {
-//   PENDING: 'pending',
-//   COMPLETED: 'completed',
-//   FAILED: 'failed',
-//   REFUNDED: 'refunded'
-// };
-
-// // Registration Document Types
-// export const REGISTRATION_DOCUMENT_TYPES = [
-//   { value: 'id-card', label: 'ID Card', required: true },
-//   { value: 'passport', label: 'Passport', required: false },
-//   { value: 'license', label: 'Driving License', required: false },
-//   { value: 'bank-statement', label: 'Bank Statement', required: false },
-//   { value: 'salary-slip', label: 'Salary Slip', required: false },
-//   { value: 'employment-letter', label: 'Employment Letter', required: false },
-//   { value: 'business-license', label: 'Business License', required: false },
-//   { value: 'other', label: 'Other Document', required: false }
-// ];
-
-// // Relationship Types for Emergency Contact
-// export const RELATIONSHIP_TYPES = [
-//   'parent',
-//   'sibling', 
-//   'spouse',
-//   'child',
-//   'friend',
-//   'colleague',
-//   'relative',
-//   'other'
-// ];
 
 // Registration Status Display Configuration
 export const REGISTRATION_STATUS_CONFIG = {

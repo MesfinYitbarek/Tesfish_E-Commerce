@@ -9,7 +9,7 @@ import {
   CogIcon,
   ShieldCheckIcon,
   ExclamationTriangleIcon,
-  DocumentTextIcon,
+  ChatBubbleLeftRightIcon,
   Bars3Icon,
   XMarkIcon,
   BellIcon,
@@ -125,43 +125,6 @@ const AdminLayout = () => {
               </div>
             </div>
           </div>
-          {/* Quick Stats */}
-          {/* {totalNotifications > 0 && (
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-              <div className="grid grid-cols-2 gap-3">
-                {pendingApprovals > 0 && (
-                  <Link
-                    to="/admin/listings"
-                    className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800 hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <BuildingOfficeIcon className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                      <div>
-                        <p className="text-sm font-medium text-orange-900 dark:text-orange-100">{pendingApprovals}</p>
-                        <p className="text-xs text-orange-700 dark:text-orange-300">Listings</p>
-                      </div>
-                    </div>
-                  </Link>
-                )}
-                
-                {flaggedUsers > 0 && (
-                  <Link
-                    to="/admin/users"
-                    className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <ExclamationTriangleIcon className="h-4 w-4 text-red-600 dark:text-red-400" />
-                      <div>
-                        <p className="text-sm font-medium text-red-900 dark:text-red-100">{flaggedUsers}</p>
-                        <p className="text-xs text-red-700 dark:text-red-300">Users</p>
-                      </div>
-                    </div>
-                  </Link>
-                )}
-              </div>
-            </div>
-          )} */}
-
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
             <NavItem 
@@ -187,6 +150,21 @@ const AdminLayout = () => {
               to="/admin/services" 
               icon={<WrenchScrewdriverIcon className="h-5 w-5" />}
               label="Service Management"
+            />
+            <NavItem 
+              to="/admin/messages" 
+              icon={<ChatBubbleLeftRightIcon className="h-5 w-5" />}
+              label="Messages"
+            />
+            <NavItem 
+              to="/admin/bookings" 
+              icon={<CalendarIcon className="h-5 w-5" />}
+              label="Bookings"
+            />
+            <NavItem 
+              to="/admin/registrations" 
+              icon={<CalendarIcon className="h-5 w-5" />}
+              label="Property Registrations"
             />
             
             <NavItem 

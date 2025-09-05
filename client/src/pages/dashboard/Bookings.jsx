@@ -1,3 +1,4 @@
+// pages/dashboard/Bookings.jsx
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
@@ -9,16 +10,20 @@ import {
   FunnelIcon,
   CheckIcon,
   XMarkIcon,
-  EyeIcon
+  EyeIcon,
+  ArrowDownTrayIcon,
+  UserPlusIcon
 } from '@heroicons/react/24/outline';
 import {
-  getSellerAppointments,
+  getAdminAppointments, // Updated from getSellerAppointments
   getMyAppointments,
   updateAppointmentStatus,
-  selectSellerAppointments,
+  exportAppointmentsCSV,
+  selectAdminAppointments, // Updated from selectSellerAppointments
   selectMyAppointments,
   selectIsLoadingAppointments,
   selectAppointmentError,
+  selectPropertyOwners,
   updateFilters,
   selectAppointmentFilters
 } from '../../store/slices/appointmentSlice';
@@ -29,14 +34,15 @@ import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { formatDate } from '../../utils/helpers';
-
+import { toast } from 'react-hot-toast';
 
 const Bookings = () => {
   const dispatch = useDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useSelector((state) => state.auth);
-  const sellerAppointments = useSelector(selectSellerAppointments);
+  const adminAppointments = useSelector(selectAdminAppointments); // Updated
   const customerAppointments = useSelector(selectMyAppointments);
+  const propertyOwners = useSelector(selectPropertyOwners);
   const isLoading = useSelector(selectIsLoadingAppointments);
   const error = useSelector(selectAppointmentError);
   const filters = useSelector(selectAppointmentFilters);
@@ -45,38 +51,51 @@ const Bookings = () => {
   const [viewMode, setViewMode] = useState('list'); // list, calendar
   const [searchQuery, setSearchQuery] = useState('');
 
-  const isSeller = ['company', 'individual'].includes(user?.userType);
-  const appointments = isSeller ? sellerAppointments : customerAppointments;
-console.log(user);
+  // Only admins can manage appointments now
+  const isAdmin = user?.userType === 'admin';
+  const isCustomer = user?.userType === 'customer';
+  const appointments = isAdmin ? adminAppointments : customerAppointments;
+
+  console.log('User:', user);
+  console.log('Is Admin:', isAdmin);
+  console.log('Appointments:', appointments);
+
   useEffect(() => {
     if (user) {
       // Load appointments based on user type
-      if (isSeller) {
-        dispatch(getSellerAppointments({
+      if (isAdmin) {
+        dispatch(getAdminAppointments({ // Updated from getSellerAppointments
           status: filters.status === 'all' ? undefined : filters.status,
           date: filters.date,
-          property: filters.property
+          property: filters.property,
+          propertyOwner: filters.propertyOwner,
+          upcoming: filters.upcoming
         }));
-      } else {
+      } else if (isCustomer) {
         dispatch(getMyAppointments({
           status: filters.status === 'all' ? undefined : filters.status,
-          upcoming: filters.upcoming
+          upcoming: filters.upcoming,
+          past: filters.past
         }));
       }
     }
-  }, [dispatch, user, isSeller, filters]);
+  }, [dispatch, user, isAdmin, isCustomer, filters]);
 
-  const handleStatusChange = async (appointmentId, newStatus) => {
+  const handleStatusChange = async (appointmentId, newStatus, additionalData = {}) => {
     try {
       await dispatch(updateAppointmentStatus({
         appointmentId,
-        statusData: { status: newStatus }
+        statusData: { 
+          status: newStatus,
+          ...additionalData
+        }
       })).unwrap();
       
       // Reload appointments
-      if (isSeller) {
-        dispatch(getSellerAppointments({
-          status: filters.status === 'all' ? undefined : filters.status
+      if (isAdmin) {
+        dispatch(getAdminAppointments({
+          status: filters.status === 'all' ? undefined : filters.status,
+          propertyOwner: filters.propertyOwner
         }));
       }
     } catch (error) {
@@ -88,17 +107,28 @@ console.log(user);
     dispatch(updateFilters(newFilters));
   };
 
+  const handleExportCSV = async () => {
+    try {
+      await dispatch(exportAppointmentsCSV()).unwrap();
+    } catch (error) {
+      toast.error('Failed to export appointments');
+    }
+  };
+
   const filteredAppointments = appointments.filter(appointment => {
     // Search filter
     if (searchQuery) {
       const searchLower = searchQuery.toLowerCase();
-      const customerName = `${appointment.customer?.firstName || ''} ${appointment.customer?.lastName || ''}`.toLowerCase();
+      const customerName = appointment.contactInfo?.name?.toLowerCase() || 
+                          `${appointment.customer?.customerProfile?.firstName || ''} ${appointment.customer?.customerProfile?.lastName || ''}`.toLowerCase();
       const propertyTitle = appointment.property?.title?.toLowerCase() || '';
-      const location = appointment.property?.propertyDetails?.location?.address?.toLowerCase() || '';
+      const location = appointment.property?.propertyDetails?.location?.street?.toLowerCase() || '';
+      const appointmentNumber = appointment.appointmentNumber?.toLowerCase() || '';
       
       if (!customerName.includes(searchLower) && 
           !propertyTitle.includes(searchLower) && 
-          !location.includes(searchLower)) {
+          !location.includes(searchLower) &&
+          !appointmentNumber.includes(searchLower)) {
         return false;
       }
     }
@@ -112,7 +142,9 @@ console.log(user);
       pending: appointments.filter(a => a.status === 'pending').length,
       confirmed: appointments.filter(a => a.status === 'confirmed').length,
       completed: appointments.filter(a => a.status === 'completed').length,
-      cancelled: appointments.filter(a => a.status === 'cancelled').length
+      cancelled: appointments.filter(a => a.status === 'cancelled').length,
+      rescheduled: appointments.filter(a => a.status === 'rescheduled').length,
+      'no-show': appointments.filter(a => a.status === 'no-show').length
     };
   };
 
@@ -123,8 +155,30 @@ console.log(user);
     { key: 'pending', label: 'Pending', count: statusCounts.pending },
     { key: 'confirmed', label: 'Confirmed', count: statusCounts.confirmed },
     { key: 'completed', label: 'Completed', count: statusCounts.completed },
-    { key: 'cancelled', label: 'Cancelled', count: statusCounts.cancelled }
+    { key: 'cancelled', label: 'Cancelled', count: statusCounts.cancelled },
+    { key: 'rescheduled', label: 'Rescheduled', count: statusCounts.rescheduled },
+    { key: 'no-show', label: 'No Show', count: statusCounts['no-show'] }
   ];
+
+  // Show different content based on user type
+  if (!isAdmin && !isCustomer) {
+    return (
+      <div className="flex items-center justify-center min-h-64">
+        <div className="text-center">
+          <UserIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+            Access Restricted
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
+            Appointment management is available for admins and customers only.
+          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-500">
+            Property owners will be notified about appointments but management is handled by our admin team.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (error) {
     return (
@@ -149,10 +203,10 @@ console.log(user);
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {isSeller ? 'Appointment Management' : 'My Appointments'}
+            {isAdmin ? 'Appointment Management' : 'My Appointments'}
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            {isSeller 
+            {isAdmin 
               ? 'Manage property viewing appointments from customers'
               : 'Track your property viewing appointments'
             }
@@ -160,6 +214,20 @@ console.log(user);
         </div>
 
         <div className="flex items-center space-x-3">
+          {/* Admin Actions */}
+          {isAdmin && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportCSV}
+                leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
+              >
+                Export CSV
+              </Button>
+            </>
+          )}
+
           {/* View Mode Toggle */}
           <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
             <button
@@ -209,11 +277,11 @@ console.log(user);
         </div>
 
         {/* Search and Additional Filters */}
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="lg:col-span-2">
             <Input
-              placeholder={isSeller 
-                ? "Search by customer name, property, or location..." 
+              placeholder={isAdmin 
+                ? "Search by customer, property, appointment #..." 
                 : "Search by property or location..."
               }
               value={searchQuery}
@@ -222,32 +290,70 @@ console.log(user);
             />
           </div>
 
-          {!isSeller && (
-            <div className="flex items-center">
+          {/* Admin Filters */}
+          {isAdmin && (
+            <>
+              <select
+                value={filters.propertyOwner || ''}
+                onChange={(e) => handleFilterChange({ propertyOwner: e.target.value || null })}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="">All Property Owners</option>
+                {propertyOwners.map(owner => (
+                  <option key={owner._id} value={owner._id}>
+                    {owner.ownerDetails?.companyProfile?.companyName || 
+                     `${owner.ownerDetails?.individualProfile?.firstName} ${owner.ownerDetails?.individualProfile?.lastName}`}
+                    ({owner.appointmentCount} appointments)
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={filters.date || ''}
+                onChange={(e) => handleFilterChange({ date: e.target.value || null })}
+                className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="">All Dates</option>
+                <option value={new Date().toISOString().split('T')[0]}>Today</option>
+                <option value={new Date(Date.now() + 86400000).toISOString().split('T')[0]}>Tomorrow</option>
+                <option value="upcoming">Upcoming Only</option>
+              </select>
+            </>
+          )}
+
+          {/* Customer Filters */}
+          {isCustomer && (
+            <div className="flex items-center space-x-4">
               <label className="flex items-center space-x-2">
                 <input
                   type="checkbox"
                   checked={filters.upcoming}
-                  onChange={(e) => handleFilterChange({ upcoming: e.target.checked })}
+                  onChange={(e) => handleFilterChange({ 
+                    upcoming: e.target.checked,
+                    past: false // Reset past filter when upcoming is selected
+                  })}
                   className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                 />
                 <span className="text-sm text-gray-700 dark:text-gray-300">
                   Upcoming only
                 </span>
               </label>
+              
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={filters.past}
+                  onChange={(e) => handleFilterChange({ 
+                    past: e.target.checked,
+                    upcoming: false // Reset upcoming filter when past is selected
+                  })}
+                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">
+                  Past appointments
+                </span>
+              </label>
             </div>
-          )}
-
-          {isSeller && (
-            <select
-              value={filters.date || ''}
-              onChange={(e) => handleFilterChange({ date: e.target.value || null })}
-              className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            >
-              <option value="">All Dates</option>
-              <option value={new Date().toISOString().split('T')[0]}>Today</option>
-              <option value={new Date(Date.now() + 86400000).toISOString().split('T')[0]}>Tomorrow</option>
-            </select>
           )}
         </div>
       </div>
@@ -276,11 +382,24 @@ console.log(user);
                       },
                       customer: {
                         id: appointment.customer?._id,
-                        name: appointment.contactInfo?.name || `${appointment.customer?.firstName || ''} ${appointment.customer?.lastName || ''}`.trim(),
+                        name: appointment.contactInfo?.name || 
+                              `${appointment.customer?.customerProfile?.firstName || ''} ${appointment.customer?.customerProfile?.lastName || ''}`.trim(),
                         email: appointment.contactInfo?.email || appointment.customer?.email,
                         phone: appointment.contactInfo?.phone || appointment.customer?.phone,
                         avatar: appointment.customer?.avatar
                       },
+                      propertyOwner: isAdmin ? {
+                        id: appointment.property?.seller?._id,
+                        name: appointment.property?.seller?.companyProfile?.companyName ||
+                              `${appointment.property?.seller?.individualProfile?.firstName || ''} ${appointment.property?.seller?.individualProfile?.lastName || ''}`.trim(),
+                        email: appointment.property?.seller?.email
+                      } : null,
+                      assignedAdmin: isCustomer ? {
+                        id: appointment.seller?._id,
+                        name: appointment.seller?.companyProfile?.companyName ||
+                              `${appointment.seller?.individualProfile?.firstName || ''} ${appointment.seller?.individualProfile?.lastName || ''}`.trim(),
+                        email: appointment.seller?.email
+                      } : null,
                       date: new Date(appointment.scheduledDateTime),
                       time: new Date(appointment.scheduledDateTime).toLocaleTimeString('en-US', { 
                         hour: '2-digit', 
@@ -292,14 +411,15 @@ console.log(user);
                       paymentStatus: 'not-applicable',
                       notes: appointment.customerNotes || appointment.sellerNotes,
                       location: appointment.meetingDetails?.address || 
-                               appointment.property?.propertyDetails?.location?.address || 
+                               appointment.property?.propertyDetails?.location?.street || 
                                'Property location',
                       createdAt: new Date(appointment.createdAt),
-                      requirements: appointment.requirements || []
+                      requirements: appointment.requirements || [],
+                      appointmentNumber: appointment.appointmentNumber
                     }}
                     onStatusChange={handleStatusChange}
                     onViewDetails={setSelectedBooking}
-                    isSeller={isSeller}
+                    isAdmin={isAdmin}
                   />
                 ))}
               </div>
@@ -311,13 +431,13 @@ console.log(user);
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400">
                   {filters.status === 'all' 
-                    ? isSeller
-                      ? 'No appointments scheduled yet. Customers will see your properties and can book appointments.'
+                    ? isAdmin
+                      ? 'No appointments assigned yet. Customers will book appointments and they will be assigned to available admins.'
                       : 'You haven\'t booked any appointments yet. Browse properties and schedule viewings.'
                     : `No ${filters.status} appointments found. Try adjusting your filters.`
                   }
                 </p>
-                {!isSeller && filters.status === 'all' && (
+                {isCustomer && filters.status === 'all' && (
                   <Button
                     onClick={() => window.location.href = '/properties'}
                     className="mt-4"
@@ -337,7 +457,8 @@ console.log(user);
                 title: appointment.property?.title || 'Property'
               },
               customer: {
-                name: appointment.contactInfo?.name || `${appointment.customer?.firstName || ''} ${appointment.customer?.lastName || ''}`.trim()
+                name: appointment.contactInfo?.name || 
+                      `${appointment.customer?.customerProfile?.firstName || ''} ${appointment.customer?.customerProfile?.lastName || ''}`.trim()
               },
               date: new Date(appointment.scheduledDateTime),
               time: new Date(appointment.scheduledDateTime).toLocaleTimeString('en-US', { 
@@ -354,7 +475,8 @@ console.log(user);
               customerNotes: appointment.customerNotes,
               sellerNotes: appointment.sellerNotes,
               requirements: appointment.requirements,
-              createdAt: appointment.createdAt
+              createdAt: appointment.createdAt,
+              appointmentNumber: appointment.appointmentNumber
             }))}
             onBookingSelect={(booking) => {
               const appointment = filteredAppointments.find(a => a._id === booking.id);
@@ -379,12 +501,14 @@ console.log(user);
             },
             customer: {
               id: selectedBooking.customer?._id,
-              name: selectedBooking.contactInfo?.name || `${selectedBooking.customer?.firstName || ''} ${selectedBooking.customer?.lastName || ''}`.trim(),
+              name: selectedBooking.contactInfo?.name || 
+                    `${selectedBooking.customer?.customerProfile?.firstName || ''} ${selectedBooking.customer?.customerProfile?.lastName || ''}`.trim(),
               email: selectedBooking.contactInfo?.email || selectedBooking.customer?.email,
               phone: selectedBooking.contactInfo?.phone || selectedBooking.customer?.phone,
               avatar: selectedBooking.customer?.avatar
             },
             seller: selectedBooking.seller,
+            propertyOwner: selectedBooking.property?.seller,
             date: new Date(selectedBooking.scheduledDateTime),
             time: new Date(selectedBooking.scheduledDateTime).toLocaleTimeString('en-US', { 
               hour: '2-digit', 
@@ -396,7 +520,7 @@ console.log(user);
             paymentStatus: 'not-applicable',
             notes: selectedBooking.customerNotes || selectedBooking.sellerNotes,
             location: selectedBooking.meetingDetails?.address || 
-                     selectedBooking.property?.propertyDetails?.location?.address || 
+                     selectedBooking.property?.propertyDetails?.location?.street || 
                      'Property location',
             createdAt: new Date(selectedBooking.createdAt),
             requirements: selectedBooking.requirements || [],
@@ -414,7 +538,7 @@ console.log(user);
           }}
           onClose={() => setSelectedBooking(null)}
           onStatusChange={handleStatusChange}
-          isSeller={isSeller}
+          isAdmin={isAdmin}
         />
       )}
     </div>

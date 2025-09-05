@@ -120,8 +120,6 @@ export const fetchFeaturedProducts = createAsyncThunk(
   }
 );
 
-// Add these thunks to your existing productSlice.js
-
 export const fetchWishlist = createAsyncThunk(
   'products/fetchWishlist',
   async (_, { rejectWithValue }) => {
@@ -136,7 +134,6 @@ export const fetchWishlist = createAsyncThunk(
   }
 );
 
-// Update the existing toggleWishlist to handle full property objects
 export const toggleWishlist = createAsyncThunk(
   'products/toggleWishlist',
   async (productId, { rejectWithValue }) => {
@@ -152,8 +149,6 @@ export const toggleWishlist = createAsyncThunk(
     }
   }
 );
-
-
 
 export const fetchRelatedProducts = createAsyncThunk(
   'products/fetchRelatedProducts',
@@ -262,7 +257,7 @@ export const bulkDeleteProducts = createAsyncThunk(
   }
 );
 
-// ================= PROPERTY REGISTRATION THUNKS =================
+// ================= PROPERTY REGISTRATION THUNKS (UPDATED FOR ADMIN) =================
 export const submitPropertyRegistration = createAsyncThunk(
   'products/submitPropertyRegistration',
   async (registrationData, { rejectWithValue }) => {
@@ -293,11 +288,28 @@ export const fetchMyRegistrations = createAsyncThunk(
   }
 );
 
+// Updated: Renamed from fetchCompanyRegistrations to fetchAdminRegistrations
+export const fetchAdminRegistrations = createAsyncThunk(
+  'products/fetchAdminRegistrations',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const response = await propertyRegistrationService.getAdminRegistrations(params);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to fetch admin registrations'
+      );
+    }
+  }
+);
+
+// Deprecated: Keep for backward compatibility
 export const fetchCompanyRegistrations = createAsyncThunk(
   'products/fetchCompanyRegistrations',
   async (params = {}, { rejectWithValue }) => {
+    console.warn('fetchCompanyRegistrations is deprecated. Use fetchAdminRegistrations instead.');
     try {
-      const response = await propertyRegistrationService.getCompanyRegistrations(params);
+      const response = await propertyRegistrationService.getAdminRegistrations(params);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -341,14 +353,30 @@ export const verifyRegistrationPayment = createAsyncThunk(
 
 export const fetchRegistrationStats = createAsyncThunk(
   'products/fetchRegistrationStats',
-  async (_, { rejectWithValue }) => {
+  async (period = '30d', { rejectWithValue }) => {
     try {
-      const response = await propertyRegistrationService.getRegistrationStats();
+      const response = await propertyRegistrationService.getRegistrationStats(period);
       return response.data;
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.message || 'Failed to fetch registration statistics'
       );
+    }
+  }
+);
+
+export const generateRegistrationCertificate = createAsyncThunk(
+  'products/generateRegistrationCertificate',
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await propertyRegistrationService.generateCertificate(id);
+      toast.success('Certificate generated successfully!');
+      return { id, certificate: response };
+    } catch (error) {
+      const message =
+        error.response?.data?.message || 'Failed to generate certificate';
+      toast.error(message);
+      return rejectWithValue(message);
     }
   }
 );
@@ -386,12 +414,14 @@ const initialState = {
   statsLoading: false,
   error: null,
 
-  // Property Registrations
+  // Property Registrations (Updated for Admin)
   registrations: [],
   myRegistrations: [],
-  companyRegistrations: [],
+  adminRegistrations: [], // Renamed from companyRegistrations
+  companyRegistrations: [], // Deprecated but kept for compatibility
   currentRegistration: null,
   registrationStats: null,
+  propertyOwners: [], // New: for admin filtering
   isSubmitting: false,
   registrationLoading: false,
   registrationError: null,
@@ -449,6 +479,8 @@ const initialState = {
   registrationFilters: {
     status: '',
     property: '',
+    propertyOwner: '', // New: for admin filtering
+    paymentStatus: '', // New: for admin filtering
     search: '',
     page: 1,
     limit: 10,
@@ -463,7 +495,6 @@ const productSlice = createSlice({
   reducers: {
     setFilters: (state, action) => {
       state.filters = { ...state.filters, ...action.payload };
-      // Reset page when filters change (except for page change itself)
       if (!action.payload.page) {
         state.filters.page = 1;
       }
@@ -471,8 +502,8 @@ const productSlice = createSlice({
     clearFilters: state => {
       state.filters = {
         ...initialState.filters,
-        sort: state.filters.sort, // Keep sort preference
-        limit: state.filters.limit, // Keep limit preference
+        sort: state.filters.sort,
+        limit: state.filters.limit,
       };
     },
     setRegistrationFilters: (state, action) => {
@@ -524,6 +555,16 @@ const productSlice = createSlice({
         };
       }
 
+      // Update in adminRegistrations
+      const adminRegistrationIndex = state.adminRegistrations.findIndex(r => r._id === registrationId);
+      if (adminRegistrationIndex !== -1) {
+        state.adminRegistrations[adminRegistrationIndex] = {
+          ...state.adminRegistrations[adminRegistrationIndex],
+          ...updates,
+        };
+      }
+
+      // Update in companyRegistrations (deprecated but kept for compatibility)
       const companyRegistrationIndex = state.companyRegistrations.findIndex(r => r._id === registrationId);
       if (companyRegistrationIndex !== -1) {
         state.companyRegistrations[companyRegistrationIndex] = {
@@ -544,6 +585,9 @@ const productSlice = createSlice({
       state.myRegistrations = state.myRegistrations.filter(
         registration => registration._id !== action.payload
       );
+      state.adminRegistrations = state.adminRegistrations.filter(
+        registration => registration._id !== action.payload
+      );
       state.companyRegistrations = state.companyRegistrations.filter(
         registration => registration._id !== action.payload
       );
@@ -557,9 +601,11 @@ const productSlice = createSlice({
     resetRegistrationState: (state) => {
       state.registrations = [];
       state.myRegistrations = [];
+      state.adminRegistrations = [];
       state.companyRegistrations = [];
       state.currentRegistration = null;
       state.registrationStats = null;
+      state.propertyOwners = [];
       state.isSubmitting = false;
       state.registrationLoading = false;
       state.registrationError = null;
@@ -586,7 +632,8 @@ const productSlice = createSlice({
         state.isLoading = false;
         state.error = action.payload;
       })
-      // Add to extraReducers
+      
+      // Fetch Wishlist
       .addCase(fetchWishlist.pending, state => {
         state.isLoading = true;
         state.error = null;
@@ -599,6 +646,7 @@ const productSlice = createSlice({
         state.isLoading = false;
         state.error = action.payload;
       })
+      
       // Update Product
       .addCase(updateProduct.pending, state => {
         state.isLoading = true;
@@ -789,7 +837,7 @@ const productSlice = createSlice({
         state.error = action.payload;
       })
 
-      // ================= PROPERTY REGISTRATION CASES =================
+      // ================= PROPERTY REGISTRATION CASES (UPDATED FOR ADMIN) =================
       // Submit Registration
       .addCase(submitPropertyRegistration.pending, state => {
         state.isSubmitting = true;
@@ -819,7 +867,24 @@ const productSlice = createSlice({
         state.registrationError = action.payload;
       })
 
-      // Fetch Company Registrations
+      // Fetch Admin Registrations (Updated)
+      .addCase(fetchAdminRegistrations.pending, state => {
+        state.registrationLoading = true;
+        state.registrationError = null;
+      })
+      .addCase(fetchAdminRegistrations.fulfilled, (state, action) => {
+        state.registrationLoading = false;
+        state.adminRegistrations = action.payload.registrations || [];
+        state.registrationStats = action.payload.stats || null;
+        state.propertyOwners = action.payload.propertyOwners || [];
+        state.registrationPagination = action.payload.pagination || initialState.registrationPagination;
+      })
+      .addCase(fetchAdminRegistrations.rejected, (state, action) => {
+        state.registrationLoading = false;
+        state.registrationError = action.payload;
+      })
+
+      // Fetch Company Registrations (Deprecated but supported)
       .addCase(fetchCompanyRegistrations.pending, state => {
         state.registrationLoading = true;
         state.registrationError = null;
@@ -827,7 +892,9 @@ const productSlice = createSlice({
       .addCase(fetchCompanyRegistrations.fulfilled, (state, action) => {
         state.registrationLoading = false;
         state.companyRegistrations = action.payload.registrations || [];
+        state.adminRegistrations = action.payload.registrations || []; // Also update admin registrations
         state.registrationStats = action.payload.stats || null;
+        state.propertyOwners = action.payload.propertyOwners || [];
         state.registrationPagination = action.payload.pagination || initialState.registrationPagination;
       })
       .addCase(fetchCompanyRegistrations.rejected, (state, action) => {
@@ -843,7 +910,15 @@ const productSlice = createSlice({
         state.isSubmitting = false;
         const { id, status, adminNotes } = action.payload;
 
-        // Update in company registrations
+        // Update in admin registrations
+        const adminIndex = state.adminRegistrations.findIndex(r => r._id === id);
+        if (adminIndex !== -1) {
+          state.adminRegistrations[adminIndex].status = status;
+          state.adminRegistrations[adminIndex].adminNotes = adminNotes;
+          state.adminRegistrations[adminIndex].reviewedAt = new Date().toISOString();
+        }
+
+        // Update in company registrations (deprecated but kept for compatibility)
         const companyIndex = state.companyRegistrations.findIndex(r => r._id === id);
         if (companyIndex !== -1) {
           state.companyRegistrations[companyIndex].status = status;
@@ -888,6 +963,19 @@ const productSlice = createSlice({
         state.registrationStats = action.payload;
       })
 
+      // Generate Registration Certificate
+      .addCase(generateRegistrationCertificate.pending, state => {
+        state.isSubmitting = true;
+      })
+      .addCase(generateRegistrationCertificate.fulfilled, (state, action) => {
+        state.isSubmitting = false;
+        // Certificate is downloaded, no state update needed
+      })
+      .addCase(generateRegistrationCertificate.rejected, (state, action) => {
+        state.isSubmitting = false;
+        state.registrationError = action.payload;
+      })
+
       // Cancel Registration
       .addCase(cancelRegistration.pending, state => {
         state.isSubmitting = true;
@@ -900,6 +988,11 @@ const productSlice = createSlice({
         const myIndex = state.myRegistrations.findIndex(r => r._id === id);
         if (myIndex !== -1) {
           state.myRegistrations[myIndex].status = 'cancelled';
+        }
+
+        const adminIndex = state.adminRegistrations.findIndex(r => r._id === id);
+        if (adminIndex !== -1) {
+          state.adminRegistrations[adminIndex].status = 'cancelled';
         }
 
         const companyIndex = state.companyRegistrations.findIndex(r => r._id === id);

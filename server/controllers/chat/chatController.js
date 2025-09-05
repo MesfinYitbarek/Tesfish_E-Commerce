@@ -207,13 +207,25 @@ export const getChat = async (req, res) => {
 // @access  Private
 export const createChat = async (req, res) => {
   try {
-    const { participantId, relatedProduct, message } = req.body;
+    let { participantId, relatedProduct, message } = req.body;
 
     if (!participantId) {
       return res.status(400).json({
         success: false,
         message: 'Participant ID is required'
       });
+    }
+
+    // ✅ Handle "admin" case
+    if (participantId === "admin") {
+      const adminUser = await User.findOne({ userType: "admin" });
+      if (!adminUser) {
+        return res.status(404).json({
+          success: false,
+          message: "Admin user not found"
+        });
+      }
+      participantId = adminUser._id; // Replace string with ObjectId
     }
 
     // Check if participant exists
@@ -225,21 +237,18 @@ export const createChat = async (req, res) => {
       });
     }
 
-    // Check if user is trying to chat with themselves
-    if (participantId === req.user.id) {
+    // Prevent chatting with yourself
+    if (participantId.toString() === req.user.id.toString()) {
       return res.status(400).json({
         success: false,
         message: 'Cannot create chat with yourself'
       });
     }
 
-    // Check if chat already exists
+    // ✅ Use $all instead of $and for participants
     let chat = await Chat.findOne({
-      $and: [
-        { 'participants.user': req.user.id },
-        { 'participants.user': participantId },
-        { relatedProduct: relatedProduct || null }
-      ]
+      'participants.user': { $all: [req.user.id, participantId] },
+      relatedProduct: relatedProduct || null
     })
       .populate({
         path: 'participants.user',
@@ -276,7 +285,7 @@ export const createChat = async (req, res) => {
       });
     }
 
-    // Add initial message if provided
+    // Handle initial message
     if (message && message.trim()) {
       const newMessage = {
         sender: req.user.id,
@@ -292,39 +301,41 @@ export const createChat = async (req, res) => {
       };
 
       // Update unread count for recipient
-      const recipientUnread = chat.unreadCount.find(entry => entry.user.toString() === participantId);
+      const recipientUnread = chat.unreadCount.find(
+        entry => entry.user.toString() === participantId.toString()
+      );
       if (recipientUnread) {
         recipientUnread.count += 1;
       }
 
       await chat.save();
 
-      // Get current user info for the message
-      const currentUser = await User.findById(req.user.id).select('companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar email userType');
+      // Attach sender info
+      const currentUser = await User.findById(req.user.id).select(
+        'companyProfile.companyName companyProfile.logo individualProfile.firstName individualProfile.lastName individualProfile.avatar customerProfile.firstName customerProfile.lastName customerProfile.avatar email userType'
+      );
 
-      // Get the newly added message and transform it
       const messageWithSender = chat.messages[chat.messages.length - 1];
       messageWithSender.sender = currentUser;
       const transformedMessage = transformMessage(messageWithSender);
 
-      // Emit real-time notification
+      // Emit socket events
       if (req.io) {
         const transformedChatForEmit = transformChat(chat);
 
-        req.io.to(participantId).emit('new-message', {
+        req.io.to(participantId.toString()).emit('new-message', {
           chatId: chat._id,
           message: transformedMessage,
           chat: transformedChatForEmit
         });
 
-        // Emit chat created event
-        req.io.to(participantId).emit('chat-created', {
+        req.io.to(participantId.toString()).emit('chat-created', {
           chat: transformedChatForEmit
         });
       }
     }
 
-    // Transform chat response
+    // Final response
     const transformedChat = transformChat(chat);
 
     res.status(201).json({
@@ -340,6 +351,7 @@ export const createChat = async (req, res) => {
     });
   }
 };
+
 
 // @desc    Send message
 // @route   POST /api/chat/:id/message

@@ -189,7 +189,15 @@ export const router = createBrowserRouter([
       { path: 'services', element: <LazyWrapper><ServicesDashboard /></LazyWrapper> },
       { path: 'services/inquiries', element: <LazyWrapper><ServicesDashboard /></LazyWrapper> },
       { path: 'services/inquiries/:id', element: <LazyWrapper><ServiceInquiryDetail /></LazyWrapper> },
-      { path: 'services/analytics', element: <LazyWrapper><ServicesDashboard /></LazyWrapper> }
+      { path: 'services/analytics', element: <LazyWrapper><ServicesDashboard /></LazyWrapper> },
+      { path: 'registrations', element: <LazyWrapper><PropertyRegistrations /></LazyWrapper> },
+      
+      // Communication & Business
+      { path: 'messages', element: <LazyWrapper><Messages /></LazyWrapper> },
+      { path: 'bookings', element: <LazyWrapper><Bookings /></LazyWrapper> },
+      { path: 'registrations', element: <LazyWrapper><PropertyRegistrations /></LazyWrapper> },
+      
+      
     ]
   },
 

@@ -4,24 +4,27 @@ import { io } from 'socket.io-client';
 import {
   ChatBubbleLeftRightIcon,
   MagnifyingGlassIcon,
-  PlusIcon,
+  ExclamationTriangleIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline';
 import {
   fetchChats,
   markAsRead,
   archiveChat,
   deleteChat,
+  blockUser,
+  unblockUser,
   setCurrentChat,
   resetChat,
   clearError,
   addMessage,
   updateMessage,
   removeMessage,
-  updateChatInList
+  updateChatInList,
+  setCurrentUserId
 } from '../../store/slices/chatSlice';
 import ConversationList from '../../components/chat/ConversationList';
 import ChatWindow from '../../components/chat/ChatWindow';
-// import NewMessageModal from '../../components/chat/NewMessageModal';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
@@ -41,14 +44,29 @@ const Messages = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState('all');
-  // const [showNewMessage, setShowNewMessage] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [socketConnected, setSocketConnected] = useState(false);
   const [onlineUsers, setOnlineUsers] = useState(new Set());
 
-  // Initialize Socket.io connection with NEW CONVERSATION SUPPORT
+  const isAdmin = user?.userType === 'admin';
+  const isCustomer = user?.userType === 'customer';
+  
+  // Sellers should not access messages at all
+  const isSeller = user?.userType === 'company' || user?.userType === 'individual';
+
+  // Redirect sellers away from messages
   useEffect(() => {
-    if (isAuthenticated && token && user?.id) {
+    if (isAuthenticated && isSeller) {
+      toast.info('Product inquiries are handled by our support team');
+      // Redirect to dashboard or products page
+      window.location.href = '/dashboard';
+      return;
+    }
+  }, [isAuthenticated, isSeller]);
+
+  // Initialize Socket.io connection - only for admin and customers
+  useEffect(() => {
+    if (isAuthenticated && token && user?.id && !isSeller) {
       const serverUrl = 'http://localhost:5000';
 
       const socket = io(serverUrl, {
@@ -60,14 +78,26 @@ const Messages = () => {
 
       socket.on('connect', () => {
         console.log('✅ Connected to chat server, socket ID:', socket.id);
-        console.log('👤 User ID:', user.id);
+        console.log('👤 User ID:', user.id, 'Type:', user.userType);
         setSocketConnected(true);
         socketRef.current = socket;
+
+        dispatch(setCurrentUserId(user.id));
+
+        // Join admin room if user is admin
+        if (isAdmin) {
+          socket.emit('join-admin-room');
+          console.log('🔧 Admin joined admin room for customer support');
+        }
       });
 
       socket.on('connect_error', (error) => {
         console.error('❌ Socket connection error:', error);
         setSocketConnected(false);
+        
+        if (error.message?.includes('Authentication') || error.message?.includes('token')) {
+          toast.error('Session expired. Please log in again.');
+        }
       });
 
       socket.on('disconnect', (reason) => {
@@ -75,9 +105,30 @@ const Messages = () => {
         setSocketConnected(false);
       });
 
-      // Listen for new messages - WITH NEW CHAT DETECTION
+      // Listen for new messages
       socket.on('new-message', (data) => {
-        console.log('📨 Messages page received new message:', data);
+        console.log('📨 New message received:', data);
+
+        // For customers: Show admin responses
+        if (isCustomer && data.message.sender?.userType === 'admin') {
+          console.log('💬 Customer receiving admin response about product inquiry');
+          toast.success('TesGold team responded to your inquiry', { duration: 3000 });
+        }
+        
+        // For admin: Show customer inquiries with product context
+        if (isAdmin && data.message.sender?.userType === 'customer') {
+          console.log('🔧 Admin receiving customer product inquiry');
+          
+          // Extract product info from message context if available
+          if (data.chat?.relatedProduct) {
+            toast.info(`Customer inquiry: ${data.chat.relatedProduct.title}`, { 
+              duration: 4000,
+              icon: '❓'
+            });
+          } else {
+            toast.info('New customer inquiry received', { duration: 4000 });
+          }
+        }
 
         // Add message to current chat if it's the active one
         if (data.chatId === currentChat?._id) {
@@ -87,11 +138,9 @@ const Messages = () => {
           }));
         }
 
-        // Check if this chat exists in our list
+        // Update chat list
         const existingChat = chats.find(chat => chat._id === data.chatId);
-
         if (existingChat) {
-          // Update existing conversation list efficiently without full refresh
           dispatch(updateChatInList({
             chatId: data.chatId,
             lastMessage: {
@@ -101,50 +150,22 @@ const Messages = () => {
             },
             incrementUnreadFor: data.message.sender?._id !== user?.id ? user?.id : null
           }));
-        } else {
-          // If chat doesn't exist, it means this is a new conversation
-          console.log('🆕 New chat detected from message, adding to list...');
+        } else if (data.chat) {
+          dispatch({
+            type: 'chat/addChatToList',
+            payload: data.chat
+          });
 
-          // If the message includes chat data, use it
-          if (data.chat) {
-            dispatch({
-              type: 'chat/addChatToList',
-              payload: data.chat
+          // Enhanced notifications based on user type
+          if (isAdmin) {
+            const product = data.chat.relatedProduct;
+            const productTitle = product?.title || 'a product';
+            toast.success(`New inquiry about "${productTitle}"`, {
+              duration: 5000,
+              icon: '📞'
             });
-
-            // Get participant name for notification
-            const participantName = data.chat.participants?.find(p => p.user._id !== user?.id)?.user?.displayName ||
-              data.message.sender?.displayName || 'Someone';
-            toast.success(`New conversation started with ${participantName}`);
-          } else {
-            // Fallback: fetch all chats to get the new one
-            dispatch(fetchChats());
-          }
-        }
-      });
-
-      // Listen for new chat created events - FOR REAL-TIME NEW CONVERSATIONS
-      socket.on('chat-created', (data) => {
-        console.log('🆕 New chat created event received:', data);
-
-        // Add the new chat to the conversation list immediately
-        if (data.chat) {
-          // Check if chat already exists to prevent duplicates
-          const existingChat = chats.find(chat => chat._id === data.chat._id);
-          if (!existingChat) {
-            dispatch({
-              type: 'chat/addChatToList',
-              payload: data.chat
-            });
-
-            // Get participant name for notification
-            const participantName = data.chat.participants?.find(p => p.user._id !== user?.id)?.user?.displayName ||
-              data.chat.participants?.find(p => p.user._id !== user?.id)?.user?.companyProfile?.companyName ||
-              data.chat.participants?.find(p => p.user._id !== user?.id)?.user?.individualProfile?.firstName ||
-              data.chat.participants?.find(p => p.user._id !== user?.id)?.user?.customerProfile?.firstName ||
-              'Someone';
-
-            toast.success(`New conversation started with ${participantName}`, {
+          } else if (isCustomer) {
+            toast.success('Connected to TesGold support team', {
               duration: 4000,
               icon: '💬'
             });
@@ -152,9 +173,40 @@ const Messages = () => {
         }
       });
 
-      // Listen for chat updates - only update specific chat
+      // Listen for chat created events
+      socket.on('chat-created', (data) => {
+        console.log('🆕 New customer inquiry chat created:', data);
+
+        if (data.chat) {
+          const existingChat = chats.find(chat => chat._id === data.chat._id);
+          if (!existingChat) {
+            dispatch({
+              type: 'chat/addChatToList',
+              payload: data.chat
+            });
+
+            if (isAdmin) {
+              const product = data.chat.relatedProduct;
+              const customer = data.chat.participants?.find(p => p.user.userType === 'customer');
+              const customerName = customer?.user?.displayName || 'A customer';
+              const productTitle = product?.title || 'a product';
+              
+              toast.success(`${customerName} is asking about "${productTitle}"`, {
+                duration: 5000,
+                icon: '❓'
+              });
+            } else if (isCustomer) {
+              toast.success('Your inquiry has been sent to our team', {
+                duration: 4000,
+                icon: '✅'
+              });
+            }
+          }
+        }
+      });
+
+      // Standard chat event listeners
       socket.on('chat-updated', (data) => {
-        console.log('🔄 Chat updated:', data);
         if (data.chatId && data.lastMessage) {
           dispatch(updateChatInList({
             chatId: data.chatId,
@@ -163,34 +215,23 @@ const Messages = () => {
         }
       });
 
-      // Listen for message updates
       socket.on('message-edited', (data) => {
-        console.log('✏️ Message edited:', data);
         if (data.chatId === currentChat?._id) {
           dispatch(updateMessage({ messageId: data.message._id, updates: data.message }));
         }
       });
 
       socket.on('message-deleted', (data) => {
-        console.log('🗑️ Message deleted:', data);
         if (data.chatId === currentChat?._id) {
           dispatch(removeMessage(data.messageId));
         }
       });
 
-      // Listen for typing events
-      socket.on('user-typing', (data) => {
-        console.log('⌨️ User typing:', data);
-      });
-
-      // Listen for user online/offline status
       socket.on('user-online', (data) => {
-        console.log('🟢 User online:', data);
         setOnlineUsers(prev => new Set([...prev, data.userId]));
       });
 
       socket.on('user-offline', (data) => {
-        console.log('🔴 User offline:', data);
         setOnlineUsers(prev => {
           const newSet = new Set(prev);
           newSet.delete(data.userId);
@@ -198,12 +239,30 @@ const Messages = () => {
         });
       });
 
-      // Listen for messages read events
       socket.on('messages-read', (data) => {
-        console.log('📖 Messages read:', data);
         if (data.chatId === currentChat?._id) {
           dispatch({ type: 'chat/markMessagesAsRead', payload: data });
         }
+      });
+
+      socket.on('chat-blocked', (data) => {
+        dispatch({ type: 'chat/updateChatStatus', payload: { chatId: data.chatId, status: 'blocked' } });
+        toast.info('Chat has been blocked');
+      });
+
+      socket.on('chat-unblocked', (data) => {
+        dispatch({ type: 'chat/updateChatStatus', payload: { chatId: data.chatId, status: 'active' } });
+        toast.info('Chat has been unblocked');
+      });
+
+      socket.on('chat-deleted', (data) => {
+        dispatch({ type: 'chat/removeChatFromList', payload: data.chatId });
+        
+        if (currentChat?._id === data.chatId) {
+          dispatch(setCurrentChat(null));
+        }
+        
+        toast.info('Chat has been deleted');
       });
 
       socketRef.current = socket;
@@ -211,16 +270,20 @@ const Messages = () => {
       return () => {
         if (socket && socket.connected) {
           console.log('🔌 Disconnecting socket');
+          if (isAdmin) {
+            socket.emit('leave-admin-room');
+          }
           socket.disconnect();
         }
         setSocketConnected(false);
         socketRef.current = null;
       };
     }
-  }, [isAuthenticated, token, user?.id, dispatch, currentChat?._id, chats]);
+  }, [isAuthenticated, token, user?.id, user?.userType, dispatch, currentChat?._id, chats, isAdmin, isCustomer, isSeller]);
 
+  // Fetch chats and admin stats - only for admin and customers
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && !isSeller) {
       dispatch(fetchChats());
       dispatch(clearError());
     }
@@ -228,7 +291,28 @@ const Messages = () => {
     return () => {
       dispatch(resetChat());
     };
-  }, [dispatch, isAuthenticated]);
+  }, [dispatch, isAuthenticated, isAdmin, isSeller]);
+
+  // Don't render anything for sellers
+  if (isSeller) {
+    return (
+      <div className="h-[calc(100vh-8rem)] flex items-center justify-center bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800">
+        <div className="text-center max-w-md">
+          <ShieldCheckIcon className="h-16 w-16 text-blue-500 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+            Customer Inquiries Handled by Our Team
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            All customer inquiries about your products are professionally handled by our TesGold support team. 
+            You can focus on managing your products while we take care of customer communication.
+          </p>
+          <Button onClick={() => window.location.href = '/dashboard'}>
+            Go to Dashboard
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const handleMarkAsRead = async (chatId) => {
     try {
@@ -270,14 +354,7 @@ const Messages = () => {
       const conversation = chats.find(c => c._id === conversationId);
       const participantId = conversation.participants.find(p => p.user._id !== user?.id)?.user._id;
 
-      const chatService = await import('../../services/chatService');
-      await chatService.default.blockUser(conversationId, participantId);
-
-      dispatch({
-        type: 'chat/updateChatStatus',
-        payload: { chatId: conversationId, status: 'blocked' }
-      });
-
+      await dispatch(blockUser({ chatId: conversationId, userId: participantId })).unwrap();
       toast.success('User blocked');
     } catch (error) {
       console.error('Error blocking user:', error);
@@ -285,20 +362,27 @@ const Messages = () => {
     }
   };
 
+  const handleUnblockUser = async (conversationId) => {
+    try {
+      await dispatch(unblockUser(conversationId)).unwrap();
+      toast.success('User unblocked');
+    } catch (error) {
+      console.error('Error unblocking user:', error);
+      toast.error('Failed to unblock user');
+    }
+  };
+
   const handleSelectConversation = (conversation) => {
     console.log('📂 Selecting conversation:', conversation._id);
 
-    // Always set the current chat, even if it's already selected
     dispatch(setCurrentChat(conversation));
     handleMarkAsRead(conversation._id);
 
-    // Join chat room for real-time updates
     if (socketRef.current) {
       console.log('🏠 Joining chat room:', `chat-${conversation._id}`);
       socketRef.current.emit('join-chat', conversation._id);
     }
 
-    // On mobile, hide sidebar when conversation is selected
     if (window.innerWidth < 768) {
       setSidebarOpen(false);
     }
@@ -316,48 +400,35 @@ const Messages = () => {
 
     const userData = participant.user;
 
-    if (userData.displayName) {
+    // For customers: Always show "TesGold Team" when they see admin
+    if (isCustomer && userData.userType === 'admin') {
       return {
-        name: userData.displayName,
-        avatar: userData.avatar,
+        name: 'TesGold Team',
+        avatar: null,
         userId: userData._id,
-        userType: userData.userType,
-        isVerified: userData.isVerified
+        userType: 'admin',
+        isVerified: true,
+        isSupport: true
       };
     }
 
-    if (userData.userType === 'company' && userData.companyProfile?.companyName) {
+    // For admin: Show customer info
+    if (isAdmin && userData.userType === 'customer') {
+      const customerName = userData.displayName || 
+                          `${userData.customerProfile?.firstName || ''} ${userData.customerProfile?.lastName || ''}`.trim() ||
+                          userData.email ||
+                          'Customer';
+      
       return {
-        name: userData.companyProfile.companyName,
-        avatar: userData.companyProfile.logo,
-        userId: userData._id,
-        userType: 'company',
-        isVerified: userData.isVerified
-      };
-    }
-
-    if (userData.userType === 'individual' && userData.individualProfile) {
-      const { firstName, lastName } = userData.individualProfile;
-      return {
-        name: `${firstName || ''} ${lastName || ''}`.trim() || 'Individual',
-        avatar: userData.individualProfile.avatar,
-        userId: userData._id,
-        userType: 'individual',
-        isVerified: userData.isVerified
-      };
-    }
-
-    if (userData.userType === 'customer' && userData.customerProfile) {
-      const { firstName, lastName } = userData.customerProfile;
-      return {
-        name: `${firstName || ''} ${lastName || ''}`.trim() || 'Customer',
-        avatar: userData.customerProfile.avatar,
+        name: customerName,
+        avatar: userData.customerProfile?.avatar || userData.avatar,
         userId: userData._id,
         userType: 'customer',
         isVerified: userData.isVerified
       };
     }
 
+    // Fallback
     return {
       name: userData.email || 'Unknown User',
       avatar: null,
@@ -384,7 +455,8 @@ const Messages = () => {
           avatar: participantInfo.avatar,
           type: participantInfo.userType || 'customer',
           isVerified: participantInfo.isVerified,
-          isOnline: participantInfo.userId ? onlineUsers.has(participantInfo.userId) : false
+          isOnline: participantInfo.userId ? onlineUsers.has(participantInfo.userId) : false,
+          isSupport: participantInfo.isSupport || false
         },
         listing: chat?.relatedProduct
           ? {
@@ -392,7 +464,8 @@ const Messages = () => {
             title: chat.relatedProduct.title,
             image: chat.relatedProduct.media?.images?.[0]?.url || '/api/placeholder/60/60',
             price: chat.relatedProduct.pricing?.basePrice || 0,
-            currency: chat.relatedProduct.pricing?.currency || 'ETB'
+            currency: chat.relatedProduct.pricing?.currency || 'ETB',
+            seller: chat.relatedProduct.seller // For admin context
           }
           : null,
         lastMessage: chat?.lastMessage
@@ -407,7 +480,9 @@ const Messages = () => {
           : null,
         unreadCount,
         archived: chat?.status === 'archived',
-        blocked: chat?.status === 'blocked'
+        blocked: chat?.status === 'blocked',
+        chatType: chat?.chatType || 'direct',
+        isSupport: chat?.chatType === 'support' || true // All chats are essentially support
       };
     });
   };
@@ -428,6 +503,7 @@ const Messages = () => {
 
     if (filter === 'unread') return conv.unreadCount > 0;
     if (filter === 'archived') return conv.archived;
+    if (filter === 'blocked') return conv.blocked;
     if (filter === 'all') return !conv.archived;
 
     return true;
@@ -439,7 +515,11 @@ const Messages = () => {
     return (
       <div className="h-[calc(100vh-8rem)] flex items-center justify-center bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800">
         <div className="text-center">
-          <p className="text-red-500 mb-4">Error loading conversations: {error}</p>
+          <ExclamationTriangleIcon className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+            Error Loading Conversations
+          </h3>
+          <p className="text-red-500 mb-4">{error}</p>
           <Button onClick={() => dispatch(fetchChats())}>
             Try Again
           </Button>
@@ -448,7 +528,6 @@ const Messages = () => {
     );
   }
 
-  // Mobile responsive logic
   const showSidebar = sidebarOpen || !currentChat;
   const showChat = currentChat && (!sidebarOpen || window.innerWidth >= 768);
 
@@ -463,7 +542,7 @@ const Messages = () => {
               <div className="flex items-center">
                 <ChatBubbleLeftRightIcon className="h-6 w-6 text-gray-500 mr-2" />
                 <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                  Messages
+                  {isAdmin ? 'Customer Inquiries' : 'Product Support'}
                 </h1>
                 {displayUnreadCount > 0 && (
                   <span className="ml-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
@@ -477,19 +556,11 @@ const Messages = () => {
                   </div>
                 )}
               </div>
-              {/* <Button
-                size="sm"
-                onClick={() => setShowNewMessage(true)}
-                leftIcon={<PlusIcon className="h-4 w-4" />}
-              >
-                New
-              </Button> */}
             </div>
-
             {/* Search */}
             <div className="relative mb-4">
               <Input
-                placeholder="Search conversations..."
+                placeholder={isAdmin ? "Search customer inquiries..." : "Search conversations..."}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 leftIcon={<MagnifyingGlassIcon className="h-4 w-4" />}
@@ -497,27 +568,39 @@ const Messages = () => {
             </div>
 
             {/* Filters */}
-            <div className="flex space-x-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+            <div className="flex flex-wrap gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
               {[
                 { key: 'all', label: 'All', count: displayChats.filter(c => !c.archived).length },
                 { key: 'unread', label: 'Unread', count: displayUnreadCount },
+                ...(isAdmin ? [
+                  { key: 'blocked', label: 'Blocked', count: displayChats.filter(c => c.blocked).length }
+                ] : []),
                 { key: 'archived', label: 'Archived', count: displayChats.filter(c => c.archived).length }
               ].map(filterOption => (
                 <button
                   key={filterOption.key}
                   onClick={() => setFilter(filterOption.key)}
-                  className={`flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${filter === filterOption.key
+                  className={`px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${filter === filterOption.key
                     ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
                     }`}
                 >
                   {filterOption.label}
                   {filterOption.count > 0 && (
-                    <span className="ml-1 text-xs">({filterOption.count})</span>
+                    <span className="ml-1">({filterOption.count})</span>
                   )}
                 </button>
               ))}
             </div>
+
+            {/* Context info */}
+            {isCustomer && (
+              <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  💬 All product inquiries are handled by our professional team
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Conversation List */}
@@ -534,7 +617,9 @@ const Messages = () => {
                 onArchiveConversation={handleArchiveConversation}
                 onDeleteConversation={handleDeleteConversation}
                 onBlockUser={handleBlockUser}
+                onUnblockUser={handleUnblockUser}
                 currentUserId={user?.id}
+                isAdmin={isAdmin}
                 socket={socketRef.current}
               />
             )}
@@ -548,6 +633,7 @@ const Messages = () => {
           <ChatWindow
             conversation={formatConversationsForDisplay([currentChat])[0]}
             currentUserId={user?.id}
+            isAdmin={isAdmin}
             onToggleSidebar={handleToggleSidebar}
             sidebarOpen={sidebarOpen}
             socket={socketRef.current}
@@ -562,40 +648,24 @@ const Messages = () => {
           <div className="text-center">
             <ChatBubbleLeftRightIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-              Select a conversation
+              {isAdmin ? 'Select a customer inquiry' : 'Select a conversation'}
             </h3>
             <p className="text-gray-600 dark:text-gray-400">
-              Choose a conversation from the sidebar to start messaging
+              {isAdmin 
+                ? 'Choose a customer product inquiry to assist with'
+                : 'Choose a conversation to start messaging with our support team'
+              }
             </p>
             <Button
               variant="outline"
               onClick={() => setSidebarOpen(true)}
               className="mt-4"
             >
-              Show Conversations
+              Show {isAdmin ? 'Inquiries' : 'Conversations'}
             </Button>
           </div>
         </div>
       )}
-
-      {/* New Message Modal */}
-      {/* <NewMessageModal
-        isOpen={showNewMessage}
-        onClose={() => setShowNewMessage(false)}
-        onCreateConversation={(conversation) => {
-          dispatch(setCurrentChat(conversation));
-          dispatch({ 
-            type: 'chat/addChatToList', 
-            payload: conversation 
-          });
-          setShowNewMessage(false);
-          
-          // On mobile, hide sidebar when new conversation is created
-          if (window.innerWidth < 768) {
-            setSidebarOpen(false);
-          }
-        }}
-      /> */}
     </div>
   );
 };

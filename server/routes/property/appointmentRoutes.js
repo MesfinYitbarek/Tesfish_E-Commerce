@@ -4,9 +4,12 @@ import { body } from 'express-validator';
 import {
   bookAppointment,
   getMyAppointments,
-  getSellerAppointments,
+  getAdminAppointments,
   updateAppointmentStatus,
-  rescheduleAppointment
+  rescheduleAppointment,
+  getAppointmentStats,
+  exportAppointmentsCSV,
+  assignAppointmentToAdmin
 } from '../../controllers/Appointment/appointmentController.js';
 import { protect, authorize } from '../../middleware/auth/authMiddleware.js';
 import { handleValidationErrors } from '../../middleware/validation/validationMiddleware.js';
@@ -28,18 +31,33 @@ router.use(protect);
 router.post('/', appointmentValidation, bookAppointment);
 router.get('/my-appointments', getMyAppointments);
 
-// Seller routes
-router.get('/seller-appointments', 
-  authorize('company', 'individual'), 
-  getSellerAppointments
+// Admin-only routes (appointment management)
+router.get('/admin-appointments', 
+  authorize('admin'), 
+  getAdminAppointments
+);
+
+router.get('/stats',
+  authorize('admin'),
+  getAppointmentStats
+);
+
+router.get('/export-csv',
+  authorize('admin'),
+  exportAppointmentsCSV
 );
 
 router.put('/:id/status', 
-  authorize('company', 'individual', 'admin'),
+  authorize('admin'),
   updateAppointmentStatus
 );
 
-// Shared routes
+router.put('/:id/assign',
+  authorize('admin'),
+  assignAppointmentToAdmin
+);
+
+// Shared routes (customers can reschedule, admins can reschedule)
 router.put('/:id/reschedule', rescheduleAppointment);
 
 export default router;

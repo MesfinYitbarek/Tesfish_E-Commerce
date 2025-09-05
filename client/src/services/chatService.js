@@ -1,3 +1,4 @@
+// services/chatService.js
 import api from './api';
 
 const chatService = {
@@ -30,14 +31,10 @@ const chatService = {
   deleteMessage: (chatId, messageId) => {
     return api.delete(`/chat/${chatId}/message/${messageId}`);
   },
-  deleteChat: async (chatId) => {
-    try {
-      const response = await api.delete(`/chat/${chatId}`);
-      return response.data;
-    } catch (error) {
-      console.error('Delete chat error:', error);
-      throw error;
-    }
+
+  // Delete a chat
+  deleteChat: (chatId) => {
+    return api.delete(`/chat/${chatId}`);
   },
 
   // Archive a chat
@@ -45,9 +42,14 @@ const chatService = {
     return api.put(`/chat/${chatId}/archive`);
   },
 
-  // Block/unblock a user in a chat
+  // Block a user in a chat
   blockUser: (chatId, userId) => {
     return api.put(`/chat/${chatId}/block`, { userId });
+  },
+
+  // Unblock a user in a chat
+  unblockUser: (chatId) => {
+    return api.put(`/chat/${chatId}/unblock`);
   },
 
   // Mark messages as read
@@ -85,6 +87,58 @@ const chatService = {
     return api.get(`/chat/${chatId}/messages`, {
       params: { page, limit }
     });
+  },
+
+  // Admin-specific endpoints
+  getAdminChatStats: () => {
+    return api.get('/chat/admin/stats');
+  },
+
+  // Additional utility methods
+  getChatsByStatus: (status) => {
+    return api.get('/chat', {
+      params: { status }
+    });
+  },
+
+  getChatsByType: (chatType) => {
+    return api.get('/chat', {
+      params: { chatType }
+    });
+  },
+
+  // Bulk operations (for admin)
+  bulkArchiveChats: (chatIds) => {
+    return api.post('/chat/bulk/archive', { chatIds });
+  },
+
+  bulkDeleteChats: (chatIds) => {
+    return api.post('/chat/bulk/delete', { chatIds });
+  },
+
+  // Export chat data (for admin)
+  exportChatData: (filters = {}) => {
+    return api.get('/chat/export', {
+      params: filters,
+      responseType: 'blob'
+    });
+  },
+
+  // Real-time utilities
+  joinChatRoom: (chatId) => {
+    // This would be handled by socket.io client
+    console.log(`Joining chat room: ${chatId}`);
+  },
+
+  leaveChatRoom: (chatId) => {
+    // This would be handled by socket.io client
+    console.log(`Leaving chat room: ${chatId}`);
+  },
+
+  // Typing indicators
+  sendTypingIndicator: (chatId, isTyping) => {
+    // This would be handled by socket.io client
+    console.log(`Typing indicator for chat ${chatId}: ${isTyping}`);
   }
 };
 

@@ -4,11 +4,8 @@ import { useSelector, useDispatch } from 'react-redux';
 import { 
   HomeIcon,
   BuildingOfficeIcon,
-  ChatBubbleLeftRightIcon,
-  CalendarIcon,
   ChartBarIcon,
   UserIcon,
-  CogIcon,
   Bars3Icon,
   XMarkIcon,
   BellIcon,
@@ -29,9 +26,7 @@ const DashboardLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  
-  // Mock unread message count
-  const unreadCount = 3;
+
 
   useEffect(() => {
     // Check for dark mode preference
@@ -118,22 +113,6 @@ const DashboardLayout = () => {
               to="/dashboard/products" 
               icon={<BuildingOfficeIcon className="h-5 w-5" />}
               label="My Listings"
-            />
-            <NavItem 
-              to="/dashboard/messages" 
-              icon={<ChatBubbleLeftRightIcon className="h-5 w-5" />}
-              label="Messages"
-              badge={unreadCount > 0 ? unreadCount : null}
-            />
-            <NavItem 
-              to="/dashboard/bookings" 
-              icon={<CalendarIcon className="h-5 w-5" />}
-              label="Bookings"
-            />
-            <NavItem 
-              to="/dashboard/registrations" 
-              icon={<CalendarIcon className="h-5 w-5" />}
-              label="Property Registrations"
             />
             <NavItem 
               to="/dashboard/analytics" 

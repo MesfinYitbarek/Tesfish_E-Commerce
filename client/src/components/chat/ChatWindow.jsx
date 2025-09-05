@@ -1,14 +1,14 @@
-// Updated ChatWindow.jsx
 import { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeftIcon,
   PaperAirplaneIcon,
   PaperClipIcon,
-  PhoneIcon,
-  VideoCameraIcon,
   InformationCircleIcon,
   FaceSmileIcon,
-  UserIcon
+  UserIcon,
+  ShieldCheckIcon,
+  ExclamationTriangleIcon,
+  BuildingOfficeIcon,
 } from '@heroicons/react/24/outline';
 import { CheckBadgeIcon } from '@heroicons/react/24/solid';
 import { useDispatch, useSelector } from 'react-redux';
@@ -17,6 +17,8 @@ import {
   sendMessage,
   editMessage,
   deleteMessage,
+  blockUser,
+  unblockUser,
   addMessage,
   updateMessage,
   removeMessage,
@@ -32,6 +34,7 @@ import { toast } from 'react-hot-toast';
 const ChatWindow = ({
   conversation,
   currentUserId,
+  isAdmin,
   onToggleSidebar,
   sidebarOpen,
   socket,
@@ -42,6 +45,7 @@ const ChatWindow = ({
   const [isTyping, setIsTyping] = useState(false);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [showAdminActions, setShowAdminActions] = useState(false);
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -54,7 +58,6 @@ const ChatWindow = ({
     error
   } = useSelector((state) => state.chat);
 
-  // Fetch chat data when conversation changes
   useEffect(() => {
     if (conversation?.id) {
       console.log('📂 Fetching chat data for:', conversation.id);
@@ -62,7 +65,6 @@ const ChatWindow = ({
     }
   }, [conversation?.id, dispatch]);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -72,28 +74,31 @@ const ChatWindow = ({
 
     console.log('🏠 ChatWindow joining chat room:', conversation.id);
 
-    // Join chat room
     socket.emit('join-chat', conversation.id);
 
-    // Listen for new messages - NO REFRESH, JUST APPEND
     const handleNewMessage = (data) => {
       console.log('📨 ChatWindow received new message:', data);
 
       if (data.chatId === conversation.id) {
-        console.log('✅ Adding message to current chat (Telegram style)');
+        console.log('✅ Adding message to current chat');
 
-        // Add message immediately without any refresh
         dispatch(addMessage({
           ...data.message,
           chatId: data.chatId
         }));
 
-        // Scroll to bottom smoothly
+        // Show context-aware notifications
+        if (isAdmin && data.message.sender?.userType === 'customer') {
+          const productTitle = conversation.listing?.title;
+          if (productTitle) {
+            toast.info(`Customer question about "${productTitle}"`, { duration: 3000 });
+          }
+        }
+
         setTimeout(() => scrollToBottom(), 50);
       }
     };
 
-    // Listen for typing events
     const handleUserTyping = (data) => {
       if (data.chatId === conversation.id && data.userId !== currentUserId) {
         setOtherUserTyping(data.isTyping);
@@ -103,7 +108,6 @@ const ChatWindow = ({
       }
     };
 
-    // Listen for message updates - UPDATE SPECIFIC MESSAGE ONLY
     const handleMessageEdited = (data) => {
       if (data.chatId === conversation.id) {
         dispatch(updateMessage({
@@ -119,7 +123,6 @@ const ChatWindow = ({
       }
     };
 
-    // Listen for read status updates - UPDATE READ STATUS ONLY
     const handleMessagesRead = (data) => {
       if (data.chatId === conversation.id) {
         dispatch(markMessagesAsRead({
@@ -129,11 +132,25 @@ const ChatWindow = ({
       }
     };
 
+    const handleChatBlocked = (data) => {
+      if (data.chatId === conversation.id) {
+        toast.warning('This chat has been blocked');
+      }
+    };
+
+    const handleChatUnblocked = (data) => {
+      if (data.chatId === conversation.id) {
+        toast.success('This chat has been unblocked');
+      }
+    };
+
     socket.on('new-message', handleNewMessage);
     socket.on('user-typing', handleUserTyping);
     socket.on('message-edited', handleMessageEdited);
     socket.on('message-deleted', handleMessageDeleted);
     socket.on('messages-read', handleMessagesRead);
+    socket.on('chat-blocked', handleChatBlocked);
+    socket.on('chat-unblocked', handleChatUnblocked);
 
     return () => {
       console.log('🚪 ChatWindow leaving chat room:', conversation.id);
@@ -142,12 +159,14 @@ const ChatWindow = ({
       socket.off('message-edited', handleMessageEdited);
       socket.off('message-deleted', handleMessageDeleted);
       socket.off('messages-read', handleMessagesRead);
+      socket.off('chat-blocked', handleChatBlocked);
+      socket.off('chat-unblocked', handleChatUnblocked);
 
       if (socket.connected) {
         socket.emit('leave-chat', conversation.id);
       }
     };
-  }, [socket, conversation?.id, currentUserId, dispatch, socketConnected]);
+  }, [socket, conversation?.id, currentUserId, dispatch, socketConnected, isAdmin, conversation?.listing?.title]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -156,7 +175,6 @@ const ChatWindow = ({
   const handleTyping = (isTypingNow) => {
     if (!socket || !conversation?.id || !socketConnected) return;
 
-    console.log('⌨️ Emitting typing status:', { isTypingNow, chatId: conversation.id });
     setIsTyping(isTypingNow);
     socket.emit('typing', {
       chatId: conversation.id,
@@ -186,11 +204,13 @@ const ChatWindow = ({
 
     if (!newMessage.trim() && !fileInputRef.current?.files?.length) return;
 
-    handleTyping(false); // Stop typing indicator
+    handleTyping(false);
 
     try {
+      let messageContent = newMessage.trim();
+
       const messageData = {
-        content: newMessage.trim(),
+        content: messageContent,
         messageType: 'text',
         attachments: []
       };
@@ -200,7 +220,6 @@ const ChatWindow = ({
         setUploadingFiles(true);
         const files = Array.from(fileInputRef.current.files);
 
-        // Upload files first
         for (const file of files) {
           try {
             const uploadResult = await chatService.uploadAttachment(file);
@@ -218,19 +237,16 @@ const ChatWindow = ({
 
       console.log('📤 Sending message:', { chatId: conversation.id, messageData });
 
-      // Send message using Redux action
       const result = await dispatch(sendMessage({
         chatId: conversation.id,
         messageData
       })).unwrap();
 
-      // Clear the input
       setNewMessage('');
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
 
-      // Scroll to bottom after sending
       setTimeout(() => scrollToBottom(), 100);
 
     } catch (error) {
@@ -252,11 +268,7 @@ const ChatWindow = ({
       throw error;
     }
   };
-  const handleBackToList = () => {
-    // On mobile, show sidebar but keep current chat selected
-    onToggleSidebar();
-    // Don't clear the current chat - just toggle sidebar visibility
-  };
+
   const handleDeleteMessage = async (messageId) => {
     try {
       await dispatch(deleteMessage({
@@ -269,12 +281,45 @@ const ChatWindow = ({
     }
   };
 
+  const handleBlockUser = async () => {
+    try {
+      const participantId = conversation.participant.id;
+      await dispatch(blockUser({ 
+        chatId: conversation.id, 
+        userId: participantId 
+      })).unwrap();
+      
+      setShowAdminActions(false);
+      toast.success('User blocked successfully');
+    } catch (error) {
+      console.error('Error blocking user:', error);
+      toast.error('Failed to block user');
+    }
+  };
+
+  const handleUnblockUser = async () => {
+    try {
+      await dispatch(unblockUser(conversation.id)).unwrap();
+      setShowAdminActions(false);
+      toast.success('User unblocked successfully');
+    } catch (error) {
+      console.error('Error unblocking user:', error);
+      toast.error('Failed to unblock user');
+    }
+  };
+
+  const handleBackToList = () => {
+    onToggleSidebar();
+  };
+
   const handleFileSelect = () => {
     fileInputRef.current?.click();
   };
 
   const participant = conversation?.participant;
   const listing = conversation?.listing;
+  const isBlocked = conversation?.blocked;
+  const isCustomer = participant?.type === 'customer';
 
   if (!conversation) {
     return (
@@ -285,9 +330,6 @@ const ChatWindow = ({
       </div>
     );
   }
-
-  console.log('💬 ChatWindow render - Messages count:', messages?.length);
-  console.log('💬 Socket connected:', socketConnected);
 
   return (
     <div className="flex flex-col h-full">
@@ -314,7 +356,11 @@ const ChatWindow = ({
                 />
               ) : (
                 <div className="w-10 h-10 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center">
-                  <UserIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                  {isAdmin ? (
+                    <UserIcon className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+                  ) : (
+                    <ShieldCheckIcon className="h-5 w-5 text-blue-500" />
+                  )}
                 </div>
               )}
               {participant?.isOnline && socketConnected && (
@@ -326,20 +372,29 @@ const ChatWindow = ({
                 <h2 className="font-semibold text-gray-900 dark:text-gray-100">
                   {participant?.name || 'Unknown User'}
                 </h2>
-                {participant?.isVerified && (
+                {(participant?.isVerified || participant?.isSupport) && (
                   <CheckBadgeIcon className="h-4 w-4 text-blue-500" />
                 )}
+                {participant?.isSupport && (
+                  <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs rounded-full">
+                    Team
+                  </span>
+                )}
               </div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                {participant?.type === 'company' ? 'Company' :
-                  participant?.type === 'individual' ? 'Individual Seller' : 'Customer'}
+              <div className="flex items-center space-x-2">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {isAdmin && isCustomer ? 'Customer' :
+                   !isAdmin && participant?.isSupport ? 'TesGold Support Team' :
+                   participant?.type === 'company' ? 'Company' :
+                   participant?.type === 'individual' ? 'Individual Seller' : 'User'}
+                </p>
                 {otherUserTyping && socketConnected && (
-                  <span className="ml-2 text-green-500">typing...</span>
+                  <span className="text-sm text-green-500">typing...</span>
                 )}
                 {!otherUserTyping && participant?.isOnline && socketConnected && (
-                  <span className="ml-2 text-green-500">online</span>
+                  <span className="text-sm text-green-500">online</span>
                 )}
-              </p>
+              </div>
             </div>
           </div>
         </div>
@@ -352,6 +407,42 @@ const ChatWindow = ({
               {socketConnected ? 'Connected' : 'Offline'}
             </span>
           </div>
+
+          {/* Admin Actions */}
+          {isAdmin && (
+            <div className="relative">
+              <button
+                onClick={() => setShowAdminActions(!showAdminActions)}
+                className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
+                title="Admin actions"
+              >
+                <ShieldCheckIcon className="h-5 w-5" />
+              </button>
+              
+              {showAdminActions && (
+                <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg z-10 border border-gray-200 dark:border-gray-700">
+                  <div className="py-1">
+                    {isBlocked ? (
+                      <button
+                        onClick={handleUnblockUser}
+                        className="block w-full text-left px-4 py-2 text-sm text-green-700 dark:text-green-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        Unblock Customer
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleBlockUser}
+                        className="block w-full text-left px-4 py-2 text-sm text-red-700 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        Block Customer
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <button
             onClick={() => setShowContactInfo(!showContactInfo)}
             className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
@@ -362,7 +453,7 @@ const ChatWindow = ({
         </div>
       </div>
 
-      {/* Listing Info Bar */}
+      {/* Product Context Bar - Shows for all product-related chats */}
       {listing && (
         <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800">
           <div className="flex items-center space-x-3">
@@ -373,15 +464,46 @@ const ChatWindow = ({
             />
             <div className="flex-1 min-w-0">
               <h3 className="font-medium text-blue-900 dark:text-blue-100 truncate">
-                {listing.title}
+                {isAdmin ? `Customer inquiry: ${listing.title}` : `About: ${listing.title}`}
               </h3>
-              <p className="text-sm text-blue-700 dark:text-blue-300">
-                {formatCurrency(listing.price, listing.currency || 'ETB')}
-              </p>
+              <div className="flex items-center space-x-2">
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  {formatCurrency(listing.price, listing.currency || 'ETB')}
+                </p>
+                {listing.seller && isAdmin && (
+                  <div className="flex items-center space-x-1">
+                    <BuildingOfficeIcon className="h-3 w-3 text-blue-600" />
+                    <span className="text-xs text-blue-600 dark:text-blue-400">
+                      Seller: {listing.seller.companyProfile?.companyName || 
+                              `${listing.seller.individualProfile?.firstName} ${listing.seller.individualProfile?.lastName}`.trim()}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
             <Button size="sm" variant="outline">
-              View Listing
+              View Product
             </Button>
+          </div>
+        </div>
+      )}
+      {/* Customer Context Bar - Shows they're talking to TesGold team */}
+      {!isAdmin && participant?.isSupport && (
+        <div className="p-2 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-200 dark:border-blue-800">
+          <p className="text-xs text-blue-700 dark:text-blue-300 text-center">
+            💬 You're chatting with TesGold's professional team about this product
+          </p>
+        </div>
+      )}
+
+      {/* Chat Status Warnings */}
+      {isBlocked && (
+        <div className="p-3 bg-red-50 dark:bg-red-900/20 border-b border-red-200 dark:border-red-800">
+          <div className="flex items-center space-x-2">
+            <ExclamationTriangleIcon className="h-5 w-5 text-red-500" />
+            <p className="text-red-700 dark:text-red-300 text-sm">
+              This conversation has been blocked. No new messages can be sent.
+            </p>
           </div>
         </div>
       )}
@@ -404,6 +526,7 @@ const ChatWindow = ({
               messages={messages || []}
               currentUserId={currentUserId}
               participant={participant}
+              isAdmin={isAdmin}
               isLoading={isLoading}
               isTyping={otherUserTyping}
               onEditMessage={handleEditMessage}
@@ -413,84 +536,93 @@ const ChatWindow = ({
           </div>
 
           {/* Message Input */}
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-            {uploadingFiles && (
-              <div className="mb-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
-                <p className="text-blue-700 dark:text-blue-300 text-sm">
-                  Uploading files...
-                </p>
-              </div>
-            )}
+          {!isBlocked && (
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+              {uploadingFiles && (
+                <div className="mb-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
+                  <p className="text-blue-700 dark:text-blue-300 text-sm">
+                    Uploading files...
+                  </p>
+                </div>
+              )}
 
-            <form onSubmit={handleSendMessage} className="flex items-end space-x-3">
-              <div className="flex-1">
-                <div className="relative">
-                  <textarea
-                    value={newMessage}
-                    onChange={handleMessageChange}
-                    placeholder="Type a message..."
-                    rows={1}
-                    className="w-full px-4 py-3 pr-20 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none text-base"
-                    style={{ minHeight: '44px', maxHeight: '120px' }}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage(e);
+              <form onSubmit={handleSendMessage} className="flex items-end space-x-3">
+                <div className="flex-1">
+                  <div className="relative">
+                    <textarea
+                      value={newMessage}
+                      onChange={handleMessageChange}
+                      placeholder={
+                        isAdmin 
+                          ? `Respond to customer about ${listing?.title || 'this product'}...`
+                          : `Message about ${listing?.title || 'this product'}...`
                       }
-                    }}
-                    disabled={isSending || uploadingFiles}
-                  />
-
-                  {/* Attachment and Emoji Buttons */}
-                  <div className="absolute right-2 bottom-2 flex items-center space-x-1">
-                    <button
-                      type="button"
-                      onClick={handleFileSelect}
-                      className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                      title="Attach file"
+                      rows={1}
+                      className="w-full px-4 py-3 pr-20 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none text-base"
+                      style={{ minHeight: '44px', maxHeight: '120px' }}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage(e);
+                        }
+                      }}
                       disabled={isSending || uploadingFiles}
-                    >
-                      <PaperClipIcon className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-                      title="Add emoji"
-                    >
-                      <FaceSmileIcon className="h-4 w-4" />
-                    </button>
+                    />
+
+                    {/* Attachment and Emoji Buttons */}
+                    <div className="absolute right-2 bottom-2 flex items-center space-x-1">
+                      <button
+                        type="button"
+                        onClick={handleFileSelect}
+                        className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                        title="Attach file"
+                        disabled={isSending || uploadingFiles}
+                      >
+                        <PaperClipIcon className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                        title="Add emoji"
+                      >
+                        <FaceSmileIcon className="h-4 w-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
+
+                <Button
+                  type="submit"
+                  disabled={!newMessage.trim() || isSending || uploadingFiles}
+                  loading={isSending || uploadingFiles}
+                  className="px-4 py-3"
+                >
+                  <PaperAirplaneIcon className="h-4 w-4" />
+                </Button>
+              </form>
+
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept="image/*,.pdf,.doc,.docx"
+                onChange={(e) => {
+                  console.log('Files selected:', e.target.files);
+                }}
+                className="hidden"
+              />
+
+              <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                Press Enter to send, Shift+Enter for new line
+                {socketConnected && <span className="ml-2">• Real-time connected</span>}
+                {!socketConnected && <span className="ml-2">• Real-time offline</span>}
+                {isAdmin && listing && (
+                  <span className="ml-2">• Representing seller</span>
+                )}
               </div>
-
-              <Button
-                type="submit"
-                disabled={!newMessage.trim() || isSending || uploadingFiles}
-                loading={isSending || uploadingFiles}
-                className="px-4 py-3"
-              >
-                <PaperAirplaneIcon className="h-4 w-4" />
-              </Button>
-            </form>
-
-            {/* Hidden file input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept="image/*,.pdf,.doc,.docx"
-              onChange={(e) => {
-                console.log('Files selected:', e.target.files);
-              }}
-              className="hidden"
-            />
-
-            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-              Press Enter to send, Shift+Enter for new line
-              {socketConnected && <span className="ml-2">• Real-time connected</span>}
-              {!socketConnected && <span className="ml-2">• Real-time offline</span>}
             </div>
-          </div>
+          )}
         </div>
 
         {/* Contact Info Panel */}
@@ -498,6 +630,7 @@ const ChatWindow = ({
           <div className="w-80 border-l border-gray-200 dark:border-gray-700">
             <ContactInfo
               conversation={conversation}
+              isAdmin={isAdmin}
               onClose={() => setShowContactInfo(false)}
             />
           </div>

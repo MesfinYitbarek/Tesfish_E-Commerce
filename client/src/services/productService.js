@@ -1,3 +1,4 @@
+// services/productService.js
 import api from './api';
 import { API_ENDPOINTS } from '../constants';
 
@@ -108,7 +109,6 @@ const productService = {
     return response.data;
   },
 
-  // New: Get property types with counts
   getPropertyTypes: async () => {
     const response = await api.get(`${API_ENDPOINTS.PRODUCTS.LIST}/property-types`);
     return response.data;
@@ -121,37 +121,31 @@ const productService = {
 
   // ================= WISHLIST FUNCTIONS =================
   
-  // Fetch user's complete wishlist with populated property data
   fetchWishlist: async () => {
     const response = await api.get(API_ENDPOINTS.USERS.WISHLIST);
     return response.data;
   },
 
-  // Get wishlist (alias for backward compatibility)
   getWishlist: async () => {
     const response = await api.get(API_ENDPOINTS.USERS.WISHLIST);
     return response.data;
   },
 
-  // Toggle product in/out of wishlist
   toggleWishlist: async (productId) => {
     const response = await api.post(`${API_ENDPOINTS.USERS.WISHLIST}/${productId}`);
     return response.data;
   },
 
-  // Add product to wishlist
   addToWishlist: async (productId) => {
     const response = await api.post(`${API_ENDPOINTS.USERS.WISHLIST}/${productId}`);
     return response.data;
   },
 
-  // Remove product from wishlist
   removeFromWishlist: async (productId) => {
     const response = await api.post(`${API_ENDPOINTS.USERS.WISHLIST}/${productId}`);
     return response.data;
   },
 
-  // Check if product is in wishlist
   isInWishlist: async (productId) => {
     try {
       const wishlist = await productService.fetchWishlist();
@@ -197,7 +191,6 @@ const productService = {
 
   // ================= PRODUCT COMPARISON =================
   
-  // Compare multiple products
   compareProducts: async (productIds) => {
     const response = await api.post(`${API_ENDPOINTS.PRODUCTS.COMPARE}`, { productIds });
     return response.data;
@@ -205,7 +198,6 @@ const productService = {
 
   // ================= PRODUCT SHARING =================
   
-  // Share product via email
   shareProduct: async (productId, shareData) => {
     const response = await api.post(`${API_ENDPOINTS.PRODUCTS.SHARE}/${productId}`, shareData);
     return response.data;
@@ -241,7 +233,6 @@ const productService = {
 
   // ================= EXPORT FUNCTIONS =================
   
-  // Export products to CSV
   exportProductsCSV: async (params = {}) => {
     const queryParams = new URLSearchParams(params);
     const response = await api.get(`${API_ENDPOINTS.PRODUCTS.EXPORT}?${queryParams}`, {
@@ -253,13 +244,11 @@ const productService = {
 
 // ================= USER SERVICES =================
 export const userService = {
-  // Get user profile
   getProfile: async () => {
     const response = await api.get(API_ENDPOINTS.USERS.PROFILE);
     return response.data;
   },
 
-  // Update user profile
   updateProfile: async (profileData) => {
     const formData = new FormData();
     
@@ -285,20 +274,17 @@ export const userService = {
     return response.data;
   },
 
-  // Get user by ID
   getUser: async (userId) => {
     const response = await api.get(`${API_ENDPOINTS.USERS.DETAIL}/${userId}`);
     return response.data;
   },
 
-  // Get all users (admin only)
   getUsers: async (params = {}) => {
     const queryParams = new URLSearchParams(params);
     const response = await api.get(`${API_ENDPOINTS.USERS.LIST}?${queryParams}`);
     return response.data;
   },
 
-  // Export users (admin only)
   exportUsers: async () => {
     const response = await api.get(API_ENDPOINTS.USERS.EXPORT, {
       responseType: 'blob'
@@ -306,25 +292,21 @@ export const userService = {
     return response.data;
   },
 
-  // Update notification settings
   updateNotificationSettings: async (settings) => {
     const response = await api.put(API_ENDPOINTS.USERS.NOTIFICATION_SETTINGS, settings);
     return response.data;
   },
 
-  // Update preferences
   updatePreferences: async (preferences) => {
     const response = await api.put(API_ENDPOINTS.USERS.PREFERENCES, preferences);
     return response.data;
   },
 
-  // Deactivate account
   deactivateAccount: async (reason) => {
     const response = await api.post(API_ENDPOINTS.USERS.DEACTIVATE, { reason });
     return response.data;
   },
 
-  // Download user data (GDPR compliance)
   downloadUserData: async () => {
     const response = await api.get(API_ENDPOINTS.USERS.DOWNLOAD_DATA, {
       responseType: 'blob'
@@ -333,7 +315,7 @@ export const userService = {
   }
 };
 
-// Property Registration Services
+// Property Registration Services (Updated for Admin Management)
 export const propertyRegistrationService = {
   submitRegistration: async (registrationData) => {
     const response = await api.post(API_ENDPOINTS.PROPERTY_REGISTRATIONS.CREATE, registrationData, {
@@ -357,7 +339,8 @@ export const propertyRegistrationService = {
     return response.data;
   },
 
-  getCompanyRegistrations: async (params = {}) => {
+  // Updated: Renamed from getCompanyRegistrations to getAdminRegistrations
+  getAdminRegistrations: async (params = {}) => {
     const queryParams = new URLSearchParams();
     
     Object.keys(params).forEach(key => {
@@ -366,7 +349,7 @@ export const propertyRegistrationService = {
       }
     });
 
-    const response = await api.get(`${API_ENDPOINTS.PROPERTY_REGISTRATIONS.COMPANY_REGISTRATIONS}?${queryParams}`);
+    const response = await api.get(`${API_ENDPOINTS.PROPERTY_REGISTRATIONS.ADMIN_REGISTRATIONS}?${queryParams}`);
     return response.data;
   },
 
@@ -388,16 +371,31 @@ export const propertyRegistrationService = {
     return response.data;
   },
 
-  exportRegistrationsCSV: async () => {
-    const response = await api.get(API_ENDPOINTS.PROPERTY_REGISTRATIONS.EXPORT_CSV, {
+  exportRegistrationsCSV: async (params = {}) => {
+    const queryParams = new URLSearchParams(params);
+    const response = await api.get(`${API_ENDPOINTS.PROPERTY_REGISTRATIONS.EXPORT_CSV}?${queryParams}`, {
       responseType: 'blob'
     });
     return response.data;
   },
 
-  getRegistrationStats: async () => {
-    const response = await api.get(API_ENDPOINTS.PROPERTY_REGISTRATIONS.STATS);
+  getRegistrationStats: async (period = '30d') => {
+    const response = await api.get(`${API_ENDPOINTS.PROPERTY_REGISTRATIONS.STATS}?period=${period}`);
     return response.data;
+  },
+
+  // New: Generate registration certificate
+  generateCertificate: async (id) => {
+    const response = await api.get(`${API_ENDPOINTS.PROPERTY_REGISTRATIONS.CERTIFICATE}/${id}/certificate`, {
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+
+  // Deprecated: Keep for backward compatibility but mark as deprecated
+  getCompanyRegistrations: async (params = {}) => {
+    console.warn('getCompanyRegistrations is deprecated. Use getAdminRegistrations instead.');
+    return propertyRegistrationService.getAdminRegistrations(params);
   },
 
   cancelRegistration: async (id, reason) => {
@@ -415,7 +413,7 @@ export const propertyRegistrationService = {
   }
 };
 
-// Appointment Services
+// Appointment Services (Updated for Admin Management)
 export const appointmentService = {
   bookAppointment: async (appointmentData) => {
     const response = await api.post(API_ENDPOINTS.APPOINTMENTS.CREATE, appointmentData);
@@ -428,26 +426,63 @@ export const appointmentService = {
     return response.data;
   },
 
-  getSellerAppointments: async (params = {}) => {
+  // Updated: Renamed from getSellerAppointments to getAdminAppointments
+  getAdminAppointments: async (params = {}) => {
     const queryParams = new URLSearchParams(params);
-    const response = await api.get(`${API_ENDPOINTS.APPOINTMENTS.SELLER_APPOINTMENTS}?${queryParams}`);
+    const response = await api.get(`${API_ENDPOINTS.APPOINTMENTS.ADMIN_APPOINTMENTS}?${queryParams}`);
     return response.data;
   },
 
-  updateAppointmentStatus: async (id, status, sellerNotes, outcome) => {
+  updateAppointmentStatus: async (id, statusData) => {
+    const response = await api.put(`${API_ENDPOINTS.APPOINTMENTS.UPDATE_STATUS.replace(':id', id)}`, statusData);
+    return response.data;
+  },
+
+  // New: Assign appointment to different admin
+  assignAppointmentToAdmin: async (id, assignmentData) => {
+    const response = await api.put(`${API_ENDPOINTS.APPOINTMENTS.ASSIGN.replace(':id', id)}`, assignmentData);
+    return response.data;
+  },
+
+  // New: Confirm appointment
+  confirmAppointment: async (id, notes = '') => {
     const response = await api.put(`${API_ENDPOINTS.APPOINTMENTS.UPDATE_STATUS.replace(':id', id)}`, {
-      status,
-      sellerNotes,
-      outcome
+      status: 'confirmed',
+      sellerNotes: notes
     });
     return response.data;
   },
 
-  rescheduleAppointment: async (id, newDateTime, reason) => {
-    const response = await api.put(`${API_ENDPOINTS.APPOINTMENTS.RESCHEDULE.replace(':id', id)}`, {
-      newDateTime,
-      reason
+  // New: Cancel appointment
+  cancelAppointment: async (id, reason) => {
+    const response = await api.put(`${API_ENDPOINTS.APPOINTMENTS.UPDATE_STATUS.replace(':id', id)}`, {
+      status: 'cancelled',
+      sellerNotes: reason
     });
+    return response.data;
+  },
+
+  // New: Complete appointment
+  completeAppointment: async (id, completionData) => {
+    const response = await api.put(`${API_ENDPOINTS.APPOINTMENTS.UPDATE_STATUS.replace(':id', id)}`, {
+      status: 'completed',
+      sellerNotes: completionData.notes,
+      outcome: completionData.outcome
+    });
+    return response.data;
+  },
+
+  // New: Mark as no-show
+  markNoShow: async (id, reason) => {
+    const response = await api.put(`${API_ENDPOINTS.APPOINTMENTS.UPDATE_STATUS.replace(':id', id)}`, {
+      status: 'no-show',
+      sellerNotes: reason
+    });
+    return response.data;
+  },
+
+  rescheduleAppointment: async (id, rescheduleData) => {
+    const response = await api.put(`${API_ENDPOINTS.APPOINTMENTS.RESCHEDULE.replace(':id', id)}`, rescheduleData);
     return response.data;
   },
 
@@ -456,9 +491,30 @@ export const appointmentService = {
     return response.data;
   },
 
-  getAppointmentStats: async () => {
-    const response = await api.get(API_ENDPOINTS.APPOINTMENTS.STATS);
+  getAppointmentStats: async (period = '30d') => {
+    const response = await api.get(`${API_ENDPOINTS.APPOINTMENTS.STATS}?period=${period}`);
     return response.data;
+  },
+
+  // New: Export appointments CSV
+  exportAppointmentsCSV: async (params = {}) => {
+    const queryParams = new URLSearchParams(params);
+    const response = await api.get(`${API_ENDPOINTS.APPOINTMENTS.EXPORT_CSV}?${queryParams}`, {
+      responseType: 'blob'
+    });
+    return response.data;
+  },
+
+  // New: Get available admins for assignment
+  getAvailableAdmins: async () => {
+    const response = await api.get(API_ENDPOINTS.USERS.ADMINS);
+    return response.data;
+  },
+
+  // Deprecated: Keep for backward compatibility but mark as deprecated
+  getSellerAppointments: async (params = {}) => {
+    console.warn('getSellerAppointments is deprecated. Use getAdminAppointments instead.');
+    return appointmentService.getAdminAppointments(params);
   }
 };
 

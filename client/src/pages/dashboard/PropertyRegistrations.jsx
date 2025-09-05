@@ -25,17 +25,16 @@ import {
   BuildingOfficeIcon,
   AdjustmentsHorizontalIcon,
   ArrowDownTrayIcon,
-  ClipboardDocumentListIcon
+  ClipboardDocumentListIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  fetchCompanyRegistrations,
+  fetchAdminRegistrations,
   updateRegistrationStatus,
-//   exportRegistrationsCSV,
   setRegistrationFilters,
   clearRegistrationFilters
 } from '../../store/slices/productSlice';
-import { REGISTRATION_STATUS, REGISTRATION_PAYMENT_STATUS } from '../../constants';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
@@ -75,13 +74,13 @@ const formatDateTime = (date) => {
 // Status configurations
 const statusConfig = {
   pending: {
-    label: 'Pending',
+    label: 'Pending Payment',
     icon: ClockIcon,
     color: 'yellow',
     bgColor: 'bg-yellow-50 dark:bg-yellow-900/20',
     textColor: 'text-yellow-700 dark:text-yellow-300',
     borderColor: 'border-yellow-200 dark:border-yellow-800',
-    description: 'Awaiting payment confirmation'
+    description: 'Awaiting registration fee payment'
   },
   'under-review': {
     label: 'Under Review',
@@ -90,7 +89,7 @@ const statusConfig = {
     bgColor: 'bg-blue-50 dark:bg-blue-900/20',
     textColor: 'text-blue-700 dark:text-blue-300',
     borderColor: 'border-blue-200 dark:border-blue-800',
-    description: 'Payment received, reviewing application'
+    description: 'Payment received, admin reviewing application'
   },
   approved: {
     label: 'Approved',
@@ -99,7 +98,7 @@ const statusConfig = {
     bgColor: 'bg-green-50 dark:bg-green-900/20',
     textColor: 'text-green-700 dark:text-green-300',
     borderColor: 'border-green-200 dark:border-green-800',
-    description: 'Registration approved'
+    description: 'Registration approved by admin'
   },
   rejected: {
     label: 'Rejected',
@@ -108,7 +107,7 @@ const statusConfig = {
     bgColor: 'bg-red-50 dark:bg-red-900/20',
     textColor: 'text-red-700 dark:text-red-300',
     borderColor: 'border-red-200 dark:border-red-800',
-    description: 'Registration rejected'
+    description: 'Registration rejected by admin'
   },
   completed: {
     label: 'Completed',
@@ -117,7 +116,16 @@ const statusConfig = {
     bgColor: 'bg-green-50 dark:bg-green-900/20',
     textColor: 'text-green-700 dark:text-green-300',
     borderColor: 'border-green-200 dark:border-green-800',
-    description: 'Process completed'
+    description: 'Registration process completed'
+  },
+  cancelled: {
+    label: 'Cancelled',
+    icon: XCircleIcon,
+    color: 'gray',
+    bgColor: 'bg-gray-50 dark:bg-gray-900/20',
+    textColor: 'text-gray-700 dark:text-gray-300',
+    borderColor: 'border-gray-200 dark:border-gray-800',
+    description: 'Registration cancelled'
   }
 };
 
@@ -132,7 +140,7 @@ const PropertyRegistrations = () => {
   const dispatch = useDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
   const {
-    companyRegistrations = [],
+    adminRegistrations = [],
     registrationLoading = false,
     registrationError = null,
     registrationPagination = {
@@ -142,7 +150,8 @@ const PropertyRegistrations = () => {
       hasNext: false,
       hasPrev: false
     },
-    registrationStats = [],
+    registrationStats = null,
+    propertyOwners = [],
     registrationFilters = {}
   } = useSelector((state) => state.products || {});
 
@@ -161,19 +170,19 @@ const PropertyRegistrations = () => {
   useEffect(() => {
     const status = searchParams.get('status');
     const search = searchParams.get('search');
-    const property = searchParams.get('property');
+    const propertyOwner = searchParams.get('propertyOwner');
     
-    if (status || search || property) {
+    if (status || search || propertyOwner) {
       dispatch(setRegistrationFilters({
         status: status || '',
         search: search || '',
-        property: property || ''
+        propertyOwner: propertyOwner || ''
       }));
     }
   }, [searchParams, dispatch]);
 
   useEffect(() => {
-    dispatch(fetchCompanyRegistrations(registrationFilters));
+    dispatch(fetchAdminRegistrations(registrationFilters));
   }, [dispatch, registrationFilters]);
 
   const handleFilterChange = (key, value) => {
@@ -233,22 +242,13 @@ const PropertyRegistrations = () => {
 
       toast.success('Registration status updated successfully');
       setShowStatusModal(false);
-      dispatch(fetchCompanyRegistrations(registrationFilters));
+      dispatch(fetchAdminRegistrations(registrationFilters));
     } catch (error) {
       toast.error(error || 'Failed to update registration status');
     } finally {
       setUpdating(false);
     }
   };
-
-//   const handleExportCSV = async () => {
-//     try {
-//       await dispatch(exportRegistrationsCSV()).unwrap();
-//       toast.success('Registration data exported successfully');
-//     } catch (error) {
-//       toast.error(error || 'Failed to export data');
-//     }
-//   };
 
   const getStatusBadge = (status) => {
     const config = statusConfig[status] || statusConfig.pending;
@@ -270,12 +270,12 @@ const PropertyRegistrations = () => {
   };
 
   // Calculate stats
-  const totalRegistrations = companyRegistrations.length;
-  const totalRevenue = companyRegistrations
+  const totalRegistrations = adminRegistrations.length;
+  const totalRevenue = adminRegistrations
     .filter(reg => reg.payment?.paymentStatus === 'completed')
     .reduce((sum, reg) => sum + (reg.payment?.registrationFee || 0), 0);
 
-  if (registrationLoading && companyRegistrations.length === 0) {
+  if (registrationLoading && adminRegistrations.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <LoadingSpinner size="lg" />
@@ -292,7 +292,7 @@ const PropertyRegistrations = () => {
             Property Registrations
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Manage customer registrations for your properties
+            Manage all property registrations across the platform
           </p>
         </div>
         
@@ -306,24 +306,13 @@ const PropertyRegistrations = () => {
             Filters
           </Button>
           
-          {/* <Button
+          <Button
             variant="outline"
             size="sm"
-            onClick={handleExportCSV}
-            leftIcon={<ArrowDownTrayIcon className="h-4 w-4" />}
+            leftIcon={<ShieldCheckIcon className="h-4 w-4" />}
           >
-            Export CSV
-          </Button> */}
-          
-          <Link to="/dashboard/products/create">
-            <Button
-              variant="primary"
-              size="sm"
-              leftIcon={<PlusIcon className="h-4 w-4" />}
-            >
-              Add Property
-            </Button>
-          </Link>
+            Admin Tools
+          </Button>
         </div>
       </div>
 
@@ -367,7 +356,7 @@ const PropertyRegistrations = () => {
         </motion.div>
 
         {Object.entries(statusConfig).slice(0, 2).map(([status, config], index) => {
-          const count = companyRegistrations.filter(reg => reg.status === status).length;
+          const count = adminRegistrations.filter(reg => reg.status === status).length;
           
           return (
             <motion.div
@@ -423,31 +412,38 @@ const PropertyRegistrations = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Property
+                  Property Owner
                 </label>
                 <select
-                  value={registrationFilters.property || ''}
-                  onChange={(e) => handleFilterChange('property', e.target.value)}
+                  value={registrationFilters.propertyOwner || ''}
+                  onChange={(e) => handleFilterChange('propertyOwner', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 text-base"
                 >
-                  <option value="">All Properties</option>
-                  {/* You can populate this with your properties */}
+                  <option value="">All Property Owners</option>
+                  {propertyOwners.map((owner) => (
+                    <option key={owner._id} value={owner._id}>
+                      {owner.ownerDetails?.companyProfile?.companyName || 
+                       `${owner.ownerDetails?.individualProfile?.firstName} ${owner.ownerDetails?.individualProfile?.lastName}`}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Sort By
+                  Payment Status
                 </label>
                 <select
-                  value={registrationFilters.sort || 'newest'}
-                  onChange={(e) => handleFilterChange('sort', e.target.value)}
+                  value={registrationFilters.paymentStatus || ''}
+                  onChange={(e) => handleFilterChange('paymentStatus', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 text-base"
                 >
-                  <option value="newest">Newest First</option>
-                  <option value="oldest">Oldest First</option>
-                  <option value="status">By Status</option>
-                  <option value="amount">By Amount</option>
+                  <option value="">All Payment Statuses</option>
+                  {Object.entries(paymentStatusConfig).map(([status, config]) => (
+                    <option key={status} value={status}>
+                      {config.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -487,24 +483,19 @@ const PropertyRegistrations = () => {
         </div>
       )}
 
-      {companyRegistrations.length === 0 && !registrationLoading ? (
+      {adminRegistrations.length === 0 && !registrationLoading ? (
         <div className="text-center py-12">
           <ClipboardDocumentListIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
             No registrations found
           </h3>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            No customers have registered for your properties yet.
+            No property registrations match your current filters.
           </p>
-          <Link to="/dashboard/products/create">
-            <Button variant="primary">
-              Add Your First Property
-            </Button>
-          </Link>
         </div>
       ) : (
         <div className="space-y-4">
-          {companyRegistrations.map((registration) => (
+          {adminRegistrations.map((registration) => (
             <motion.div
               key={registration._id}
               initial={{ opacity: 0, y: 20 }}
@@ -624,7 +615,7 @@ const PropertyRegistrations = () => {
                   </Button>
 
                   {registration.property && (
-                    <Link to={`/dashboard/products/${registration.property._id}`}>
+                    <Link to={`/products/${registration.property._id}`}>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -715,10 +706,21 @@ const PropertyRegistrations = () => {
                         <MapPinIcon className="h-4 w-4 mr-1" />
                         <span>
                           {[
-                            selectedRegistration.property.propertyDetails.location.street,
+                            selectedRegistration.property.propertyDetails.location.address,
                             selectedRegistration.property.propertyDetails.location.city,
                             selectedRegistration.property.propertyDetails.location.region
                           ].filter(Boolean).join(', ')}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Property Owner */}
+                    {selectedRegistration.property?.seller && (
+                      <div className="flex items-center text-gray-600 dark:text-gray-400 text-sm mt-2">
+                        <UserIcon className="h-4 w-4 mr-1" />
+                        <span>
+                          Owner: {selectedRegistration.property.seller.companyProfile?.companyName || 
+                                 `${selectedRegistration.property.seller.individualProfile?.firstName} ${selectedRegistration.property.seller.individualProfile?.lastName}`}
                         </span>
                       </div>
                     )}
@@ -754,12 +756,14 @@ const PropertyRegistrations = () => {
                     </span>
                   </div>
                   
-                  <div className="flex items-center space-x-2">
-                    <BuildingOfficeIcon className="h-4 w-4 text-gray-400" />
-                    <span className="text-gray-600 dark:text-gray-400">
-                      {selectedRegistration.personalInfo?.occupation}
-                    </span>
-                  </div>
+                  {selectedRegistration.personalInfo?.occupation && (
+                    <div className="flex items-center space-x-2">
+                      <BuildingOfficeIcon className="h-4 w-4 text-gray-400" />
+                      <span className="text-gray-600 dark:text-gray-400">
+                        {selectedRegistration.personalInfo.occupation}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -796,6 +800,17 @@ const PropertyRegistrations = () => {
                       <span className="text-sm text-gray-600 dark:text-gray-400">Reviewed</span>
                       <span className="font-medium text-gray-900 dark:text-gray-100">
                         {formatDateTime(selectedRegistration.reviewedAt)}
+                      </span>
+                    </div>
+                  )}
+
+                  {selectedRegistration.reviewedBy && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Reviewed By</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {selectedRegistration.reviewedBy.companyProfile?.companyName || 
+                         `${selectedRegistration.reviewedBy.individualProfile?.firstName} ${selectedRegistration.reviewedBy.individualProfile?.lastName}` ||
+                         'Admin'}
                       </span>
                     </div>
                   )}
@@ -933,7 +948,7 @@ const PropertyRegistrations = () => {
               </Button>
               
               {selectedRegistration.property && (
-                <Link to={`/dashboard/products/${selectedRegistration.property._id}`}>
+                <Link to={`/products/${selectedRegistration.property._id}`}>
                   <Button
                     variant="primary"
                     leftIcon={<ArrowTopRightOnSquareIcon className="h-4 w-4" />}

@@ -5,9 +5,12 @@ import {
   submitRegistration,
   verifyRegistrationPayment,
   getMyRegistrations,
-  getCompanyRegistrations,
+  getAdminRegistrations, // Renamed from getCompanyRegistrations
   updateRegistrationStatus,
-  exportRegistrationsCSV
+  getRegistrationDetails,
+  exportRegistrationsCSV,
+  generateRegistrationCertificate,
+  getRegistrationStats
 } from '../../controllers/property/propertyRegistrationController.js';
 import { protect, authorize } from '../../middleware/auth/authMiddleware.js';
 import { uploadMiddleware } from '../../middleware/upload/uploadMiddleware.js';
@@ -71,20 +74,29 @@ router.post('/',
 router.post('/:id/verify-payment', verifyRegistrationPayment);
 router.get('/my-registrations', getMyRegistrations);
 
-// Seller routes
-router.get('/company-registrations', 
-  authorize('company', 'individual'), 
-  getCompanyRegistrations
+// Admin routes (updated authorization)
+router.get('/admin-registrations', 
+  authorize('admin'), // Changed from 'company', 'individual'
+  getAdminRegistrations
 );
 
-router.put('/:id/status', 
-  authorize('company', 'individual', 'admin'),
-  updateRegistrationStatus
+router.get('/stats',
+  authorize('admin'),
+  getRegistrationStats
 );
 
 router.get('/export-csv', 
-  authorize('company', 'individual'),
+  authorize('admin'), // Changed from 'company', 'individual'
   exportRegistrationsCSV
 );
+
+router.put('/:id/status', 
+  authorize('admin'), // Changed from 'company', 'individual', 'admin'
+  updateRegistrationStatus
+);
+
+// Shared routes (both admin and customer can access)
+router.get('/:id', getRegistrationDetails);
+router.get('/:id/certificate', generateRegistrationCertificate);
 
 export default router;
