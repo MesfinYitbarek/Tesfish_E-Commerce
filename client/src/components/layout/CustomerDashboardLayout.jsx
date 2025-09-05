@@ -12,7 +12,6 @@ import {
   Bars3Icon,
   XMarkIcon,
   ArrowRightOnRectangleIcon,
-  Cog6ToothIcon,
   WrenchScrewdriverIcon,
   CalendarIcon,
   MagnifyingGlassIcon,
@@ -31,9 +30,6 @@ const CustomerDashboardLayout = () => {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   
-  // Mock unread counts - replace with real data from your store
-  const unreadMessages = 3;
-  const unreadNotifications = 5;
 
   useEffect(() => {
     // Check for dark mode preference
@@ -140,7 +136,6 @@ const CustomerDashboardLayout = () => {
               to="/customer/messages" 
               icon={<ChatBubbleLeftRightIcon className="h-5 w-5" />}
               label="Messages"
-              badge={unreadMessages > 0 ? unreadMessages : null}
             />
             <NavItem 
               to="/customer/favorites" 
@@ -232,9 +227,6 @@ const CustomerDashboardLayout = () => {
                 className="relative p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
               >
                 <BellIcon className="h-5 w-5" />
-                {unreadNotifications > 0 && (
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-                )}
               </button>
 
               {/* Profile dropdown */}

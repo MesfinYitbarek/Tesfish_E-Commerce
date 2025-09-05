@@ -5,10 +5,7 @@ import {
   HomeIcon,
   UsersIcon,
   BuildingOfficeIcon,
-  ChartBarIcon,
-  CogIcon,
   ShieldCheckIcon,
-  ExclamationTriangleIcon,
   ChatBubbleLeftRightIcon,
   Bars3Icon,
   XMarkIcon,
@@ -20,7 +17,6 @@ import {
   ClipboardDocumentListIcon,
   CurrencyDollarIcon,
   CalendarIcon,
-  UserIcon,
   ArrowRightOnRectangleIcon
 } from '@heroicons/react/24/outline';
 import { logout } from '../../store/slices/authSlice';
@@ -165,18 +161,6 @@ const AdminLayout = () => {
               to="/admin/registrations" 
               icon={<CalendarIcon className="h-5 w-5" />}
               label="Property Registrations"
-            />
-            
-            <NavItem 
-              to="/admin/analytics" 
-              icon={<ChartBarIcon className="h-5 w-5" />}
-              label="Platform Analytics"
-            />
-            
-            <NavItem 
-              to="/admin/reports" 
-              icon={<ExclamationTriangleIcon className="h-5 w-5" />}
-              label="Reports & Issues"
             />
           </nav>
 

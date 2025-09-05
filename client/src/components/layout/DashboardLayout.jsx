@@ -129,13 +129,6 @@ const DashboardLayout = () => {
                 icon={<UserIcon className="h-5 w-5" />}
                 label="Profile"
               />
-              {user?.userType === 'company' && (
-                <NavItem 
-                  to="/dashboard/business-profile" 
-                  icon={<BuildingOfficeIcon className="h-5 w-5" />}
-                  label="Business Profile"
-                />
-              )}
             </div>
           </nav>
 
