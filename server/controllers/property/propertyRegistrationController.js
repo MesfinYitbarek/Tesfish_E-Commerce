@@ -4,7 +4,7 @@ import Product from '../../models/Product.js';
 import User from '../../models/User.js';
 import { validationResult } from 'express-validator';
 import { uploadToCloudinary } from '../../utils/upload/cloudinaryService.js';
-import { initiatePayment, verifyPayment } from '../../services/paymentService.js';
+import { initiatePayment, verifyPayment } from '../../Services/paymentService.js';
 import { generatePDF } from '../../utils/pdfGenerator.js';
 
 // Helper function to generate registration number
