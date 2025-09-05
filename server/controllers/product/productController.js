@@ -48,53 +48,63 @@ export const getProduct = async (req, res) => {
 // @desc    Get products for admin
 // @route   GET /api/products/admin
 // @access  Private (admin only)
+// @desc    Get products for admin (with filters, pagination, sorting)
+// @route   GET /api/products/admin/all
+// @access  Private
 export const getProductsForAdmin = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 12;
     const skip = (page - 1) * limit;
 
-    // Initialize empty query object (no "active" status restriction)
+    // ✅ Helper to validate query params
+    const isValid = (val) =>
+      val && val !== "undefined" && val !== "null" && val !== "";
+
+    // Initialize empty query object (no "active" restriction for admin)
     let query = {};
 
     // Search
-    if (req.query.search) {
+    if (isValid(req.query.search)) {
       query.$text = { $search: req.query.search };
     }
 
     // Category filter
-    if (req.query.category) {
+    if (isValid(req.query.category)) {
       query.category = req.query.category;
     }
 
     // Status filter
-    if (req.query.status) {
+    if (isValid(req.query.status)) {
       query.status = req.query.status;
     }
 
     // Price range
-    if (req.query.minPrice || req.query.maxPrice) {
+    if (isValid(req.query.minPrice) || isValid(req.query.maxPrice)) {
       query["pricing.basePrice"] = {};
-      if (req.query.minPrice) {
+      if (isValid(req.query.minPrice)) {
         query["pricing.basePrice"].$gte = Number(req.query.minPrice);
       }
-      if (req.query.maxPrice) {
+      if (isValid(req.query.maxPrice)) {
         query["pricing.basePrice"].$lte = Number(req.query.maxPrice);
       }
     }
 
     // Product type
-    if (req.query.productType) {
+    if (isValid(req.query.productType)) {
       query.productType = req.query.productType;
     }
 
     // Location filter for real estate
-    if (req.query.city) {
-      query["realEstateDetails.location.city"] = new RegExp(req.query.city, "i");
+    if (isValid(req.query.city)) {
+      query["realEstateDetails.location.city"] = new RegExp(
+        req.query.city,
+        "i"
+      );
     }
 
     // Seller filter
-    if (req.query.seller) {
+    if (isValid(req.query.seller)) {
       query.seller = req.query.seller;
     }
 
@@ -120,6 +130,7 @@ export const getProductsForAdmin = async (req, res) => {
         sort = { createdAt: -1 };
     }
 
+    // Fetch products
     const products = await Product.find(query)
       .populate(
         "seller",
@@ -130,6 +141,7 @@ export const getProductsForAdmin = async (req, res) => {
       .skip(skip)
       .limit(limit);
 
+    // Pagination count
     const total = await Product.countDocuments(query);
     const totalPages = Math.ceil(total / limit);
 
@@ -154,6 +166,7 @@ export const getProductsForAdmin = async (req, res) => {
     });
   }
 };
+
 
 // @desc    Update product
 // @route   PUT /api/products/:id
