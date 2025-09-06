@@ -80,7 +80,7 @@ const ContactSellerModal = ({ isOpen, onClose, product }) => {
   useEffect(() => {
     if (isOpen && token && isAuthenticated && !authError) {
       const initializeSocket = () => {
-        const serverUrl = 'http://localhost:5000';
+        const serverUrl = import.meta.env.VITE_API_BASE_URL_SOCKET;
         
         console.log('🔌 Initializing socket connection for product inquiry...');
         

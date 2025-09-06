@@ -67,7 +67,7 @@ const Messages = () => {
   // Initialize Socket.io connection - only for admin and customers
   useEffect(() => {
     if (isAuthenticated && token && user?.id && !isSeller) {
-      const serverUrl = 'http://localhost:5000';
+      const serverUrl = import.meta.env.VITE_API_BASE_URL_SOCKET;
 
       const socket = io(serverUrl, {
         auth: { token },
