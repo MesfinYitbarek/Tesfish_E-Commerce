@@ -1,4 +1,3 @@
-// components/home/CallToActionSection.jsx
 import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { 
@@ -12,7 +11,6 @@ import {
   CheckCircleIcon,
   StarIcon,
   ClockIcon,
-  ShieldCheckIcon,
   CubeIcon
 } from '@heroicons/react/24/outline';
 import Button from '../ui/Button';
@@ -71,12 +69,6 @@ const CallToActionSection = () => {
           variant: 'primary',
           icon: PlusIcon
         },
-        {
-          label: 'Learn More',
-          href: '/how-it-works',
-          variant: 'outline',
-          icon: ArrowRightIcon
-        }
       ],
       features: [
         'Free property listing',
@@ -148,7 +140,7 @@ const CallToActionSection = () => {
             </span>
           </h2>
           <p className="text-sm lg:text-base text-purple-100 max-w-2xl mx-auto leading-relaxed">
-            Whether you're buying, selling properties, or trading products, TesGold provides 
+            Whether you're buying, selling properties, or trading products, CitiLights provides 
             the perfect marketplace to achieve your goals with cutting-edge tools and support.
           </p>
         </div>
@@ -180,7 +172,7 @@ const CallToActionSection = () => {
                   <BuildingOfficeIcon className="h-8 w-8 text-white" />
                 </div>
                 <h3 className="text-2xl lg:text-3xl font-bold mb-3">
-                  Partner with TesGold
+                  Partner with CitiLights
                 </h3>
                 <p className="text-sm lg:text-base text-blue-100 leading-relaxed max-w-2xl mx-auto">
                   Join as a business seller and access powerful tools to grow your sales. 

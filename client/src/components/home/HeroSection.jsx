@@ -145,15 +145,6 @@ const HeroSection = () => {
     'Bahir Dar', 'Mekelle', 'Gondar', 'Awassa', 'Dire Dawa', 'Jimma', 'Dessie', 'Harar'
   ];
 
-  const quickSearchTerms = [
-    { term: 'Luxury Villas in Bole', type: 'homes', subType: 'villas', trending: true },
-    { term: 'Modern Apartments', type: 'homes', subType: 'apartment', trending: false },
-    { term: 'Commercial Buildings', type: 'commercials', subType: 'buildings', trending: true },
-    { term: 'Residential Land', type: 'plots', subType: 'residential-land', trending: false },
-    { term: 'Toyota Vehicles', type: 'others', subType: 'vehicles', trending: true },
-    { term: 'Office Spaces', type: 'commercials', subType: 'offices', trending: false }
-  ];
-
   // Check if current search type supports rental
   const supportsRental = ['homes', 'commercials'].includes(searchType);
 

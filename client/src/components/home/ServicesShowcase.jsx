@@ -248,11 +248,11 @@ const ServiceCard = ({ service, index, isActive, onHover, onLeave }) => {
           </div>
         </div>
         {/* Action Buttons */}      
-          <Link to={'/services'} className="block">
+          {/* <Link to={'/services'} className="block">
             <Button variant="primary" size="sm" className="w-full text-xs">
               Learn More
             </Button>
-          </Link>
+          </Link> */}
       </div>
     </div>
   );
