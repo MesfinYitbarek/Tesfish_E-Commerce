@@ -149,7 +149,7 @@ appointmentSchema.index({ customer: 1 });
 appointmentSchema.index({ seller: 1 });
 appointmentSchema.index({ scheduledDateTime: 1 });
 appointmentSchema.index({ status: 1 });
-appointmentSchema.index({ appointmentNumber: 1 });
+// appointmentSchema.index({ appointmentNumber: 1 });
 
 // Pre-save middleware to generate appointment number
 appointmentSchema.pre('save', async function(next) {

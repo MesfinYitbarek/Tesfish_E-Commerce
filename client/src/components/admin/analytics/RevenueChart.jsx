@@ -27,30 +27,43 @@ ChartJS.register(
 const RevenueChart = ({ data, compact = false }) => {
   const [activeView, setActiveView] = useState('total');
 
-  const getChartData = () => {
-    // const isDark = document.documentElement.classList.contains('dark');
-    // const textColor = isDark ? '#e5e7eb' : '#374151';
-    // const gridColor = isDark ? '#374151' : '#e5e7eb';
+  // Handle empty or invalid data
+  if (!data || data.length === 0) {
+    return (
+      <div className={`${compact ? 'h-32' : 'bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6'} flex items-center justify-center`}>
+        <p className="text-gray-500 dark:text-gray-400">No revenue data available</p>
+      </div>
+    );
+  }
 
+  const getChartData = () => {
     if (activeView === 'breakdown') {
       return {
         labels: data.map(item => item.month),
         datasets: [
           {
             label: 'Subscriptions',
-            data: data.map(item => item.subscriptions),
+            data: data.map(item => item.subscriptions || 0),
             borderColor: '#3B82F6',
             backgroundColor: 'rgba(59, 130, 246, 0.1)',
             tension: 0.4,
-            fill: false
+            fill: false,
+            pointBackgroundColor: '#3B82F6',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            pointRadius: compact ? 3 : 6
           },
           {
             label: 'Commissions',
-            data: data.map(item => item.commissions),
+            data: data.map(item => item.commissions || 0),
             borderColor: '#10B981',
             backgroundColor: 'rgba(16, 185, 129, 0.1)',
             tension: 0.4,
-            fill: false
+            fill: false,
+            pointBackgroundColor: '#10B981',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            pointRadius: compact ? 3 : 6
           }
         ]
       };
@@ -61,7 +74,7 @@ const RevenueChart = ({ data, compact = false }) => {
       datasets: [
         {
           label: 'Total Revenue',
-          data: data.map(item => item.revenue),
+          data: data.map(item => item.revenue || 0),
           borderColor: '#10B981',
           backgroundColor: 'rgba(16, 185, 129, 0.1)',
           tension: 0.4,
@@ -143,6 +156,10 @@ const RevenueChart = ({ data, compact = false }) => {
     );
   }
 
+  const totalRevenue = data.reduce((sum, item) => sum + (item.revenue || 0), 0);
+  const avgRevenue = totalRevenue / data.length;
+  const maxRevenue = Math.max(...data.map(item => item.revenue || 0));
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 p-6">
       <div className="flex items-center justify-between mb-6">
@@ -180,20 +197,22 @@ const RevenueChart = ({ data, compact = false }) => {
       {/* Revenue Summary */}
       <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="text-center">
-          <p className="text-sm text-gray-600 dark:text-gray-400">Peak Month</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Peak Revenue</p>
           <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            {formatCurrency(Math.max(...data.map(d => d.revenue)), 'ETB', { compact: true })}
+            {formatCurrency(maxRevenue, 'ETB', { compact: true })}
           </p>
         </div>
         <div className="text-center">
           <p className="text-sm text-gray-600 dark:text-gray-400">Average</p>
           <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            {formatCurrency(data.reduce((sum, d) => sum + d.revenue, 0) / data.length, 'ETB', { compact: true })}
+            {formatCurrency(avgRevenue, 'ETB', { compact: true })}
           </p>
         </div>
         <div className="text-center">
-          <p className="text-sm text-gray-600 dark:text-gray-400">Growth</p>
-          <p className="text-lg font-semibold text-green-600 dark:text-green-400">+15.2%</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">Total Period</p>
+          <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            {formatCurrency(totalRevenue, 'ETB', { compact: true })}
+          </p>
         </div>
         <div className="text-center">
           <p className="text-sm text-gray-600 dark:text-gray-400">Trend</p>

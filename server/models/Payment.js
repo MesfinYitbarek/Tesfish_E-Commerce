@@ -86,7 +86,7 @@ const paymentSchema = new mongoose.Schema({
   timestamps: true
 });
 
-paymentSchema.index({ paymentId: 1 });
+// paymentSchema.index({ paymentId: 1 });
 paymentSchema.index({ payer: 1 });
 paymentSchema.index({ payee: 1 });
 paymentSchema.index({ status: 1 });

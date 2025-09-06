@@ -89,7 +89,7 @@ const categorySchema = new mongoose.Schema({
 });
 
 // Indexes
-categorySchema.index({ slug: 1 });
+// categorySchema.index({ slug: 1 });
 categorySchema.index({ parentCategory: 1 });
 categorySchema.index({ productType: 1 });
 categorySchema.index({ level: 1, sortOrder: 1 });

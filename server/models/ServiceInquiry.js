@@ -381,7 +381,7 @@ const serviceInquirySchema = new mongoose.Schema({
 serviceInquirySchema.index({ customer: 1, createdAt: -1 });
 serviceInquirySchema.index({ assignedAdmin: 1, status: 1 });
 serviceInquirySchema.index({ serviceType: 1, status: 1 });
-serviceInquirySchema.index({ inquiryNumber: 1 });
+// serviceInquirySchema.index({ inquiryNumber: 1 });
 serviceInquirySchema.index({ 'projectDetails.location.city': 1 });
 serviceInquirySchema.index({ status: 1, createdAt: -1 });
 serviceInquirySchema.index({ priority: 1, isUrgent: -1 });

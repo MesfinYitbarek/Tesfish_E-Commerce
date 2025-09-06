@@ -256,7 +256,7 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 };
 
 // Indexes
-userSchema.index({ email: 1 });
+// userSchema.index({ email: 1 });
 userSchema.index({ userType: 1 });
 userSchema.index({ 'companyProfile.companyName': 'text' });
 userSchema.index({ 'companyProfile.businessCategories': 1 });

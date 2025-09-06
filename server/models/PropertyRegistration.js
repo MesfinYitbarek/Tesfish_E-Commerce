@@ -161,7 +161,7 @@ const propertyRegistrationSchema = new mongoose.Schema({
 // Indexes
 propertyRegistrationSchema.index({ property: 1 });
 propertyRegistrationSchema.index({ customer: 1 });
-propertyRegistrationSchema.index({ registrationNumber: 1 });
+// propertyRegistrationSchema.index({ registrationNumber: 1 });
 propertyRegistrationSchema.index({ status: 1 });
 propertyRegistrationSchema.index({ 'payment.paymentStatus': 1 });
 propertyRegistrationSchema.index({ submittedAt: -1 });

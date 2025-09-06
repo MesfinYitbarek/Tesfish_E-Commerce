@@ -8,8 +8,10 @@ import notificationSlice from './slices/notificationSlice';
 import uiSlice from './slices/uiSlice';
 import appointmentSlice from './slices/appointmentSlice';
 import serviceInquirySlice from './slices/serviceInquirySlice'
+import adminSlice from './slices/adminSlice'
 export const store = configureStore({
   reducer: {
+    admin: adminSlice,
     auth: authSlice,
     products: productSlice,
     cart: cartSlice,

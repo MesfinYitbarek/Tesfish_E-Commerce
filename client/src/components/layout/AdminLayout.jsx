@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
-import { 
+import {
   HomeIcon,
   UsersIcon,
   BuildingOfficeIcon,
@@ -28,11 +28,11 @@ const AdminLayout = () => {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
   const { stats } = useSelector((state) => state.serviceInquiry);
-  
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  
+
   // Admin stats - replace with actual data from Redux
   const pendingApprovals = 12;
   const flaggedUsers = 3;
@@ -60,18 +60,17 @@ const AdminLayout = () => {
   };
 
   const NavItem = ({ to, icon, label, badge, end = false }) => {
-    const isActive = end 
-      ? location.pathname === to 
+    const isActive = end
+      ? location.pathname === to
       : location.pathname.startsWith(to);
 
     return (
       <Link
         to={to}
-        className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-          isActive
+        className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${isActive
             ? 'bg-primary-100 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
             : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-        }`}
+          }`}
         onClick={() => setSidebarOpen(false)}
       >
         <span className="mr-3">{icon}</span>
@@ -89,16 +88,15 @@ const AdminLayout = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}>
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}>
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -112,7 +110,7 @@ const AdminLayout = () => {
               <XMarkIcon className="h-6 w-6" />
             </button>
           </div>
-<div className="px-6 py-3 bg-red-50 dark:bg-red-900/20 border-b border-gray-200 dark:border-gray-700">
+          <div className="px-6 py-3 bg-red-50 dark:bg-red-900/20 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center space-x-2">
               <ShieldCheckIcon className="h-5 w-5 text-red-600 dark:text-red-400" />
               <div>
@@ -123,44 +121,49 @@ const AdminLayout = () => {
           </div>
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-            <NavItem 
-              to="/admin" 
+            <NavItem
+              to="/admin"
               icon={<HomeIcon className="h-5 w-5" />}
               label="Overview"
-              end 
+              end
             />
-            
-            <NavItem 
-              to="/admin/users" 
+
+            <NavItem
+              to="/admin/users"
               icon={<UsersIcon className="h-5 w-5" />}
               label="User Management"
             />
-            
-            <NavItem 
-              to="/admin/listings" 
+
+            <NavItem
+              to="/admin/listings"
               icon={<BuildingOfficeIcon className="h-5 w-5" />}
               label="Listing Moderation"
             />
 
-            <NavItem 
-              to="/admin/services" 
+            <NavItem
+              to="/admin/services"
               icon={<WrenchScrewdriverIcon className="h-5 w-5" />}
               label="Service Management"
             />
-            <NavItem 
-              to="/admin/messages" 
+            <NavItem
+              to="/admin/messages"
               icon={<ChatBubbleLeftRightIcon className="h-5 w-5" />}
               label="Messages"
             />
-            <NavItem 
-              to="/admin/bookings" 
+            <NavItem
+              to="/admin/bookings"
               icon={<CalendarIcon className="h-5 w-5" />}
               label="Bookings"
             />
-            <NavItem 
-              to="/admin/registrations" 
+            <NavItem
+              to="/admin/registrations"
               icon={<CalendarIcon className="h-5 w-5" />}
               label="Property Registrations"
+            />
+            <NavItem
+              to="/admin/analytics"
+              icon={<CalendarIcon className="h-5 w-5" />}
+              label="Analytics"
             />
           </nav>
 
@@ -202,7 +205,7 @@ const AdminLayout = () => {
               >
                 <Bars3Icon className="h-6 w-6" />
               </button>
-              
+
               {/* Search */}
               <div className="hidden md:block ml-4 lg:ml-0">
                 <div className="relative">
