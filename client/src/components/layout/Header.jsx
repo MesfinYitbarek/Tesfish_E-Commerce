@@ -36,7 +36,7 @@ const Header = () => {
 
   const { user, isAuthenticated } = useSelector((state) => state.auth);
   const { darkMode } = useSelector((state) => state.ui);
-  const { items } = useSelector((state) => state.cart);
+
 
   // Handle scroll effect
   useEffect(() => {
@@ -65,8 +65,6 @@ const Header = () => {
       setIsSearchFocused(false);
     }
   };
-
-  const cartItemsCount = items?.reduce((total, item) => total + item.quantity, 0) || 0;
 
   const navigation = [
     { name: 'Home', href: '/' },
@@ -175,66 +173,6 @@ const Header = () => {
                       <ChevronDownIcon className={`ml-1 h-3 w-3 transition-transform duration-200 ${activeDropdown === item.key ? 'rotate-180' : ''
                         }`} />
                     </button>
-
-                    {/* Compact Mega Menu */}
-                    {activeDropdown === item.key && (
-                      <div className="absolute top-full left-0 mt-1 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4 z-50">
-                        <div className="grid grid-cols-1 gap-4">
-                          {megaMenuData[item.key]?.categories.map((category, index) => (
-                            <div key={index}>
-                              <h3 className="text-xs font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                                {category.title}
-                              </h3>
-                              <div className="space-y-1">
-                                {category.links.map((link, linkIndex) => {
-                                  const IconComponent = link.icon;
-                                  return (
-                                    <Link
-                                      key={linkIndex}
-                                      to={link.href}
-                                      className="flex items-center p-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group"
-                                    >
-                                      <IconComponent className="h-3 w-3 text-gray-400 group-hover:text-blue-500 mr-2" />
-                                      <span className="text-xs text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">
-                                        {link.name}
-                                      </span>
-                                    </Link>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          ))}
-
-                          {/* Compact Featured Section */}
-                          {megaMenuData[item.key]?.featured && (
-                            <div className="pt-3 border-t border-gray-200 dark:border-gray-700">
-                              <h3 className="text-xs font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                                {megaMenuData[item.key].featured.title}
-                              </h3>
-                              <div className="space-y-1">
-                                {megaMenuData[item.key].featured.items.map((featured, featuredIndex) => (
-                                  <Link
-                                    key={featuredIndex}
-                                    to={featured.href}
-                                    className="flex items-center justify-between p-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group"
-                                  >
-                                    <span className="text-xs text-gray-700 dark:text-gray-300 group-hover:text-gray-900 dark:group-hover:text-gray-100">
-                                      {featured.name}
-                                    </span>
-                                    {featured.trending && (
-                                      <span className="text-xs bg-orange-100 text-orange-600 dark:bg-orange-900 dark:text-orange-400 px-1.5 py-0.5 rounded-full font-medium flex items-center">
-                                        <FireIcon className="h-2.5 w-2.5 mr-0.5" />
-                                        Hot
-                                      </span>
-                                    )}
-                                  </Link>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 ) : (
                   <Link
@@ -322,20 +260,6 @@ const Header = () => {
                           >
                             <UserIcon className="h-3 w-3 mr-2" />
                             Dashboard
-                          </Link>
-                        )}
-                      </Menu.Item>
-                      <Menu.Item>
-                        {({ active }) => (
-                          <Link
-                            to="/dashboard/profile"
-                            className={cn(
-                              'flex items-center px-3 py-2 text-xs text-gray-700 dark:text-gray-300',
-                              active && 'bg-gray-50 dark:bg-gray-700'
-                            )}
-                          >
-                            <CogIcon className="h-3 w-3 mr-2" />
-                            Settings
                           </Link>
                         )}
                       </Menu.Item>
