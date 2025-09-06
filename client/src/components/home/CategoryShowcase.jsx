@@ -1,4 +1,3 @@
-// components/home/CategoryShowcase.jsx
 import { Link } from 'react-router-dom';
 import { 
   HomeIcon, 

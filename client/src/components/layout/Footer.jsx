@@ -4,10 +4,6 @@ import {
   PhoneIcon,
   EnvelopeIcon,
   BuildingOfficeIcon,
-  HeartIcon,
-  StarIcon,
-  ShieldCheckIcon,
-  ClockIcon
 } from '@heroicons/react/24/outline';
 
 const Footer = () => {
@@ -20,25 +16,24 @@ const Footer = () => {
         { name: 'About CitiLights', href: '/about', description: 'Our story' },
         { name: 'Our Services', href: '/services', description: 'What we offer' },
         { name: 'Contact Us', href: '/contact', description: 'Get in touch' },
-        { name: 'Careers', href: '/careers', description: 'Join our team' },
       ],
     },
     {
       title: 'Properties',
       links: [
-        { name: 'Buy Properties', href: '/products?category=real-estate&type=sale', description: 'Find your home' },
-        { name: 'Rent Properties', href: '/products?category=real-estate&type=rent', description: 'Rental options' },
+        { name: 'Buy Properties', href: '/products?productType=homes', description: 'Find your home' },
+        { name: 'Rent Properties', href: '/products?productType=homes', description: 'Rental options' },
         { name: 'Commercial Spaces', href: '/products?propertyType=commercial', description: 'Business locations' },
-        { name: 'Luxury Properties', href: '/products?category=luxury', description: 'Premium real estate' },
+        { name: 'Luxury Properties', href: '/products?productType=homes', description: 'Premium real estate' },
       ],
     },
     {
       title: 'Services',
       links: [
-        { name: 'Project Management', href: '/services/project-management', description: 'Construction oversight' },
-        { name: 'Interior Design', href: '/services/interior-design', description: 'Transform spaces' },
-        { name: 'Engineering Design', href: '/services/engineering', description: 'Architectural solutions' },
-        { name: 'Consultancy', href: '/services/consultancy', description: 'Investment advice' },
+        { name: 'Project Management', href: '/services', description: 'Construction oversight' },
+        { name: 'Interior Design', href: '/services', description: 'Transform spaces' },
+        { name: 'Engineering Design', href: '/services', description: 'Architectural solutions' },
+        { name: 'Consultancy', href: '/services', description: 'Investment advice' },
       ],
     },
   ];
@@ -46,8 +41,6 @@ const Footer = () => {
   const legalLinks = [
     { name: 'Terms of Service', href: '/terms' },
     { name: 'Privacy Policy', href: '/privacy' },
-    { name: 'Cookie Policy', href: '/cookies' },
-    { name: 'Accessibility', href: '/accessibility' },
   ];
 
   const socialLinks = [
