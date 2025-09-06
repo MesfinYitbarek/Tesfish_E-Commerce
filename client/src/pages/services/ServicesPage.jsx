@@ -7,9 +7,7 @@ import {
   ChartBarIcon,
   ArrowRightIcon,
   CheckIcon,
-  UserGroupIcon,
-  ClockIcon,
-  StarIcon
+  CubeIcon
 } from '@heroicons/react/24/outline';
 import Button from '../../components/ui/Button';
 import ServiceInquiryModal from '../../components/Services/ServiceInquiryModal';
@@ -39,7 +37,6 @@ const ServicesPage = () => {
         'Project stakeholders Management service',
         'Company Auditing'
       ],
-      startingPrice: 'Contact for Quote',
       duration: 'Varies by project scope',
       image: '/api/placeholder/600/400'
     },
@@ -57,7 +54,6 @@ const ServicesPage = () => {
         'Tender Document Preparations',
         'Supervision Contract administration'
       ],
-      startingPrice: 'Starting from 50,000 ETB',
       duration: '2-6 months',
       image: '/api/placeholder/600/400'
     },
@@ -75,7 +71,6 @@ const ServicesPage = () => {
         'Offices interior design',
         'Hotels interior design'
       ],
-      startingPrice: 'Starting from 30,000 ETB',
       duration: '1-4 months',
       image: '/api/placeholder/600/400'
     },
@@ -93,8 +88,28 @@ const ServicesPage = () => {
         'Property valuation',
         'Market analysis'
       ],
-      startingPrice: 'Starting from 5,000 ETB',
       duration: '1-2 weeks',
+      image: '/api/placeholder/600/400'
+    },
+    {
+      id: 'mineral-services',
+      title: 'Mineral Services',
+      icon: CubeIcon,
+      shortDescription: 'Comprehensive mineral exploration and extraction consultancy',
+      description: 'Professional mineral exploration, geological surveys, and mining consultancy services to help you discover and develop mineral resources with sustainable and environmentally responsible practices.',
+      features: [
+        'Geological surveys and mapping',
+        'Mineral exploration and prospecting',
+        'Mining feasibility studies',
+        'Environmental impact assessments',
+        'Mining permit assistance',
+        'Extraction planning and optimization',
+        'Sustainable mining practices consultation',
+        'Resource estimation and valuation',
+        'Mining equipment consultation',
+        'Safety and compliance auditing'
+      ],
+      duration: '3-12 months',
       image: '/api/placeholder/600/400'
     }
   ];
@@ -104,32 +119,26 @@ const ServicesPage = () => {
     setShowInquiryModal(true);
   };
 
-  const stats = [
-    { label: 'Projects Completed', value: '500+', icon: CheckIcon },
-    { label: 'Happy Clients', value: '200+', icon: UserGroupIcon },
-    { label: 'Years Experience', value: '10+', icon: ClockIcon },
-    { label: 'Expert Rating', value: '4.9', icon: StarIcon }
-  ];
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-primary-600 to-primary-800 text-white py-20">
+      <section className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white py-12 sm:py-16 lg:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 sm:mb-6">
               Professional Services
             </h1>
-            <p className="text-xl md:text-2xl mb-8 text-primary-100 max-w-3xl mx-auto">
-              Expert solutions for your construction, design, and real estate needs
+            <p className="text-lg sm:text-xl md:text-2xl mb-6 sm:mb-8 text-blue-100 max-w-3xl mx-auto px-4">
+              Expert solutions for your construction, design, real estate, and mineral exploration needs
             </p>
-            <div className="flex flex-wrap justify-center gap-4">
+            <div className="flex flex-wrap justify-center gap-2 sm:gap-4 px-4">
               {services.map((service) => (
                 <Button
                   key={service.id}
                   variant="outline"
-                  className="text-white border-white hover:bg-white hover:text-primary-600"
-                  onClick={() => document.getElementById(service.id).scrollIntoView({ behavior: 'smooth' })}
+                  size="sm"
+                  className="text-white border-white hover:bg-white hover:text-blue-600 text-xs sm:text-sm"
+                  onClick={() => document.getElementById(service.id)?.scrollIntoView({ behavior: 'smooth' })}
                 >
                   {service.title}
                 </Button>
@@ -139,116 +148,95 @@ const ServicesPage = () => {
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-12 bg-white dark:bg-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {stats.map((stat, index) => (
-              <div key={index} className="text-center">
-                <div className="inline-flex items-center justify-center w-12 h-12 bg-primary-100 dark:bg-primary-900 rounded-lg mb-4">
-                  <stat.icon className="h-6 w-6 text-primary-600 dark:text-primary-400" />
-                </div>
-                <div className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-                  {stat.value}
-                </div>
-                <div className="text-gray-600 dark:text-gray-400">
-                  {stat.label}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Services Section */}
-      <section className="py-20">
+      <section className="py-12 sm:py-16 lg:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
               Our Services
             </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
+            <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto px-4">
               Comprehensive solutions tailored to your specific needs
             </p>
           </div>
 
-          <div className="space-y-20">
+          <div className="space-y-16 sm:space-y-20">
             {services.map((service, index) => (
               <div
                 key={service.id}
                 id={service.id}
-                className={`flex flex-col ${index % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'} items-center gap-12 lg:gap-20`}
+                className="scroll-mt-20"
               >
-                {/* Image */}
-                <div className="flex-1">
-                  <img
-                    src={service.image}
-                    alt={service.title}
-                    className="w-full h-96 object-cover rounded-2xl shadow-lg"
-                  />
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 space-y-6">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-16 h-16 bg-primary-100 dark:bg-primary-900 rounded-2xl flex items-center justify-center">
-                      <service.icon className="h-8 w-8 text-primary-600 dark:text-primary-400" />
-                    </div>
-                    <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                      {service.title}
-                    </h3>
+                <div className={`flex flex-col ${index % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'} items-center gap-8 sm:gap-12 lg:gap-16 xl:gap-20`}>
+                  {/* Image */}
+                  <div className="w-full lg:flex-1">
+                    <img
+                      src={service.image}
+                      alt={service.title}
+                      className="w-full h-64 sm:h-80 lg:h-96 object-cover rounded-xl sm:rounded-2xl shadow-lg"
+                    />
                   </div>
 
-                  <p className="text-lg text-gray-600 dark:text-gray-400 leading-relaxed">
-                    {service.description}
-                  </p>
-
-                  <div className="grid md:grid-cols-2 gap-3">
-                    {service.features.slice(0, 6).map((feature, featureIndex) => (
-                      <div key={featureIndex} className="flex items-start space-x-3">
-                        <CheckIcon className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700 dark:text-gray-300 text-sm">
-                          {feature}
-                        </span>
+                  {/* Content */}
+                  <div className="w-full lg:flex-1 space-y-4 sm:space-y-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4">
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 bg-blue-100 dark:bg-blue-900 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0">
+                        <service.icon className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 dark:text-blue-400" />
                       </div>
-                    ))}
-                  </div>
-
-                  {service.features.length > 6 && (
-                    <details className="group">
-                      <summary className="cursor-pointer text-primary-600 dark:text-primary-400 font-medium list-none">
-                        <span className="group-open:hidden">Show more features</span>
-                        <span className="hidden group-open:inline">Show less</span>
-                      </summary>
-                      <div className="mt-4 grid md:grid-cols-2 gap-3">
-                        {service.features.slice(6).map((feature, featureIndex) => (
-                          <div key={featureIndex} className="flex items-start space-x-3">
-                            <CheckIcon className="h-5 w-5 text-green-500 mt-0.5 flex-shrink-0" />
-                            <span className="text-gray-700 dark:text-gray-300 text-sm">
-                              {feature}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </details>
-                  )}
-
-                  <div className="flex flex-wrap items-center justify-between pt-6 border-t border-gray-200 dark:border-gray-700">
-                    <div className="space-y-1">
-                      <div className="text-2xl font-bold text-primary-600 dark:text-primary-400">
-                        {service.startingPrice}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        Duration: {service.duration}
-                      </div>
+                      <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+                        {service.title}
+                      </h3>
                     </div>
-                    <Button
-                      onClick={() => handleGetStarted(service)}
-                      rightIcon={<ArrowRightIcon className="h-4 w-4" />}
-                      size="lg"
-                    >
-                      Get Started
-                    </Button>
+
+                    <p className="text-base sm:text-lg text-gray-600 dark:text-gray-400 leading-relaxed">
+                      {service.description}
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                      {service.features.slice(0, 6).map((feature, featureIndex) => (
+                        <div key={featureIndex} className="flex items-start space-x-3">
+                          <CheckIcon className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                          <span className="text-gray-700 dark:text-gray-300 text-sm sm:text-base">
+                            {feature}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {service.features.length > 6 && (
+                      <details className="group">
+                        <summary className="cursor-pointer text-blue-600 dark:text-blue-400 font-medium list-none text-sm sm:text-base">
+                          <span className="group-open:hidden">Show more features</span>
+                          <span className="hidden group-open:inline">Show less</span>
+                        </summary>
+                        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                          {service.features.slice(6).map((feature, featureIndex) => (
+                            <div key={featureIndex} className="flex items-start space-x-3">
+                              <CheckIcon className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mt-0.5 flex-shrink-0" />
+                              <span className="text-gray-700 dark:text-gray-300 text-sm sm:text-base">
+                                {feature}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4 sm:space-y-0">
+                      <div className="space-y-1">
+                        <div className="text-sm sm:text-base text-gray-500 dark:text-gray-400">
+                          Duration: {service.duration}
+                        </div>
+                      </div>
+                      <Button
+                        onClick={() => handleGetStarted(service)}
+                        rightIcon={<ArrowRightIcon className="h-4 w-4" />}
+                        size="lg"
+                        className="w-full sm:w-auto"
+                      >
+                        Get Started
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -258,26 +246,27 @@ const ServicesPage = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-primary-600 to-primary-700">
+      <section className="py-12 sm:py-16 lg:py-20 bg-gradient-to-r from-indigo-500 to-purple-600">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4 sm:mb-6">
             Ready to Start Your Project?
           </h2>
-          <p className="text-xl text-primary-100 mb-8">
+          <p className="text-lg sm:text-xl text-blue-100 mb-6 sm:mb-8 px-4">
             Get in touch with our experts for a free consultation
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">
             <Button
               variant="secondary"
               size="lg"
               onClick={() => setShowInquiryModal(true)}
+              className="w-full sm:w-auto"
             >
               Request Consultation
             </Button>
             <Button
               variant="outline"
               size="lg"
-              className="text-white border-white hover:bg-white hover:text-primary-600"
+              className="text-white border-white hover:bg-white hover:text-blue-600 w-full sm:w-auto"
               onClick={() => navigate('/contact')}
             >
               Contact Us

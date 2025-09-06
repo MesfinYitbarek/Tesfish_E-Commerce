@@ -27,7 +27,7 @@ const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 
 // Services - Public Pages
 const ServicesPage = lazy(() => import('../pages/services/ServicesPage'));
-const ServiceDetailPage = lazy(() => import('../pages/services/ServiceDetailPage'));
+//const ServiceDetailPage = lazy(() => import('../pages/services/ServiceDetailPage'));
 
 // Dashboard Pages - Regular Users (Sellers)
 const DashboardOverview = lazy(() => import('../pages/dashboard/DashboardOverview'));
@@ -110,7 +110,7 @@ export const router = createBrowserRouter([
       { path: 'properties', element: <LazyWrapper><PropertiesPage /></LazyWrapper> },
       { path: 'properties/:id', element: <LazyWrapper><PropertyDetailPage /></LazyWrapper> },
       { path: 'services', element: <LazyWrapper><ServicesPage /></LazyWrapper> },
-      { path: 'services/:serviceId', element: <LazyWrapper><ServiceDetailPage /></LazyWrapper> },
+      // { path: 'services/:serviceId', element: <LazyWrapper><ServiceDetailPage /></LazyWrapper> },
       { path: 'forgot-password', element: <LazyWrapper><ForgotPasswordPage /></LazyWrapper> }
     ]
   },

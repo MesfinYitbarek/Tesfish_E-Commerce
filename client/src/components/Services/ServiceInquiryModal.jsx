@@ -94,6 +94,12 @@ const ServiceInquiryModal = ({ isOpen, onClose, preSelectedService = null }) => 
       label: 'Real Estate Consultancy',
       description: 'Expert advisory services for property investment, legal, and technical consultation.',
       icon: '🏢'
+    },
+    {
+      value: 'mineral-services',
+      label: 'Mineral Services',
+      description: 'Comprehensive mineral exploration, geological surveys, and mining consultancy services with sustainable practices.',
+      icon: '⛏️'
     }
   ];
 
@@ -166,6 +172,16 @@ const ServiceInquiryModal = ({ isOpen, onClose, preSelectedService = null }) => 
     }));
   };
 
+  const handleServiceSpecificChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      serviceSpecifics: {
+        ...prev.serviceSpecifics,
+        [field]: value
+      }
+    }));
+  };
+
   const handleFileChange = (e) => {
     const files = Array.from(e.target.files);
     setAttachments(prev => [...prev, ...files]);
@@ -210,42 +226,41 @@ const ServiceInquiryModal = ({ isOpen, onClose, preSelectedService = null }) => 
     setCurrentStep(prev => prev - 1);
   };
 
-const handleSubmit = async () => {
-  // Run validation for all steps
-  for (let step = 1; step <= 3; step++) {
-    if (!validateStep(step)) {
-      setCurrentStep(step);
-      return;
+  const handleSubmit = async () => {
+    // Run validation for all steps
+    for (let step = 1; step <= 3; step++) {
+      if (!validateStep(step)) {
+        setCurrentStep(step);
+        return;
+      }
     }
-  }
 
-  try {
-    const submissionData = new FormData();
-    submissionData.append('serviceType', formData.serviceType);
-    submissionData.append('projectDetails', JSON.stringify(formData.projectDetails));
-    submissionData.append('serviceSpecifics', JSON.stringify(formData.serviceSpecifics));
-    attachments.forEach((file) => submissionData.append('attachments', file));
+    try {
+      const submissionData = new FormData();
+      submissionData.append('serviceType', formData.serviceType);
+      submissionData.append('projectDetails', JSON.stringify(formData.projectDetails));
+      submissionData.append('serviceSpecifics', JSON.stringify(formData.serviceSpecifics));
+      attachments.forEach((file) => submissionData.append('attachments', file));
 
-    await dispatch(createServiceInquiry(submissionData)).unwrap();
+      await dispatch(createServiceInquiry(submissionData)).unwrap();
 
-    toast.success('Service inquiry submitted successfully!');
-    onClose();
-  } catch (error) {
-    console.error('Submit inquiry error:', error);
+      toast.success('Service inquiry submitted successfully!');
+      onClose();
+    } catch (error) {
+      console.error('Submit inquiry error:', error);
 
-    if (error?.errors) {
-      const newErrors = {};
-      error.errors.forEach((err) => {
-        newErrors[err.field] = err.message;
-      });
-      setErrors(newErrors);
-      toast.error('Please fix the highlighted errors');
-    } else {
-      toast.error(error?.message || 'Failed to submit inquiry');
+      if (error?.errors) {
+        const newErrors = {};
+        error.errors.forEach((err) => {
+          newErrors[err.field] = err.message;
+        });
+        setErrors(newErrors);
+        toast.error('Please fix the highlighted errors');
+      } else {
+        toast.error(error?.message || 'Failed to submit inquiry');
+      }
     }
-  }
-};
-
+  };
 
   const getStepTitle = () => {
     switch (currentStep) {
@@ -257,6 +272,163 @@ const handleSubmit = async () => {
     }
   };
 
+  const renderMineralServicesForm = () => {
+    if (formData.serviceType !== 'mineral-services') return null;
+
+    const mineralServiceTypes = [
+      { value: 'geological-survey', label: 'Geological Survey & Mapping' },
+      { value: 'mineral-exploration', label: 'Mineral Exploration & Prospecting' },
+      { value: 'mining-feasibility', label: 'Mining Feasibility Study' },
+      { value: 'environmental-assessment', label: 'Environmental Impact Assessment' },
+      { value: 'mining-permits', label: 'Mining Permit Assistance' },
+      { value: 'extraction-planning', label: 'Extraction Planning & Optimization' },
+      { value: 'sustainability-consultation', label: 'Sustainable Mining Practices' },
+      { value: 'resource-estimation', label: 'Resource Estimation & Valuation' },
+      { value: 'equipment-consultation', label: 'Mining Equipment Consultation' },
+      { value: 'safety-compliance', label: 'Safety & Compliance Auditing' }
+    ];
+
+    const miningTypes = [
+      { value: 'surface', label: 'Surface Mining' },
+      { value: 'underground', label: 'Underground Mining' },
+      { value: 'placer', label: 'Placer Mining' },
+      { value: 'alluvial', label: 'Alluvial Mining' }
+    ];
+
+    return (
+      <div className="space-y-4 p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+        <h4 className="font-medium text-orange-900 dark:text-orange-100 mb-3">
+          Mineral Services Specific Information
+        </h4>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Primary Service Needed
+            </label>
+            <select
+              value={formData.serviceSpecifics.mineralServiceType || ''}
+              onChange={(e) => handleServiceSpecificChange('mineralServiceType', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-base"
+            >
+              <option value="">Select primary service</option>
+              {mineralServiceTypes.map(type => (
+                <option key={type.value} value={type.value}>{type.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Mineral Type of Interest
+            </label>
+            <Input
+              value={formData.serviceSpecifics.mineralType || ''}
+              onChange={(e) => handleServiceSpecificChange('mineralType', e.target.value)}
+              placeholder="e.g., Gold, Silver, Copper, etc."
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Survey/Project Area (hectares)
+            </label>
+            <Input
+              type="number"
+              value={formData.serviceSpecifics.surveyArea || ''}
+              onChange={(e) => handleServiceSpecificChange('surveyArea', e.target.value)}
+              placeholder="Area in hectares"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Expected Exploration Depth (meters)
+            </label>
+            <Input
+              type="number"
+              value={formData.serviceSpecifics.explorationDepth || ''}
+              onChange={(e) => handleServiceSpecificChange('explorationDepth', e.target.value)}
+              placeholder="Depth in meters"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Intended Mining Type
+          </label>
+          <select
+            value={formData.serviceSpecifics.miningType || ''}
+            onChange={(e) => handleServiceSpecificChange('miningType', e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-base"
+          >
+            <option value="">Select mining type</option>
+            {miningTypes.map(type => (
+              <option key={type.value} value={type.value}>{type.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="environmentalAssessment"
+              checked={formData.serviceSpecifics.environmentalAssessment || false}
+              onChange={(e) => handleServiceSpecificChange('environmentalAssessment', e.target.checked)}
+              className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+            />
+            <label htmlFor="environmentalAssessment" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+              Environmental Assessment Required
+            </label>
+          </div>
+
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="existingPermits"
+              checked={formData.serviceSpecifics.existingPermits || false}
+              onChange={(e) => handleServiceSpecificChange('existingPermits', e.target.checked)}
+              className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+            />
+            <label htmlFor="existingPermits" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+              Have Existing Permits
+            </label>
+          </div>
+
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="geologicalData"
+              checked={formData.serviceSpecifics.geologicalData || false}
+              onChange={(e) => handleServiceSpecificChange('geologicalData', e.target.checked)}
+              className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+            />
+            <label htmlFor="geologicalData" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
+              Have Geological Data
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Sustainability & Environmental Requirements
+          </label>
+          <textarea
+            value={formData.serviceSpecifics.sustainabilityRequirements || ''}
+            onChange={(e) => handleServiceSpecificChange('sustainabilityRequirements', e.target.value)}
+            placeholder="Describe any specific environmental protection requirements, sustainability goals, or community impact considerations..."
+            rows={3}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-none text-base"
+          />
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -265,7 +437,7 @@ const handleSubmit = async () => {
       size="lg"
       className="max-w-2xl"
     >
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         {/* Progress Steps */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-2">
@@ -278,7 +450,7 @@ const handleSubmit = async () => {
           </div>
           <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
             <div 
-              className="bg-primary-500 h-2 rounded-full transition-all duration-300"
+              className="bg-blue-500 h-2 rounded-full transition-all duration-300"
               style={{ width: `${(currentStep / 4) * 100}%` }}
             ></div>
           </div>
@@ -287,7 +459,7 @@ const handleSubmit = async () => {
         {/* Service Provider Notice */}
         <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
           <div className="flex items-start space-x-3">
-            <InformationCircleIcon className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+            <InformationCircleIcon className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
             <div className="text-sm text-blue-700 dark:text-blue-300">
               <p className="font-medium mb-1">Professional Service by TesGold</p>
               <p>Your inquiry will be handled by our expert team. We'll review your requirements and provide a comprehensive consultation and quote.</p>
@@ -303,21 +475,21 @@ const handleSubmit = async () => {
               <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
                 What type of service do you need?
               </h3>
-              <div className="grid grid-cols-1 gap-4">
+              <div className="grid grid-cols-1 gap-3 sm:gap-4">
                 {serviceOptions.map((service) => (
                   <button
                     key={service.value}
                     type="button"
                     onClick={() => handleInputChange(null, 'serviceType', service.value)}
-                    className={`p-4 border-2 rounded-lg text-left transition-colors ${
+                    className={`p-3 sm:p-4 border-2 rounded-lg text-left transition-colors ${
                       formData.serviceType === service.value
-                        ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                         : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                     }`}
                   >
                     <div className="flex items-start space-x-3">
-                      <span className="text-2xl">{service.icon}</span>
-                      <div>
+                      <span className="text-xl sm:text-2xl flex-shrink-0">{service.icon}</span>
+                      <div className="min-w-0">
                         <h4 className="font-medium text-gray-900 dark:text-gray-100">
                           {service.label}
                         </h4>
@@ -359,14 +531,14 @@ const handleSubmit = async () => {
                   onChange={(e) => handleInputChange('projectDetails', 'description', e.target.value)}
                   placeholder="Describe your project requirements, goals, and any specific needs..."
                   rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-none text-base"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-base"
                 />
                 {errors['projectDetails.description'] && (
                   <p className="text-red-500 text-sm mt-1">{errors['projectDetails.description']}</p>
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     City/Location *
@@ -402,13 +574,16 @@ const handleSubmit = async () => {
                   placeholder="Street address, building name, etc."
                 />
               </div>
+
+              {/* Service-specific form for mineral services */}
+              {renderMineralServicesForm()}
             </div>
           )}
 
           {/* Step 3: Timeline & Budget */}
           {currentStep === 3 && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Preferred Start Date
@@ -438,7 +613,7 @@ const handleSubmit = async () => {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                   Project Urgency
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {urgencyOptions.map((option) => (
                     <button
                       key={option.value}
@@ -446,7 +621,7 @@ const handleSubmit = async () => {
                       onClick={() => handleTimelineChange('urgency', option.value)}
                       className={`p-3 border-2 rounded-lg text-left transition-colors ${
                         formData.projectDetails.timeline.urgency === option.value
-                          ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                           : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                       }`}
                     >
@@ -465,7 +640,7 @@ const handleSubmit = async () => {
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                   Budget Range (Optional)
                 </label>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <Input
                     type="number"
                     value={formData.projectDetails.budget.min}
@@ -483,7 +658,7 @@ const handleSubmit = async () => {
                   <select
                     value={formData.projectDetails.budget.currency}
                     onChange={(e) => handleBudgetChange('currency', e.target.value)}
-                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-base"
                   >
                     <option value="ETB">ETB</option>
                     <option value="USD">USD</option>
@@ -535,6 +710,36 @@ const handleSubmit = async () => {
                     </span>
                   </div>
                   
+                  {/* Mineral Services Specific Info in Review */}
+                  {formData.serviceType === 'mineral-services' && (
+                    <>
+                      {formData.serviceSpecifics.mineralServiceType && (
+                        <div>
+                          <span className="font-medium text-gray-900 dark:text-gray-100">Primary Service:</span>
+                          <span className="ml-2 text-gray-700 dark:text-gray-300">
+                            {formData.serviceSpecifics.mineralServiceType.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </span>
+                        </div>
+                      )}
+                      {formData.serviceSpecifics.mineralType && (
+                        <div>
+                          <span className="font-medium text-gray-900 dark:text-gray-100">Mineral Type:</span>
+                          <span className="ml-2 text-gray-700 dark:text-gray-300">
+                            {formData.serviceSpecifics.mineralType}
+                          </span>
+                        </div>
+                      )}
+                      {formData.serviceSpecifics.surveyArea && (
+                        <div>
+                          <span className="font-medium text-gray-900 dark:text-gray-100">Survey Area:</span>
+                          <span className="ml-2 text-gray-700 dark:text-gray-300">
+                            {formData.serviceSpecifics.surveyArea} hectares
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  
                   {(formData.projectDetails.budget.min || formData.projectDetails.budget.max) && (
                     <div>
                       <span className="font-medium text-gray-900 dark:text-gray-100">Budget:</span>
@@ -570,10 +775,10 @@ const handleSubmit = async () => {
                     className="cursor-pointer flex flex-col items-center justify-center space-y-2"
                   >
                     <PaperClipIcon className="h-8 w-8 text-gray-400" />
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                    <span className="text-sm text-gray-600 dark:text-gray-400 text-center">
                       Click to upload files or drag and drop
                     </span>
-                    <span className="text-xs text-gray-500 dark:text-gray-500">
+                    <span className="text-xs text-gray-500 dark:text-gray-500 text-center">
                       PDF, DOC, images up to 10MB each
                     </span>
                   </label>
@@ -583,10 +788,10 @@ const handleSubmit = async () => {
                   <div className="mt-3 space-y-2">
                     {attachments.map((file, index) => (
                       <div key={index} className="flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-700 rounded">
-                        <span className="text-sm text-gray-700 dark:text-gray-300">{file.name}</span>
+                        <span className="text-sm text-gray-700 dark:text-gray-300 truncate flex-1 mr-2">{file.name}</span>
                         <button
                           onClick={() => removeAttachment(index)}
-                          className="text-red-500 hover:text-red-700"
+                          className="text-red-500 hover:text-red-700 flex-shrink-0"
                         >
                           <XMarkIcon className="h-4 w-4" />
                         </button>
@@ -599,7 +804,7 @@ const handleSubmit = async () => {
               {/* Terms Notice */}
               <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
-                  <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+                  <ExclamationTriangleIcon className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
                   <div className="text-sm text-yellow-700 dark:text-yellow-300">
                     <p className="font-medium mb-1">Next Steps</p>
                     <ul className="list-disc list-inside space-y-1">
@@ -616,24 +821,26 @@ const handleSubmit = async () => {
         </div>
 
         {/* Navigation Buttons */}
-        <div className="flex justify-between pt-6 border-t border-gray-200 dark:border-gray-700 mt-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between pt-6 border-t border-gray-200 dark:border-gray-700 mt-6 space-y-3 sm:space-y-0">
           <div>
             {currentStep > 1 && (
               <Button
                 variant="outline"
                 onClick={handleBack}
                 disabled={isSubmitting}
+                className="w-full sm:w-auto"
               >
                 Back
               </Button>
             )}
           </div>
           
-          <div className="flex space-x-3">
+          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
             <Button
               variant="outline"
               onClick={onClose}
               disabled={isSubmitting}
+              className="w-full sm:w-auto"
             >
               Cancel
             </Button>
@@ -642,6 +849,7 @@ const handleSubmit = async () => {
               <Button
                 onClick={handleNext}
                 disabled={isSubmitting}
+                className="w-full sm:w-auto"
               >
                 Next
               </Button>
@@ -651,6 +859,7 @@ const handleSubmit = async () => {
                 loading={isSubmitting}
                 disabled={isSubmitting}
                 leftIcon={<DocumentTextIcon className="h-4 w-4" />}
+                className="w-full sm:w-auto"
               >
                 Submit Request
               </Button>

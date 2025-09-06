@@ -22,7 +22,7 @@ const serviceInquirySchema = new mongoose.Schema({
   // Service details
   serviceType: {
     type: String,
-    enum: ['project-management', 'engineering-design', 'interior-design', 'real-estate-consultancy'],
+    enum: ['project-management', 'engineering-design', 'interior-design', 'real-estate-consultancy','mineral-services'],
     required: true
   },
   
