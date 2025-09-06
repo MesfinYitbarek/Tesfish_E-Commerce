@@ -1,6 +1,5 @@
-// components/home/ServicesShowcase.jsx
 import { Link } from 'react-router-dom';
-import { useState, useEffect } from 'react';
+import { useState} from 'react';
 import { 
   BuildingOfficeIcon, 
   HomeIcon, 
@@ -14,11 +13,6 @@ import Button from '../ui/Button';
 
 const ServicesShowcase = () => {
   const [activeService, setActiveService] = useState(null);
-  const [isVisible, setIsVisible] = useState(false);
-
-  useEffect(() => {
-    setIsVisible(true);
-  }, []);
 
   const services = [
     {
@@ -253,30 +247,12 @@ const ServiceCard = ({ service, index, isActive, onHover, onLeave }) => {
             )}
           </div>
         </div>
-
-        {/* Contact for Quote */}
-        <div className="mb-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg text-center">
-          <div className="text-sm font-bold text-gray-900 dark:text-gray-100">
-            Contact for Quote
-          </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">
-            Custom pricing based on your needs
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-2">
-          <Link to={`/services#${service.id}`} className="block">
+        {/* Action Buttons */}      
+          <Link to={'/services'} className="block">
             <Button variant="primary" size="sm" className="w-full text-xs">
               Learn More
             </Button>
           </Link>
-          <Link to="/contact" className="block">
-            <Button variant="outline" size="sm" className="w-full text-xs">
-              Get Quote
-            </Button>
-          </Link>
-        </div>
       </div>
     </div>
   );

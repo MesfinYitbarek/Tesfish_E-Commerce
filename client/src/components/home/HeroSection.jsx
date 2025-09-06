@@ -174,7 +174,7 @@ const HeroSection = () => {
         <div className="text-center mb-8">
           <div className="inline-flex items-center px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-white/90 text-xs font-medium mb-4 border border-white/20">
             <SparklesIcon className="h-3 w-3 mr-1 text-yellow-400" />
-            Ethiopia's Premier Real Estate & Marketplace
+            Ethiopia's Premier Properties & Services
           </div>
           
           <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-white mb-4 leading-tight">
@@ -186,7 +186,7 @@ const HeroSection = () => {
           
           <p className="text-base md:text-lg text-purple-100 max-w-2xl mx-auto mb-6 leading-relaxed">
             Discover exceptional properties, vehicles, electronics and more with{' '}
-            <span className="font-semibold text-yellow-400">TesGold</span>. 
+            <span className="font-semibold text-yellow-400">CitiLights</span>. 
             Your trusted marketplace for buying, selling, and renting in Ethiopia.
           </p>                     
         </div>
