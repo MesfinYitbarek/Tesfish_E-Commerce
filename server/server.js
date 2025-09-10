@@ -64,10 +64,30 @@ app.use(
       useDefaults: true,
       directives: {
         ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-        "img-src": ["'self'", "data:", "https://res.cloudinary.com"],
-        "media-src": ["'self'", "data:", "https://res.cloudinary.com"], // if you store videos
+        "img-src": [
+          "'self'",
+          "data:",
+          "https://res.cloudinary.com" // Cloudinary images
+        ],
+        "script-src": [
+          "'self'",
+          "'unsafe-inline'", // Google adds inline snippets
+          "https://accounts.google.com",
+          "https://apis.google.com"
+        ],
+        "script-src-elem": [
+          "'self'",
+          "'unsafe-inline'",
+          "https://accounts.google.com",
+          "https://apis.google.com"
+        ],
+        "frame-src": [
+          "'self'",
+          "https://accounts.google.com"
+        ],
       },
     },
+    crossOriginEmbedderPolicy: false,
   })
 );
 app.use((req, res, next) => {
