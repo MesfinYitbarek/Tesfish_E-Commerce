@@ -18,7 +18,9 @@ import {
   HomeIcon,
   MapIcon,
   BuildingOfficeIcon,
-  XMarkIcon
+  XMarkIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon
 } from '@heroicons/react/24/outline';
 import { fetchProducts, fetchCategories, fetchPropertyTypes, setFilters, clearFilters } from '../../store/slices/productSlice';
 
@@ -26,6 +28,7 @@ const ProductsPage = () => {
   const dispatch = useDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [showDesktopFilters, setShowDesktopFilters] = useState(true); // Desktop filter toggle state
   const [isInitialized, setIsInitialized] = useState(false);
 
   const {
@@ -115,7 +118,7 @@ const ProductsPage = () => {
             onClick={() => handleFilterChange({ [filter.key]: filter.value })}
             className={`flex items-center space-x-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
               filters[filter.key] === filter.value
-                ? 'bg-primary-500 text-white shadow-md'
+                ? 'bg-blue-500 text-white shadow-md'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
             }`}
           >
@@ -154,7 +157,7 @@ const ProductsPage = () => {
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{error}</p>
             <button
               onClick={() => dispatch(fetchProducts(filters))}
-              className="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium"
+              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium"
             >
               Try Again
             </button>
@@ -184,7 +187,7 @@ const ProductsPage = () => {
             </button>
             <button
               onClick={() => handleFilterChange({ productType: '', category: '' })}
-              className="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg"
+              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
             >
               Browse All
             </button>
@@ -227,24 +230,69 @@ const ProductsPage = () => {
       {/* Quick Filters */}
       {renderQuickFilters()}
 
+      {/* Desktop Filter Toggle Button */}
+      <div className="hidden lg:block">
+        <button
+          onClick={() => setShowDesktopFilters(!showDesktopFilters)}
+          className="fixed left-4 top-1/2 transform -translate-y-1/2 z-30 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 p-3 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 transition-all duration-300"
+          aria-label={showDesktopFilters ? "Hide filters" : "Show filters"}
+        >
+          {showDesktopFilters ? (
+            <ChevronLeftIcon className="h-5 w-5" />
+          ) : (
+            <div className="flex items-center space-x-2">
+              <ChevronRightIcon className="h-5 w-5" />
+              {getActiveFiltersCount() > 0 && (
+                <span className="bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                  {getActiveFiltersCount()}
+                </span>
+              )}
+            </div>
+          )}
+        </button>
+      </div>
+
       {/* Main Content */}
       <div className="flex">
-        {/* Desktop Sidebar */}
-        <div className="hidden lg:block w-80 flex-shrink-0">
-          <div className="sticky top-32 p-4">
-            <ProductFilters
-              filters={filters}
-              categories={categories || []}
-              propertyTypes={propertyTypes || []}
-              aggregatedFilters={aggregatedFilters || {}}
-              onFilterChange={handleFilterChange}
-              onClearFilters={handleClearFilters}
-            />
-          </div>
-        </div>
+        {/* Desktop Sidebar with Animation */}
+        <AnimatePresence>
+          {showDesktopFilters && (
+            <motion.div
+              initial={{ x: -320, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -320, opacity: 0 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="hidden lg:block w-80 flex-shrink-0"
+            >
+              <div className="sticky top-32 p-4">
+                <div className="bg-white dark:bg-gray-900 rounded-lg shadow-md border border-gray-200 dark:border-gray-800">
+                  <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                      Filters
+                    </h3>
+                    <button
+                      onClick={() => setShowDesktopFilters(false)}
+                      className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+                    >
+                      <XMarkIcon className="h-5 w-5 text-gray-500" />
+                    </button>
+                  </div>
+                  <ProductFilters
+                    filters={filters}
+                    categories={categories || []}
+                    propertyTypes={propertyTypes || []}
+                    aggregatedFilters={aggregatedFilters || {}}
+                    onFilterChange={handleFilterChange}
+                    onClearFilters={handleClearFilters}
+                  />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Content Area */}
-        <div className="flex-1 min-w-0">
+        <div className={`flex-1 min-w-0 transition-all duration-300 ${showDesktopFilters ? 'lg:pl-0' : 'lg:pl-16'}`}>
           <div className="p-4">
             {renderProductView()}
 
@@ -264,10 +312,10 @@ const ProductsPage = () => {
         </div>
       </div>
 
-      {/* Mobile Filter Button */}
+      {/* Mobile Filter Button - Fixed styling */}
       <button
         onClick={() => setShowMobileFilters(true)}
-        className="lg:hidden fixed bottom-4 right-4 z-40 bg-primary-500 hover:bg-primary-600 text-white p-4 rounded-full shadow-lg transition-all"
+        className="lg:hidden fixed bottom-4 right-4 z-40 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white p-4 rounded-full shadow-lg transition-all duration-200 hover:scale-105 active:scale-95"
       >
         <FunnelIcon className="h-6 w-6" />
         {getActiveFiltersCount() > 0 && (
@@ -301,7 +349,7 @@ const ProductsPage = () => {
                 </h3>
                 <button
                   onClick={() => setShowMobileFilters(false)}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                 >
                   <XMarkIcon className="h-5 w-5" />
                 </button>
