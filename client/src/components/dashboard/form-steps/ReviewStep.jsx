@@ -406,61 +406,7 @@ const ReviewStep = ({
         </div>
       </div>
 
-      {/* Submit Actions */}
-      <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-          Submit Your Listing
-        </h3>
-        
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-              <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Save as Draft</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                Save your progress and continue editing later. Not visible to public.
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => handleSubmit('draft')}
-                disabled={isSubmitting}
-                className="w-full"
-              >
-                {isSubmitting && submitType === 'draft' ? 'Saving...' : 'Save as Draft'}
-              </Button>
-            </div>
-
-            <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-              <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Publish Listing</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                Submit for review and make visible to potential buyers once approved.
-              </p>
-              <Button
-                type="button"
-                onClick={() => handleSubmit('published')}
-                disabled={!canSubmit || isSubmitting}
-                className="w-full"
-              >
-                {isSubmitting && submitType === 'published' ? 'Publishing...' : 'Publish Listing'}
-              </Button>
-            </div>
-          </div>
-
-          <div className="text-center">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              By submitting, you agree to our{' '}
-              <a href="#" className="text-primary-600 dark:text-primary-400 hover:underline">
-                Terms of Service
-              </a>{' '}
-              and{' '}
-              <a href="#" className="text-primary-600 dark:text-primary-400 hover:underline">
-                Listing Guidelines
-              </a>
-            </p>
-          </div>
-        </div>
-      </div>
-
+  
       {/* Full Preview Modal */}
       {showPreview && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

@@ -14,7 +14,7 @@ import {
   getInquiryStats
 } from '../../controllers/service/serviceInquiryController.js';
 import { protect, authorize } from '../../middleware/auth/authMiddleware.js';
-import { uploadMiddleware } from '../../middleware/upload/uploadMiddleware.js';
+import { uploadConfigs } from "../../middleware/upload/uploadMiddleware.js"; 
 import { handleValidationErrors } from '../../middleware/validation/validationMiddleware.js';
 
 const router = express.Router();
@@ -45,9 +45,10 @@ const consultationValidation = [
 // All routes require authentication
 router.use(protect);
 
-// Customer routes - any authenticated user can create inquiries
-router.post('/', 
-  uploadMiddleware.array('attachments', 5),
+// Customer routes
+router.post(
+  '/',
+  uploadConfigs.attachments, // Use the specific configuration for attachments
   createServiceInquiry
 );
 

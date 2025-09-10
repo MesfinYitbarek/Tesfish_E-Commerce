@@ -1,3 +1,4 @@
+// components/dashboard/form-steps/MediaStep.jsx
 import { useState, useRef } from 'react';
 import { 
   PhotoIcon, 
@@ -7,7 +8,7 @@ import {
   EyeIcon,
   ArrowUpIcon,
   ArrowDownIcon,
-  PlusIcon,
+  XMarkIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon
 } from '@heroicons/react/24/outline';
@@ -78,15 +79,15 @@ const MediaStep = ({ formData, errors, onChange }) => {
         // Create preview URL for images
         const preview = type === 'image' ? URL.createObjectURL(file) : null;
         
-        // In a real app, you would upload to a server here
-        // For now, we'll create a mock file object
+        // Store the actual File object along with metadata
         const fileData = {
           id: Date.now() + Math.random(),
+          file: file, // Store the actual File object for upload
           filename: file.name,
           originalName: file.name,
           size: file.size,
           mimeType: file.type,
-          url: preview || '#', // Would be server URL in real app
+          preview: preview, // Preview URL for display
           uploadedAt: new Date().toISOString(),
           isMain: type === 'image' && safeMedia.images.length === 0, // First image is main
           alt: '',
@@ -140,6 +141,13 @@ const MediaStep = ({ formData, errors, onChange }) => {
   // Remove file
   const removeFile = (type, id) => {
     const currentFiles = safeMedia[type === 'image' ? 'images' : type === 'video' ? 'videos' : 'documents'];
+    
+    // Clean up preview URLs to prevent memory leaks
+    const fileToRemove = currentFiles.find(file => file.id === id);
+    if (fileToRemove && fileToRemove.preview) {
+      URL.revokeObjectURL(fileToRemove.preview);
+    }
+    
     const updatedFiles = currentFiles.filter(file => file.id !== id);
     handleChange(type === 'image' ? 'images' : type === 'video' ? 'videos' : 'documents', updatedFiles);
   };
@@ -310,7 +318,7 @@ const MediaStep = ({ formData, errors, onChange }) => {
                 {/* Image Preview */}
                 <div className="aspect-w-16 aspect-h-12 bg-gray-100 dark:bg-gray-800">
                   <img
-                    src={image.url}
+                    src={image.preview || image.url}
                     alt={image.alt || image.filename}
                     className="w-full h-48 object-cover"
                   />
@@ -416,7 +424,7 @@ const MediaStep = ({ formData, errors, onChange }) => {
               >
                 <div className="aspect-w-16 aspect-h-9 bg-gray-100 dark:bg-gray-800">
                   <video
-                    src={video.url}
+                    src={video.preview || video.url}
                     controls
                     className="w-full h-full object-cover"
                   />
@@ -593,7 +601,7 @@ const MediaStep = ({ formData, errors, onChange }) => {
               <XMarkIcon className="h-6 w-6" />
             </button>
             <img
-              src={previewImage.url}
+              src={previewImage.preview || previewImage.url}
               alt={previewImage.alt || previewImage.filename}
               className="max-w-full max-h-full object-contain"
             />

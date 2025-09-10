@@ -1,4 +1,3 @@
-// services/productService.js
 import api from './api';
 import { API_ENDPOINTS } from '../constants';
 
@@ -6,23 +5,93 @@ const productService = {
   createProduct: async (productData) => {
     const formData = new FormData();
     
-    Object.keys(productData).forEach(key => {
-      if (key !== 'images' && key !== 'media') {
-        if (typeof productData[key] === 'object') {
-          formData.append(key, JSON.stringify(productData[key]));
-        } else {
-          formData.append(key, productData[key]);
+    // Extract files from media
+    const imageFiles = [];
+    const videoFiles = [];
+    const documentFiles = [];
+    
+    // Process media files
+    if (productData.media) {
+      if (productData.media.images) {
+        productData.media.images.forEach((image, index) => {
+          if (image.file instanceof File) {
+            imageFiles.push(image.file);
+            // Keep metadata for processing
+            formData.append(`imageMetadata[${index}]`, JSON.stringify({
+              alt: image.alt || '',
+              caption: image.caption || '',
+              isMain: image.isMain || false,
+              tags: image.tags || []
+            }));
+          }
+        });
+      }
+      
+      if (productData.media.videos) {
+        productData.media.videos.forEach((video) => {
+          if (video.file instanceof File) {
+            videoFiles.push(video.file);
+          }
+        });
+      }
+      
+      if (productData.media.documents) {
+        productData.media.documents.forEach((doc) => {
+          if (doc.file instanceof File) {
+            documentFiles.push(doc.file);
+          }
+        });
+      }
+    }
+    
+    // Clean media object for JSON serialization (remove file objects)
+    const cleanedProductData = { ...productData };
+    if (cleanedProductData.media) {
+      cleanedProductData.media = {
+        virtualTour: cleanedProductData.media.virtualTour || '',
+        // Remove file arrays as they'll be processed separately
+        images: undefined,
+        videos: undefined,
+        documents: undefined,
+      };
+    }
+    
+    // Append other product data as JSON (excluding media with files)
+    Object.keys(cleanedProductData).forEach(key => {
+      if (key !== 'media') {
+        if (typeof cleanedProductData[key] === 'object' && cleanedProductData[key] !== null) {
+          formData.append(key, JSON.stringify(cleanedProductData[key]));
+        } else if (cleanedProductData[key] !== null && cleanedProductData[key] !== undefined) {
+          formData.append(key, cleanedProductData[key]);
         }
       }
     });
-
-    if (productData.images && productData.images.length > 0) {
-      productData.images.forEach((image, index) => {
-        if (image instanceof File) {
-          formData.append('images', image);
-        }
-      });
+    
+    // Append cleaned media object (without file references)
+    if (cleanedProductData.media) {
+      formData.append('media', JSON.stringify(cleanedProductData.media));
     }
+    
+    // Append actual files with correct field names expected by multer
+    imageFiles.forEach((file) => {
+      formData.append('images', file);
+    });
+    
+    videoFiles.forEach((file) => {
+      formData.append('videos', file);
+    });
+    
+    documentFiles.forEach((file) => {
+      formData.append('documents', file);
+    });
+
+    // Debug logging
+    console.log('FormData summary:', {
+      imageFiles: imageFiles.length,
+      videoFiles: videoFiles.length,
+      documentFiles: documentFiles.length,
+      hasMedia: !!cleanedProductData.media
+    });
 
     const response = await api.post(API_ENDPOINTS.PRODUCTS.CREATE, formData, {
       headers: {
@@ -35,23 +104,85 @@ const productService = {
   updateProduct: async (id, productData) => {
     const formData = new FormData();
     
-    Object.keys(productData).forEach(key => {
-      if (key !== 'images' && key !== 'media') {
-        if (typeof productData[key] === 'object') {
-          formData.append(key, JSON.stringify(productData[key]));
-        } else {
-          formData.append(key, productData[key]);
+    // Extract files from media
+    const imageFiles = [];
+    const videoFiles = [];
+    const documentFiles = [];
+    
+    // Process media files
+    if (productData.media) {
+      if (productData.media.images) {
+        productData.media.images.forEach((image, index) => {
+          if (image.file instanceof File) {
+            imageFiles.push(image.file);
+            // Keep metadata for processing
+            formData.append(`imageMetadata[${index}]`, JSON.stringify({
+              alt: image.alt || '',
+              caption: image.caption || '',
+              isMain: image.isMain || false,
+              tags: image.tags || []
+            }));
+          }
+        });
+      }
+      
+      if (productData.media.videos) {
+        productData.media.videos.forEach((video) => {
+          if (video.file instanceof File) {
+            videoFiles.push(video.file);
+          }
+        });
+      }
+      
+      if (productData.media.documents) {
+        productData.media.documents.forEach((doc) => {
+          if (doc.file instanceof File) {
+            documentFiles.push(doc.file);
+          }
+        });
+      }
+    }
+    
+    // Clean media object for JSON serialization (remove file objects)
+    const cleanedProductData = { ...productData };
+    if (cleanedProductData.media) {
+      cleanedProductData.media = {
+        virtualTour: cleanedProductData.media.virtualTour || '',
+        // Keep existing media that's not being updated
+        images: cleanedProductData.media.images?.filter(img => !img.file) || [],
+        videos: cleanedProductData.media.videos?.filter(vid => !vid.file) || [],
+        documents: cleanedProductData.media.documents?.filter(doc => !doc.file) || [],
+      };
+    }
+    
+    // Append other product data as JSON (excluding media with files)
+    Object.keys(cleanedProductData).forEach(key => {
+      if (key !== 'media') {
+        if (typeof cleanedProductData[key] === 'object' && cleanedProductData[key] !== null) {
+          formData.append(key, JSON.stringify(cleanedProductData[key]));
+        } else if (cleanedProductData[key] !== null && cleanedProductData[key] !== undefined) {
+          formData.append(key, cleanedProductData[key]);
         }
       }
     });
-
-    if (productData.images && productData.images.length > 0) {
-      productData.images.forEach((image, index) => {
-        if (image instanceof File) {
-          formData.append('images', image);
-        }
-      });
+    
+    // Append cleaned media object
+    if (cleanedProductData.media) {
+      formData.append('media', JSON.stringify(cleanedProductData.media));
     }
+    
+    // Append actual files with correct field names expected by multer
+    imageFiles.forEach((file) => {
+      formData.append('images', file);
+    });
+    
+    videoFiles.forEach((file) => {
+      formData.append('videos', file);
+    });
+    
+    documentFiles.forEach((file) => {
+      formData.append('documents', file);
+    });
 
     const response = await api.put(`${API_ENDPOINTS.PRODUCTS.UPDATE}/${id}`, formData, {
       headers: {

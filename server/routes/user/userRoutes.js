@@ -10,7 +10,7 @@ import {
   exportUsers
 } from '../../controllers/user/userController.js';
 import { protect, authorize } from '../../middleware/auth/authMiddleware.js';
-import { uploadMiddleware } from '../../middleware/upload/uploadMiddleware.js';
+import { uploadConfigs } from "../../middleware/upload/uploadMiddleware.js"; 
 import { handleValidationErrors } from '../../middleware/validation/validationMiddleware.js';
 
 const router = express.Router();
@@ -45,8 +45,7 @@ router.post('/wishlist/:productId',
 router.get('/:id', getUser);
 
 router.put('/:id',
-  uploadMiddleware.single('profileImage'), // For profile image upload
-
+  uploadConfigs.profileImage, // Using predefined configuration
   updateUser
 );
 

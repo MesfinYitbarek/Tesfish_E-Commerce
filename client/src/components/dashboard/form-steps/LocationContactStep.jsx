@@ -72,7 +72,7 @@ const LocationContactStep = ({ formData = {}, errors = {}, onChange }) => {
         region: '',
         country: 'Ethiopia',
         zipCode: '',
-        coordinates: { lat: '', lng: '' },
+        // coordinates: { lat: '', lng: '' },
         landmarks: [],
         nearbyFacilities: [],
         ...formData.propertyDetails?.location
@@ -354,7 +354,7 @@ const LocationContactStep = ({ formData = {}, errors = {}, onChange }) => {
               placeholder="1000"
               className="text-base"
             />
-            <Input
+            {/* <Input
               label="Latitude"
               type="number"
               step="any"
@@ -373,11 +373,11 @@ const LocationContactStep = ({ formData = {}, errors = {}, onChange }) => {
               placeholder="38.7525"
               helper="GPS coordinates (optional)"
               className="text-base"
-            />
+            /> */}
           </div>
 
           {/* Landmarks */}
-          <div>
+          {/* <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
               Landmarks
             </label>
@@ -423,7 +423,7 @@ const LocationContactStep = ({ formData = {}, errors = {}, onChange }) => {
                 ))}
               </div>
             )}
-          </div>
+          </div> */}
 
           {/* Nearby Facilities */}
           <div>

@@ -1024,5 +1024,104 @@ export const {
   resetProductState,
   resetRegistrationState,
 } = productSlice.actions;
+// ================= SELECTORS =================
+// Basic selectors
+export const selectProducts = (state) => state.products.products;
+export const selectCurrentProduct = (state) => state.products.currentProduct;
+export const selectFeaturedProducts = (state) => state.products.featuredProducts;
+export const selectRelatedProducts = (state) => state.products.relatedProducts;
+export const selectCategories = (state) => state.products.categories;
+export const selectPropertyTypes = (state) => state.products.propertyTypes;
+export const selectWishlistedItems = (state) => state.products.wishlistedItems;
 
+// Loading selectors
+export const selectIsLoading = (state) => state.products.isLoading;
+export const selectProductLoading = (state) => state.products.productLoading;
+export const selectStatsLoading = (state) => state.products.statsLoading;
+export const selectAdminLoading = (state) => state.products.adminLoading;
+export const selectIsSubmitting = (state) => state.products.isSubmitting;
+export const selectRegistrationLoading = (state) => state.products.registrationLoading;
+
+// Error selectors
+export const selectError = (state) => state.products.error;
+export const selectRegistrationError = (state) => state.products.registrationError;
+
+// Data selectors
+export const selectStats = (state) => state.products.stats;
+export const selectAdminProducts = (state) => state.products.adminProducts;
+export const selectPagination = (state) => state.products.pagination;
+export const selectFilters = (state) => state.products.filters;
+export const selectViewMode = (state) => state.products.viewMode;
+export const selectAggregatedFilters = (state) => state.products.aggregatedFilters;
+
+// Registration selectors
+export const selectRegistrations = (state) => state.products.registrations;
+export const selectMyRegistrations = (state) => state.products.myRegistrations;
+export const selectAdminRegistrations = (state) => state.products.adminRegistrations;
+export const selectCompanyRegistrations = (state) => state.products.companyRegistrations; // Deprecated
+export const selectCurrentRegistration = (state) => state.products.currentRegistration;
+export const selectRegistrationStats = (state) => state.products.registrationStats;
+export const selectPropertyOwners = (state) => state.products.propertyOwners;
+export const selectRegistrationPagination = (state) => state.products.registrationPagination;
+export const selectRegistrationFilters = (state) => state.products.registrationFilters;
+
+// Computed selectors
+export const selectIsWishlisted = (productId) => (state) => 
+  state.products.wishlistedItems.includes(productId);
+
+export const selectProductById = (productId) => (state) => 
+  state.products.products.find(product => product._id === productId);
+
+export const selectFeaturedCount = (state) => state.products.featuredProducts.length;
+
+export const selectTotalProducts = (state) => state.products.pagination.totalProducts;
+
+export const selectHasMore = (state) => state.products.pagination.hasNext;
+
+export const selectCurrentPage = (state) => state.products.pagination.currentPage;
+
+export const selectProductsByCategory = (category) => (state) =>
+  state.products.products.filter(product => 
+    product.category?.slug === category || product.category?._id === category
+  );
+
+export const selectProductsByType = (productType) => (state) =>
+  state.products.products.filter(product => product.productType === productType);
+
+export const selectActiveFiltersCount = (state) => {
+  const filters = state.products.filters;
+  let count = 0;
+  
+  if (filters.search) count++;
+  if (filters.category) count++;
+  if (filters.subcategory) count++;
+  if (filters.minPrice) count++;
+  if (filters.maxPrice) count++;
+  if (filters.condition) count++;
+  if (filters.brand) count++;
+  if (filters.productType) count++;
+  if (filters.subProductType) count++;
+  if (filters.listingType) count++;
+  if (filters.city) count++;
+  if (filters.region) count++;
+  if (filters.bedrooms) count++;
+  if (filters.bathrooms) count++;
+  if (filters.minArea) count++;
+  if (filters.maxArea) count++;
+  if (filters.furnishingStatus) count++;
+  if (filters.features && filters.features.length > 0) count++;
+  if (filters.featured) count++;
+  if (filters.promoted) count++;
+  if (filters.sellerType) count++;
+  if (filters.minYear) count++;
+  if (filters.maxYear) count++;
+  
+  return count;
+};
+
+export const selectPriceRange = (state) => ({
+  min: state.products.aggregatedFilters.priceRange?.minPrice || 0,
+  max: state.products.aggregatedFilters.priceRange?.maxPrice || 0,
+  avg: state.products.aggregatedFilters.priceRange?.avgPrice || 0
+});
 export default productSlice.reducer;

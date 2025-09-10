@@ -897,6 +897,7 @@ export const getProducts = async (req, res) => {
 // @desc    Create product with enhanced property support
 // @route   POST /api/products
 // @access  Private (Sellers only)
+// controllers/Product/productController.js
 export const createProduct = async (req, res) => {
   try {
     // Parse JSON fields
@@ -911,7 +912,8 @@ export const createProduct = async (req, res) => {
       "viewingDetails",
       "shipping",
       "seo",
-      "specifications"
+      "specifications",
+      "media"
     ];
 
     parsedFields.forEach((field) => {
@@ -925,12 +927,32 @@ export const createProduct = async (req, res) => {
       }
     });
 
+    // Parse image metadata if present
+    let imageMetadata = [];
+    if (req.body.imageMetadata) {
+      try {
+        Object.keys(req.body.imageMetadata).forEach(key => {
+          if (typeof req.body.imageMetadata[key] === 'string') {
+            imageMetadata[parseInt(key)] = JSON.parse(req.body.imageMetadata[key]);
+          }
+        });
+      } catch (e) {
+        console.warn('Invalid image metadata:', e.message);
+      }
+    }
+
     // Validate request
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      if (req.files?.length > 0) {
+      // Clean up uploaded files on validation error
+      if (req.files) {
+        const allFiles = [
+          ...(req.files.images || []),
+          ...(req.files.videos || []),
+          ...(req.files.documents || [])
+        ];
         await Promise.all(
-          req.files.map(file => 
+          allFiles.map(file => 
             fs.promises.unlink(file.path).catch(console.error)
           )
         );
@@ -969,35 +991,98 @@ export const createProduct = async (req, res) => {
       };
     }
 
-    // Handle file uploads
-    if (req.files?.length > 0) {
+    // Initialize media object
+    if (!productData.media) {
+      productData.media = {};
+    }
+
+    // Handle file uploads to Cloudinary
+    if (req.files) {
       try {
-        const imagePromises = req.files.map((file) =>
-          uploadToCloudinary(file.path, "products")
-        );
-        const uploadedImages = await Promise.all(imagePromises);
+        // Upload images
+        if (req.files.images?.length > 0) {
+          const imagePromises = req.files.images.map(async (file, index) => {
+            const uploadResult = await uploadToCloudinary(file.path, "products");
+            const metadata = imageMetadata[index] || {};
+            
+            return {
+              url: uploadResult.secure_url,
+              publicId: uploadResult.public_id,
+              alt: metadata.alt || `${req.body.title} - Image ${index + 1}`,
+              caption: metadata.caption || '',
+              isMain: metadata.isMain || index === 0,
+              tags: metadata.tags || [],
+              uploadedAt: new Date()
+            };
+          });
+          
+          productData.media.images = await Promise.all(imagePromises);
+        }
 
-        productData.media = {
-          images: uploadedImages.map((img, index) => ({
-            url: img.secure_url,
-            publicId: img.public_id,
-            alt: `${req.body.title} - Image ${index + 1}`,
-            isPrimary: index === 0,
-          })),
-          ...productData.media
-        };
+        // Upload videos
+        if (req.files.videos?.length > 0) {
+          const videoPromises = req.files.videos.map(async (file, index) => {
+            const uploadResult = await uploadToCloudinary(file.path, "products/videos");
+            
+            return {
+              url: uploadResult.secure_url,
+              publicId: uploadResult.public_id,
+              filename: file.originalname,
+              size: file.size,
+              mimeType: file.mimetype,
+              uploadedAt: new Date()
+            };
+          });
+          
+          productData.media.videos = await Promise.all(videoPromises);
+        }
 
-        // Clean up local files
-        await Promise.all(
-          req.files.map(file => 
-            fs.promises.unlink(file.path).catch(console.error)
-          )
-        );
+        // Upload documents
+        if (req.files.documents?.length > 0) {
+          const documentPromises = req.files.documents.map(async (file, index) => {
+            const uploadResult = await uploadToCloudinary(file.path, "products/documents");
+            
+            return {
+              url: uploadResult.secure_url,
+              publicId: uploadResult.public_id,
+              filename: file.originalname,
+              originalName: file.originalname,
+              size: file.size,
+              mimeType: file.mimetype,
+              uploadedAt: new Date()
+            };
+          });
+          
+          productData.media.documents = await Promise.all(documentPromises);
+        }
+
+        console.log('Media uploaded successfully:', {
+          images: productData.media.images?.length || 0,
+          videos: productData.media.videos?.length || 0,
+          documents: productData.media.documents?.length || 0
+        });
+
       } catch (uploadError) {
         console.error("File upload error:", uploadError);
+        
+        // Clean up local files on error
+        if (req.files) {
+          const allFiles = [
+            ...(req.files.images || []),
+            ...(req.files.videos || []),
+            ...(req.files.documents || [])
+          ];
+          await Promise.all(
+            allFiles.map(file => 
+              fs.promises.unlink(file.path).catch(console.error)
+            )
+          );
+        }
+        
         return res.status(500).json({
           success: false,
           message: "Failed to upload product images",
+          error: uploadError.message
         });
       }
     }
@@ -1029,6 +1114,20 @@ export const createProduct = async (req, res) => {
 
   } catch (error) {
     console.error("Create product error:", error);
+
+    // Clean up uploaded files on error
+    if (req.files) {
+      const allFiles = [
+        ...(req.files.images || []),
+        ...(req.files.videos || []),
+        ...(req.files.documents || [])
+      ];
+      await Promise.all(
+        allFiles.map(file => 
+          fs.promises.unlink(file.path).catch(console.error)
+        )
+      );
+    }
 
     if (error.code === 11000) {
       return res.status(400).json({ 

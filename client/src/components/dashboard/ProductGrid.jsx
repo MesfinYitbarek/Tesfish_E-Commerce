@@ -203,12 +203,12 @@ const ProductGrid = ({
             {/* Image and Selection */}
             <div className="relative">
               <img
-                src={product.media?.images?.[0]?.url || '/api/placeholder/400/240'}
+                src={product.media?.images?.[0]?.url }
                 alt={product.title}
                 className="w-full h-48 object-cover"
-                onError={(e) => {
-                  e.target.src = '/api/placeholder/400/240';
-                }}
+                // onError={(e) => {
+                //   e.target.src = '/api/placeholder/400/240';
+                // }}
               />
               
               {/* Selection Checkbox */}

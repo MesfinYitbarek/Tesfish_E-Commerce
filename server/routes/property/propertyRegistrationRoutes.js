@@ -13,7 +13,7 @@ import {
   getRegistrationStats
 } from '../../controllers/property/propertyRegistrationController.js';
 import { protect, authorize } from '../../middleware/auth/authMiddleware.js';
-import { uploadMiddleware } from '../../middleware/upload/uploadMiddleware.js';
+import { uploadConfigs } from "../../middleware/upload/uploadMiddleware.js"; 
 import { handleValidationErrors } from '../../middleware/validation/validationMiddleware.js';
 
 const router = express.Router();
@@ -65,7 +65,7 @@ router.use(protect);
 
 // Customer routes
 router.post('/', 
-  uploadMiddleware.array('documents', 5),
+  uploadConfigs.registrationDocuments, // Use specific configuration for registration documents
   parseFormDataJSON,
   registrationValidation,
   submitRegistration

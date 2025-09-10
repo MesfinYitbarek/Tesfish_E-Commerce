@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 import { 
   ChevronLeftIcon, 
   ChevronRightIcon, 
@@ -8,34 +9,48 @@ import {
   EyeIcon,
   CalendarIcon,
   StarIcon,
-  FireIcon
+  FireIcon,
+  ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
 import { HeartIcon, PlayIcon } from '@heroicons/react/24/solid';
+
+import { 
+  fetchFeaturedProducts,
+  toggleWishlist,
+  selectFeaturedProducts,
+  selectIsLoading,
+  selectError
+} from '../../store/slices/productSlice';
 import Button from '../ui/Button';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import { formatCurrency } from '../../utils/helpers';
 
 const FeaturedProperties = () => {
-  const [properties, setProperties] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const dispatch = useDispatch();
+  const featuredProducts = useSelector(selectFeaturedProducts);
+  const isLoading = useSelector(selectIsLoading);
+  const error = useSelector(selectError);
+  const { user } = useSelector((state) => state.auth);
+
   const [currentSlide, setCurrentSlide] = useState(0);
   const [autoPlay, setAutoPlay] = useState(true);
   const [viewMode, setViewMode] = useState('grid');
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-    fetchFeaturedProperties();
-  }, []);
+    fetchFeaturedData();
+  }, [dispatch]);
 
   // Auto-play carousel
   useEffect(() => {
-    if (!autoPlay || viewMode !== 'carousel') return;
+    if (!autoPlay || viewMode !== 'carousel' || featuredProducts.length === 0) return;
     
     const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % Math.ceil(properties.length / getItemsPerSlide()));
+      setCurrentSlide((prev) => (prev + 1) % Math.ceil(featuredProducts.length / getItemsPerSlide()));
     }, 5000);
     
     return () => clearInterval(interval);
-  }, [autoPlay, properties.length, viewMode]);
+  }, [autoPlay, featuredProducts.length, viewMode]);
 
   const getItemsPerSlide = () => {
     if (typeof window !== 'undefined') {
@@ -45,158 +60,73 @@ const FeaturedProperties = () => {
     return 1;
   };
 
-  const fetchFeaturedProperties = async () => {
+  const fetchFeaturedData = async () => {
     try {
-      // Simulate API call with enhanced data
-      setTimeout(() => {
-        setProperties([
-          {
-            id: 1,
-            title: 'Luxury Modern Villa',
-            subtitle: 'Exclusive Bole Residence',
-            location: 'Bole, Addis Ababa',
-            price: 8500000,
-            currency: 'ETB',
-            originalPrice: 9200000,
-            bedrooms: 4,
-            bathrooms: 3,
-            area: 350,
-            lotSize: 800,
-            yearBuilt: 2023,
-            propertyType: 'villa',
-            status: 'new',
-            images: [
-              'https://pfst.cf2.poecdn.net/base/image/70fc72a6f139f7623b25514d5c5b01d32c3115c8447048c0be1aca5a1e4c5603?w=400&h=300',
-              'https://pfst.cf2.poecdn.net/base/image/b0fde61b62d48888ae7ab01620281a9c802c8d39a03486f05e360cb5b168c34f?w=400&h=300',
-              'https://pfst.cf2.poecdn.net/base/image/38cffc87dfc5ef9f0bfd994fae5da0984e5b4cc545d5e69eb78ebccb9707ee0f?w=400&h=300'
-            ],
-            virtualTour: true,
-            featured: true,
-            trending: true,
-            views: 1250,
-            daysListed: 5,
-            seller: {
-              name: 'Ethiopian Real Estate Co.',
-              type: 'company',
-              rating: 4.8,
-              verified: true,
-              responseTime: '2 hours'
-            },
-            amenities: ['Swimming Pool', 'Garden', 'Garage', 'Security'],
-            description: 'Stunning modern villa with panoramic city views and premium finishes.'
-          },
-          {
-            id: 2,
-            title: 'Modern Penthouse Apartment',
-            subtitle: 'Downtown Premium Living',
-            location: 'Kazanchis, Addis Ababa',
-            price: 3200000,
-            currency: 'ETB',
-            originalPrice: 3500000,
-            bedrooms: 2,
-            bathrooms: 2,
-            area: 120,
-            yearBuilt: 2022,
-            propertyType: 'apartment',
-            status: 'hot',
-            images: [
-              'https://pfst.cf2.poecdn.net/base/image/48ac674d3c841ecbe9558a3b8b612ea8d55a83c7d0f36afad825d931ee50b193?w=400&h=300',
-              'https://pfst.cf2.poecdn.net/base/image/75f85cac6379d6beef1257a412ceb179c81657d7b512b9fe0b67ddd9d052dccf?w=400&h=300'
-            ],
-            virtualTour: false,
-            featured: true,
-            trending: false,
-            views: 890,
-            daysListed: 12,
-            seller: {
-              name: 'John Doe',
-              type: 'individual',
-              rating: 4.5,
-              verified: true,
-              responseTime: '1 hour'
-            },
-            amenities: ['Balcony', 'Parking', 'Elevator', 'Gym'],
-            description: 'Stylish penthouse with modern amenities in the heart of the city.'
-          },
-          {
-            id: 3,
-            title: 'Prime Commercial Space',
-            subtitle: 'Investment Opportunity',
-            location: 'Merkato, Addis Ababa',
-            price: 12000000,
-            currency: 'ETB',
-            area: 500,
-            yearBuilt: 2021,
-            propertyType: 'commercial',
-            status: 'investment',
-            images: [
-              'https://pfst.cf2.poecdn.net/base/image/cd7b1680a45c74758acc3c4d8f1ffd52cdcefba38b486e3b1224552df90611c6?w=400&h=300',
-              'https://pfst.cf2.poecdn.net/base/image/ea23fcbc93ff81847940047abdb95f94ae1e4b38fff2bd61ebc5b0339b5c145d?w=400&h=300'
-            ],
-            virtualTour: true,
-            featured: true,
-            trending: true,
-            views: 2100,
-            daysListed: 8,
-            seller: {
-              name: 'Prime Properties Ltd.',
-              type: 'company',
-              rating: 4.9,
-              verified: true,
-              responseTime: '30 minutes'
-            },
-            amenities: ['Parking', 'Security', 'Generator', 'Elevator'],
-            description: 'Excellent commercial space in high-traffic area with great ROI potential.'
-          },
-          {
-            id: 4,
-            title: 'Luxury Penthouse Suite',
-            subtitle: 'Sky-High Living',
-            location: 'Gerji, Addis Ababa',
-            price: 15000000,
-            currency: 'ETB',
-            bedrooms: 3,
-            bathrooms: 2,
-            area: 200,
-            yearBuilt: 2023,
-            propertyType: 'apartment',
-            status: 'luxury',
-            images: [
-              'https://pfst.cf2.poecdn.net/base/image/c34db93ea0de6414b64552693881eb9c866c920f171ee40d6cbbcd873036052a?w=400&h=300'
-            ],
-            virtualTour: true,
-            featured: true,
-            trending: false,
-            views: 1580,
-            daysListed: 3,
-            seller: {
-              name: 'Luxury Homes Ethiopia',
-              type: 'company',
-              rating: 4.7,
-              verified: true,
-              responseTime: '1 hour'
-            },
-            amenities: ['City View', 'Terrace', 'Jacuzzi', 'Smart Home'],
-            description: 'Exclusive penthouse with breathtaking views and luxury amenities.'
-          }
-        ]);
-        setIsLoading(false);
-      }, 1000);
+      await dispatch(fetchFeaturedProducts(8)).unwrap();
+      setRetryCount(0);
     } catch (error) {
-      console.error('Error fetching featured properties:', error);
-      setIsLoading(false);
+      console.error('Error fetching featured products:', error);
+      setRetryCount(prev => prev + 1);
     }
   };
 
+  const handleRetry = () => {
+    fetchFeaturedData();
+  };
+
   const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % Math.ceil(properties.length / getItemsPerSlide()));
+    setCurrentSlide((prev) => (prev + 1) % Math.ceil(featuredProducts.length / getItemsPerSlide()));
   };
 
   const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + Math.ceil(properties.length / getItemsPerSlide())) % Math.ceil(properties.length / getItemsPerSlide()));
+    setCurrentSlide((prev) => (prev - 1 + Math.ceil(featuredProducts.length / getItemsPerSlide())) % Math.ceil(featuredProducts.length / getItemsPerSlide()));
   };
 
-  if (isLoading) {
+  // Transform API data to component format
+  const transformProductData = (product) => {
+    return {
+      id: product._id,
+      title: product.title,
+      subtitle: product.category?.name || 'Property',
+      location: `${product.propertyDetails?.location?.city || 'Addis Ababa'}, ${product.propertyDetails?.location?.region || 'Ethiopia'}`,
+      price: product.pricing?.basePrice || 0,
+      currency: product.pricing?.currency || 'ETB',
+      originalPrice: product.pricing?.originalPrice,
+      bedrooms: product.propertyDetails?.bedrooms,
+      bathrooms: product.propertyDetails?.bathrooms,
+      area: product.propertyDetails?.area?.value,
+      areaUnit: product.propertyDetails?.area?.unit || 'sqm',
+      lotSize: product.propertyDetails?.lotSize?.value,
+      yearBuilt: product.propertyDetails?.yearBuilt,
+      propertyType: product.subProductType || product.productType || 'property',
+      status: product.isFeatured ? 'featured' : product.isPromoted ? 'promoted' : 'available',
+      images: product.images?.map(img => img.url) || [
+        'https://pfst.cf2.poecdn.net/base/image/70fc72a6f139f7623b25514d5c5b01d32c3115c8447048c0be1aca5a1e4c5603?w=400&h=300'
+      ],
+      virtualTour: product.features?.includes('Virtual Tour') || false,
+      featured: product.isFeatured || false,
+      trending: product.isPromoted || false,
+      views: product.views || 0,
+      daysListed: product.createdAt ? Math.floor((new Date() - new Date(product.createdAt)) / (1000 * 60 * 60 * 24)) : 0,
+      seller: {
+        name: product.seller?.companyProfile?.companyName || 
+              `${product.seller?.individualProfile?.firstName || ''} ${product.seller?.individualProfile?.lastName || ''}`.trim() ||
+              product.seller?.displayName ||
+              'Property Owner',
+        type: product.seller?.userType || 'individual',
+        rating: product.seller?.rating || 4.5,
+        verified: product.seller?.isVerified || false,
+        responseTime: '2 hours'
+      },
+      amenities: product.propertyDetails?.features || product.features || [],
+      description: product.description || 'Beautiful property in a prime location.',
+      listingType: product.listingType || 'sell',
+      condition: product.condition || 'excellent',
+      furnishingStatus: product.propertyDetails?.furnishingStatus || 'unfurnished'
+    };
+  };
+
+  if (isLoading && featuredProducts.length === 0) {
     return (
       <section className="py-12 bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
         <div className="container mx-auto px-4">
@@ -210,6 +140,55 @@ const FeaturedProperties = () => {
       </section>
     );
   }
+
+  if (error && featuredProducts.length === 0) {
+    return (
+      <section className="py-12 bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
+        <div className="container mx-auto px-4">
+          <div className="text-center">
+            <ExclamationTriangleIcon className="h-12 w-12 text-red-500 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+              Failed to Load Featured Properties
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              {error || 'Unable to fetch featured properties at the moment.'}
+            </p>
+            <Button 
+              onClick={handleRetry}
+              className="bg-purple-600 hover:bg-purple-700"
+              disabled={isLoading}
+            >
+              {isLoading ? 'Retrying...' : `Try Again ${retryCount > 0 ? `(${retryCount})` : ''}`}
+            </Button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (featuredProducts.length === 0) {
+    return (
+      <section className="py-12 bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
+        <div className="container mx-auto px-4">
+          <div className="text-center">
+            <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+              Featured Properties
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              No featured properties available at the moment.
+            </p>
+            <Link to="/products?category=real-estate">
+              <Button className="bg-purple-600 hover:bg-purple-700">
+                Browse All Properties
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const transformedProperties = featuredProducts.map(transformProductData);
 
   return (
     <section className="py-12 bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
@@ -226,7 +205,7 @@ const FeaturedProperties = () => {
               Featured Properties
             </h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Discover our curated collection of premium properties across Ethiopia.
+              Discover our curated collection of {transformedProperties.length} premium properties across Ethiopia.
             </p>
           </div>
           
@@ -285,11 +264,25 @@ const FeaturedProperties = () => {
           </div>
         </div>
 
+        {/* Loading overlay for refresh */}
+        {isLoading && featuredProducts.length > 0 && (
+          <div className="relative">
+            <div className="absolute inset-0 bg-white/70 dark:bg-gray-900/70 z-10 flex items-center justify-center rounded-xl">
+              <LoadingSpinner size="lg" text="Refreshing..." />
+            </div>
+          </div>
+        )}
+
         {/* Compact Properties Display */}
         {viewMode === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {properties.map((property) => (
-              <PropertyCard key={property.id} property={property} />
+            {transformedProperties.map((property) => (
+              <PropertyCard 
+                key={property.id} 
+                property={property} 
+                currentUser={user}
+                onToggleWishlist={(productId) => dispatch(toggleWishlist(productId))}
+              />
             ))}
           </div>
         ) : (
@@ -298,13 +291,18 @@ const FeaturedProperties = () => {
               className="flex transition-transform duration-500 ease-out"
               style={{ transform: `translateX(-${currentSlide * 100}%)` }}
             >
-              {Array.from({ length: Math.ceil(properties.length / getItemsPerSlide()) }).map((_, slideIndex) => (
+              {Array.from({ length: Math.ceil(transformedProperties.length / getItemsPerSlide()) }).map((_, slideIndex) => (
                 <div key={slideIndex} className="w-full flex-shrink-0">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 px-1">
-                    {properties
+                    {transformedProperties
                       .slice(slideIndex * getItemsPerSlide(), slideIndex * getItemsPerSlide() + getItemsPerSlide())
                       .map((property) => (
-                        <PropertyCard key={property.id} property={property} />
+                        <PropertyCard 
+                          key={property.id} 
+                          property={property} 
+                          currentUser={user}
+                          onToggleWishlist={(productId) => dispatch(toggleWishlist(productId))}
+                        />
                       ))}
                   </div>
                 </div>
@@ -313,7 +311,7 @@ const FeaturedProperties = () => {
             
             {/* Compact Carousel Indicators */}
             <div className="flex justify-center mt-4 space-x-1">
-              {Array.from({ length: Math.ceil(properties.length / getItemsPerSlide()) }).map((_, index) => (
+              {Array.from({ length: Math.ceil(transformedProperties.length / getItemsPerSlide()) }).map((_, index) => (
                 <button
                   key={index}
                   onClick={() => setCurrentSlide(index)}
@@ -348,9 +346,18 @@ const FeaturedProperties = () => {
 
         {/* Compact Call to Action */}
         <div className="text-center mt-8">
-          <Link to="/products?category=real-estate">
-            <Button size="sm" className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 transform hover:scale-105 transition-all duration-200 shadow-lg text-sm px-6 py-2">
-              Explore All Properties
+          <Link to="/products?featured=true">
+            <Button size="sm" className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 transform hover:scale-105 transition-all duration-200 shadow-lg text-sm px-6 py-2 mr-3">
+              View All Featured
+            </Button>
+          </Link>
+          <Link to="/products">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="border-purple-200 text-purple-600 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-900/20 text-sm px-6 py-2"
+            >
+              Browse All Properties
             </Button>
           </Link>
         </div>
@@ -360,14 +367,30 @@ const FeaturedProperties = () => {
 };
 
 // Compact Property Card Component
-const PropertyCard = ({ property }) => {
+const PropertyCard = ({ property, user, onToggleWishlist }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isImageLoading, setIsImageLoading] = useState(true);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
 
-  const handleWishlist = (e) => {
+  const handleWishlist = async (e) => {
     e.preventDefault();
-    setIsWishlisted(!isWishlisted);
+    e.stopPropagation();
+    
+    if (!user) {
+      // Could show login modal here
+      return;
+    }
+
+    setWishlistLoading(true);
+    try {
+      await onToggleWishlist(property.id);
+      setIsWishlisted(!isWishlisted);
+    } catch (error) {
+      console.error('Error toggling wishlist:', error);
+    } finally {
+      setWishlistLoading(false);
+    }
   };
 
   const nextImage = (e) => {
@@ -383,17 +406,25 @@ const PropertyCard = ({ property }) => {
   };
 
   const getStatusBadge = () => {
-    const statusConfig = {
-      new: { color: 'bg-green-500', text: 'New' },
-      hot: { color: 'bg-red-500', text: 'Hot' },
-      luxury: { color: 'bg-purple-500', text: 'Luxury' },
-      investment: { color: 'bg-blue-500', text: 'Investment' }
-    };
-    
-    return statusConfig[property.status] || { color: 'bg-gray-500', text: 'Available' };
+    if (property.featured) {
+      return { color: 'bg-purple-500', text: 'Featured' };
+    }
+    if (property.trending) {
+      return { color: 'bg-orange-500', text: 'Promoted' };
+    }
+    if (property.listingType === 'rent') {
+      return { color: 'bg-blue-500', text: 'For Rent' };
+    }
+    return { color: 'bg-green-500', text: 'For Sale' };
   };
 
   const statusBadge = getStatusBadge();
+
+  // Handle image load error
+  const handleImageError = (e) => {
+    e.target.src = 'https://pfst.cf2.poecdn.net/base/image/70fc72a6f139f7623b25514d5c5b01d32c3115c8447048c0be1aca5a1e4c5603?w=400&h=300';
+    setIsImageLoading(false);
+  };
 
   return (
     <Link to={`/product/${property.id}`} className="group block">
@@ -405,6 +436,7 @@ const PropertyCard = ({ property }) => {
             alt={property.title}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
             onLoad={() => setIsImageLoading(false)}
+            onError={handleImageError}
           />
           
           {isImageLoading && (
@@ -452,7 +484,7 @@ const PropertyCard = ({ property }) => {
               {property.trending && (
                 <span className="bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full flex items-center">
                   <FireIcon className="h-2.5 w-2.5 mr-0.5" />
-                  Trending
+                  Hot
                 </span>
               )}
             </div>
@@ -466,13 +498,18 @@ const PropertyCard = ({ property }) => {
               )}
               <button
                 onClick={handleWishlist}
-                className="p-1 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all duration-200 shadow-lg"
+                disabled={wishlistLoading || !user}
+                className="p-1 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all duration-200 shadow-lg disabled:opacity-50"
               >
-                <HeartIcon 
-                  className={`h-3.5 w-3.5 transition-colors duration-200 ${
-                    isWishlisted ? 'text-red-500' : 'text-gray-400 hover:text-red-400'
-                  }`} 
-                />
+                {wishlistLoading ? (
+                  <div className="h-3.5 w-3.5 border border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <HeartIcon 
+                    className={`h-3.5 w-3.5 transition-colors duration-200 ${
+                      isWishlisted ? 'text-red-500' : 'text-gray-400 hover:text-red-400'
+                    }`} 
+                  />
+                )}
               </button>
             </div>
           </div>
@@ -491,7 +528,10 @@ const PropertyCard = ({ property }) => {
             </div>
             <div className="text-right">
               <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
-                {formatCurrency(property.price, property.currency)}
+                {property.listingType === 'rent' 
+                  ? `${formatCurrency(property.price, property.currency)}/mo`
+                  : formatCurrency(property.price, property.currency)
+                }
               </div>
               {property.originalPrice && property.originalPrice > property.price && (
                 <div className="text-xs text-gray-400 line-through">
@@ -522,7 +562,7 @@ const PropertyCard = ({ property }) => {
               </div>
               {property.area && (
                 <div className="font-medium text-purple-600 dark:text-purple-400">
-                  {property.area} sqm
+                  {property.area} {property.areaUnit}
                 </div>
               )}
             </div>
@@ -532,7 +572,7 @@ const PropertyCard = ({ property }) => {
           <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-2">
             <div className="flex items-center">
               <EyeIcon className="h-3 w-3 mr-0.5" />
-              <span>{property.views}</span>
+              <span>{property.views || 0}</span>
             </div>
             <div className="flex items-center">
               <CalendarIcon className="h-3 w-3 mr-0.5" />
@@ -568,7 +608,7 @@ const PropertyCard = ({ property }) => {
             <div className="flex items-center">
               <StarIcon className="h-3 w-3 text-yellow-400 mr-0.5" />
               <span className="text-xs font-medium text-gray-900 dark:text-gray-100">
-                {property.seller.rating}
+                {property.seller.rating.toFixed(1)}
               </span>
             </div>
           </div>

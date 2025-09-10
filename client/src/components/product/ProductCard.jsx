@@ -401,7 +401,7 @@ const ProductCard = ({ product, variant = 'default' }) => {
               </div>
 
               <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-2">
-                {product.description}
+                {product.shortDescription}
               </p>
             </div>
 

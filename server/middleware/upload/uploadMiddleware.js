@@ -1,14 +1,14 @@
+// middleware/upload/uploadMiddleware.js
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 
 // Ensure upload directory exists
-const uploadDir = 'uploads';
+const uploadDir = 'uploads/temp';
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Configure storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadDir);
@@ -19,59 +19,83 @@ const storage = multer.diskStorage({
   }
 });
 
-// File filter
 const fileFilter = (req, file, cb) => {
-  // Check file type
-  const allowedTypes = /jpeg|jpg|png|gif|pdf|doc|docx/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedTypes.test(file.mimetype);
+  const allowedTypes = {
+    'images': ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'],
+    'videos': ['video/mp4', 'video/webm', 'video/mov', 'video/avi'],
+    'documents': [
+      'application/pdf', 
+      'application/msword', 
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/plain'
+    ]
+  };
 
-  if (mimetype && extname) {
-    return cb(null, true);
+  // Get all allowed types
+  const allAllowedTypes = [
+    ...allowedTypes.images,
+    ...allowedTypes.videos,
+    ...allowedTypes.documents
+  ];
+
+  // Remove duplicates
+  const uniqueAllowedTypes = [...new Set(allAllowedTypes)];
+
+  if (uniqueAllowedTypes.includes(file.mimetype)) {
+    cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Only images and documents are allowed.'));
+    cb(new Error(`Invalid file type: ${file.mimetype}. Allowed types: ${uniqueAllowedTypes.join(', ')}`), false);
   }
 };
 
-// Configure multer
-export const uploadMiddleware = multer({
+// Base multer configuration
+const upload = multer({
   storage,
+  fileFilter,
   limits: {
-    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024, // 10MB default
-    files: parseInt(process.env.MAX_FILES_PER_REQUEST) || 10
-  },
-  fileFilter
+    fileSize: 100 * 1024 * 1024, // 100MB max file size
+    files: 50 // Max 50 files
+  }
 });
 
-// Error handling middleware for multer
-export const handleUploadError = (error, req, res, next) => {
-  if (error instanceof multer.MulterError) {
-    if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({
-        success: false,
-        message: 'File too large. Maximum size is 10MB.'
-      });
-    }
-    if (error.code === 'LIMIT_FILE_COUNT') {
-      return res.status(400).json({
-        success: false,
-        message: `Too many files. Maximum is ${process.env.MAX_FILES_PER_REQUEST || 10} files.`
-      });
-    }
-    if (error.code === 'LIMIT_UNEXPECTED_FILE') {
-      return res.status(400).json({
-        success: false,
-        message: 'Unexpected field name for file upload.'
-      });
-    }
-  }
-  
-  if (error.message.includes('Invalid file type')) {
-    return res.status(400).json({
-      success: false,
-      message: error.message
-    });
-  }
+// Export different middleware configurations
+export const uploadMiddleware = upload.fields([
+  { name: 'images', maxCount: 20 },
+  { name: 'videos', maxCount: 5 },
+  { name: 'documents', maxCount: 10 }
+]);
 
-  next(error);
+// Export base upload instance with correct syntax
+export const baseUpload = upload;
+
+// Specific configurations for different use cases
+export const uploadConfigs = {
+  // For single file upload
+  single: (fieldName) => upload.single(fieldName),
+  
+  // For multiple files of same type
+  array: (fieldName, maxCount = 10) => upload.array(fieldName, maxCount),
+  
+  // For multiple different field types
+  fields: (fieldsConfig) => upload.fields(fieldsConfig),
+  
+  // Common configurations
+  profileImage: upload.single('profileImage'),
+  attachments: upload.array('attachments', 5),
+  galleryImages: upload.array('images', 20),
+  productMedia: upload.fields([
+    { name: 'images', maxCount: 20 },
+    { name: 'videos', maxCount: 5 },
+    { name: 'documents', maxCount: 10 }
+  ]),
+  serviceAttachments: upload.array('attachments', 5),
+  registrationDocuments: upload.array('documents', 5)
 };
+
+// Export the base upload instance (alternative way)
+export { upload };
+
+// Default export for main product upload
+export default uploadMiddleware;

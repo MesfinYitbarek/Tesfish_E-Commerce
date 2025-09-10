@@ -3,7 +3,7 @@ import { useDispatch } from 'react-redux';
 import HeroSection from '../../components/home/HeroSection';
 import FeaturedProperties from '../../components/home/FeaturedProperties';
 import ServicesShowcase from '../../components/home/ServicesShowcase';
-import TestimonialsSection from '../../components/home/TestimonialsSection';
+//import TestimonialsSection from '../../components/home/TestimonialsSection';
 import CategoryShowcase from '../../components/home/CategoryShowcase';
 // import RecentListings from '../../components/home/RecentListings';
 import CallToActionSection from '../../components/home/CallToActionSection';
@@ -42,7 +42,7 @@ const HomePage = () => {
       {/* <RecentListings /> */}
       
       {/* Testimonials */}
-      <TestimonialsSection />
+      {/* <TestimonialsSection /> */}
       
       {/* Call to Action */}
       <CallToActionSection />
