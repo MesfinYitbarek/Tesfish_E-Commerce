@@ -7,10 +7,9 @@ import {
   MapPinIcon, 
   HomeIcon,
   EyeIcon,
-  CalendarIcon,
-  StarIcon,
   FireIcon,
-  ExclamationTriangleIcon
+  ExclamationTriangleIcon,
+  TagIcon
 } from '@heroicons/react/24/outline';
 import { HeartIcon, PlayIcon } from '@heroicons/react/24/solid';
 
@@ -24,6 +23,25 @@ import {
 import Button from '../ui/Button';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import { formatCurrency } from '../../utils/helpers';
+
+// Custom Icons for Property Features
+const BedIcon = ({ className }) => (
+  <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+    <path d="M7 14c1.66 0 3-1.34 3-3S8.66 8 7 8s-3 1.34-3 3 1.34 3 3 3zm0-4c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zM19 7h-8v7H3V6c0-.55-.45-1-1-1s-1 .45-1 1v11c0 .55.45 1 1 1s1-.45 1-1v-2h18v2c0 .55.45 1 1 1s1-.45 1-1V10c0-1.65-1.35-3-3-3z"/>
+  </svg>
+);
+
+const BathIcon = ({ className }) => (
+  <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+    <path d="M9 17c0 .55-.45 1-1 1s-1-.45-1-1 .45-1 1-1 1 .45 1 1zm3-1c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1zm4 0c-.55 0-1 .45-1 1s.45 1 1 1 1-.45 1-1-.45-1-1-1zm3-4v1c0 1.1-.9 2-2 2H7c-1.1 0-2-.9-2-2v-1H3v-1c0-2.76 2.24-5 5-5h8c2.76 0 5 2.24 5 5v1h-2zm-2 0H7v1h10v-1z"/>
+  </svg>
+);
+
+const ParkingIcon = ({ className }) => (
+  <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+    <path d="M13 3H6v18h4v-6h3c3.31 0 6-2.69 6-6s-2.69-6-6-6zm.2 8H10V7h3.2c1.1 0 2 .9 2 2s-.9 2-2 2z"/>
+  </svg>
+);
 
 const FeaturedProperties = () => {
   const dispatch = useDispatch();
@@ -82,7 +100,7 @@ const FeaturedProperties = () => {
     setCurrentSlide((prev) => (prev - 1 + Math.ceil(featuredProducts.length / getItemsPerSlide())) % Math.ceil(featuredProducts.length / getItemsPerSlide()));
   };
 
-  // Transform API data to component format
+  // Transform API data to component format - Updated to use correct image path
   const transformProductData = (product) => {
     return {
       id: product._id,
@@ -96,25 +114,23 @@ const FeaturedProperties = () => {
       bathrooms: product.propertyDetails?.bathrooms,
       area: product.propertyDetails?.area?.value,
       areaUnit: product.propertyDetails?.area?.unit || 'sqm',
+      parkingSpaces: product.propertyDetails?.parkingSpaces,
       lotSize: product.propertyDetails?.lotSize?.value,
       yearBuilt: product.propertyDetails?.yearBuilt,
       propertyType: product.subProductType || product.productType || 'property',
       status: product.isFeatured ? 'featured' : product.isPromoted ? 'promoted' : 'available',
-      images: product.images?.map(img => img.url) || [
-        'https://pfst.cf2.poecdn.net/base/image/70fc72a6f139f7623b25514d5c5b01d32c3115c8447048c0be1aca5a1e4c5603?w=400&h=300'
-      ],
+      // Updated to use media.images from API
+      images: product.media?.images?.map(img => img.url) || [],
       virtualTour: product.features?.includes('Virtual Tour') || false,
       featured: product.isFeatured || false,
       trending: product.isPromoted || false,
       views: product.views || 0,
-      daysListed: product.createdAt ? Math.floor((new Date() - new Date(product.createdAt)) / (1000 * 60 * 60 * 24)) : 0,
       seller: {
         name: product.seller?.companyProfile?.companyName || 
               `${product.seller?.individualProfile?.firstName || ''} ${product.seller?.individualProfile?.lastName || ''}`.trim() ||
               product.seller?.displayName ||
               'Property Owner',
         type: product.seller?.userType || 'individual',
-        rating: product.seller?.rating || 4.5,
         verified: product.seller?.isVerified || false,
         responseTime: '2 hours'
       },
@@ -122,7 +138,11 @@ const FeaturedProperties = () => {
       description: product.description || 'Beautiful property in a prime location.',
       listingType: product.listingType || 'sell',
       condition: product.condition || 'excellent',
-      furnishingStatus: product.propertyDetails?.furnishingStatus || 'unfurnished'
+      furnishingStatus: product.propertyDetails?.furnishingStatus || 'unfurnished',
+      // Additional sections
+      brand: product.brand,
+      model: product.model,
+      vehicleDetails: product.vehicleDetails
     };
   };
 
@@ -366,19 +386,21 @@ const FeaturedProperties = () => {
   );
 };
 
-// Compact Property Card Component
+// Updated Property Card Component
 const PropertyCard = ({ property, user, onToggleWishlist }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [isImageLoading, setIsImageLoading] = useState(true);
   const [wishlistLoading, setWishlistLoading] = useState(false);
 
+  // Default fallback image
+  const DEFAULT_IMAGE = 'https://pfst.cf2.poecdn.net/base/image/70fc72a6f139f7623b25514d5c5b01d32c3115c8447048c0be1aca5a1e4c5603?w=400&h=300';
+
   const handleWishlist = async (e) => {
     e.preventDefault();
     e.stopPropagation();
     
     if (!user) {
-      // Could show login modal here
       return;
     }
 
@@ -396,13 +418,17 @@ const PropertyCard = ({ property, user, onToggleWishlist }) => {
   const nextImage = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev + 1) % property.images.length);
+    if (property.images && property.images.length > 1) {
+      setCurrentImageIndex((prev) => (prev + 1) % property.images.length);
+    }
   };
 
   const prevImage = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    setCurrentImageIndex((prev) => (prev - 1 + property.images.length) % property.images.length);
+    if (property.images && property.images.length > 1) {
+      setCurrentImageIndex((prev) => (prev - 1 + property.images.length) % property.images.length);
+    }
   };
 
   const getStatusBadge = () => {
@@ -422,68 +448,129 @@ const PropertyCard = ({ property, user, onToggleWishlist }) => {
 
   // Handle image load error
   const handleImageError = (e) => {
-    e.target.src = 'https://pfst.cf2.poecdn.net/base/image/70fc72a6f139f7623b25514d5c5b01d32c3115c8447048c0be1aca5a1e4c5603?w=400&h=300';
+    if (e.target.src !== DEFAULT_IMAGE) {
+      e.target.src = DEFAULT_IMAGE;
+    }
     setIsImageLoading(false);
   };
 
+  // Get current image with fallback
+  const getCurrentImage = () => {
+    if (property.images && property.images.length > 0) {
+      return property.images[currentImageIndex] || DEFAULT_IMAGE;
+    }
+    return DEFAULT_IMAGE;
+  };
+
+  // Get property features with icons (like ProductCard)
+  const getPropertyFeatures = () => {
+    const features = [];
+
+    if (['homes', 'plots', 'commercials'].includes(property.propertyType) && property) {
+      if (property.bedrooms) {
+        features.push({
+          icon: <BedIcon className="h-4 w-4 text-purple-500" />,
+          value: property.bedrooms
+        });
+      }
+      if (property.bathrooms) {
+        features.push({
+          icon: <BathIcon className="h-4 w-4 text-purple-500" />,
+          value: property.bathrooms
+        });
+      }
+      if (property.area) {
+        features.push({
+          icon: <HomeIcon className="h-4 w-4 text-purple-500" />,
+          value: `${property.area} ${property.areaUnit}`
+        });
+      }
+      if (property.parkingSpaces) {
+        features.push({
+          icon: <ParkingIcon className="h-4 w-4 text-purple-500" />,
+          value: property.parkingSpaces
+        });
+      }
+    } else if (property.propertyType === 'others') {
+      if (property.vehicleDetails) {
+        const { make, year, fuelType } = property.vehicleDetails;
+        if (year) features.push({ icon: <TagIcon className="h-4 w-4 text-purple-500" />, value: year.toString() });
+        if (make) features.push({ icon: <TagIcon className="h-4 w-4 text-purple-500" />, value: make });
+        if (fuelType) features.push({ icon: <TagIcon className="h-4 w-4 text-purple-500" />, value: fuelType });
+      }
+      if (property.brand) features.push({ icon: <TagIcon className="h-4 w-4 text-purple-500" />, value: property.brand });
+      if (property.model) features.push({ icon: <TagIcon className="h-4 w-4 text-purple-500" />, value: property.model });
+    }
+
+    return features.slice(0, 4);
+  };
+
+  const propertyFeatures = getPropertyFeatures();
+
   return (
-    <Link to={`/product/${property.id}`} className="group block">
+    <Link to={`/products/${property.id}`} className="group block">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 dark:border-gray-700">
-        {/* Compact Image Gallery */}
-        <div className="relative h-40 overflow-hidden">
+        {/* Image Gallery */}
+        <div className="relative h-48 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800">
           <img
-            src={property.images[currentImageIndex]}
+            src={getCurrentImage()}
             alt={property.title}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
             onLoad={() => setIsImageLoading(false)}
             onError={handleImageError}
+            loading="lazy"
           />
           
           {isImageLoading && (
             <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse flex items-center justify-center">
-              <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin"></div>
+              <div className="w-8 h-8 border-2 border-gray-300 border-t-purple-500 rounded-full animate-spin"></div>
             </div>
           )}
           
-          {/* Compact Image Navigation */}
-          {property.images.length > 1 && (
+          {/* Image Navigation */}
+          {property.images && property.images.length > 1 && (
             <>
               <button
                 onClick={prevImage}
-                className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/60 backdrop-blur-sm text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-black/80"
+                className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/70 backdrop-blur-sm text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-black/90 hover:scale-110"
               >
-                <ChevronLeftIcon className="h-3 w-3" />
+                <ChevronLeftIcon className="h-4 w-4" />
               </button>
               <button
                 onClick={nextImage}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/60 backdrop-blur-sm text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-black/80"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/70 backdrop-blur-sm text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-black/90 hover:scale-110"
               >
-                <ChevronRightIcon className="h-3 w-3" />
+                <ChevronRightIcon className="h-4 w-4" />
               </button>
               
-              {/* Compact Image Indicators */}
-              <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex space-x-1">
-                {property.images.map((_, index) => (
+              {/* Image Indicators */}
+              <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-1">
+                {property.images.slice(0, 5).map((_, index) => (
                   <div
                     key={index}
-                    className={`w-1.5 h-1.5 rounded-full transition-all duration-200 ${
-                      index === currentImageIndex ? 'bg-white scale-125' : 'bg-white/60'
+                    className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                      index === currentImageIndex ? 'bg-white scale-125 shadow-lg' : 'bg-white/60 hover:bg-white/80'
                     }`}
                   />
                 ))}
+                {property.images.length > 5 && (
+                  <div className="text-white text-xs bg-black/70 px-2 py-1 rounded-full backdrop-blur-sm">
+                    +{property.images.length - 5}
+                  </div>
+                )}
               </div>
             </>
           )}
 
-          {/* Compact Top Badges Row */}
-          <div className="absolute top-2 left-2 right-2 flex justify-between items-start">
+          {/* Top Badges */}
+          <div className="absolute top-3 left-3 right-3 flex justify-between items-start">
             <div className="flex flex-col space-y-1">
-              <span className={`${statusBadge.color} text-white text-xs font-bold px-2 py-0.5 rounded-full`}>
+              <span className={`${statusBadge.color} text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg`}>
                 {statusBadge.text}
               </span>
               {property.trending && (
-                <span className="bg-orange-500 text-white text-xs font-bold px-2 py-0.5 rounded-full flex items-center">
-                  <FireIcon className="h-2.5 w-2.5 mr-0.5" />
+                <span className="bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center shadow-lg">
+                  <FireIcon className="h-3 w-3 mr-1" />
                   Hot
                 </span>
               )}
@@ -491,21 +578,21 @@ const PropertyCard = ({ property, user, onToggleWishlist }) => {
             
             <div className="flex flex-col space-y-1">
               {property.virtualTour && (
-                <div className="bg-purple-500 text-white text-xs font-bold px-2 py-0.5 rounded-full flex items-center">
-                  <EyeIcon className="h-2.5 w-2.5 mr-0.5" />
+                <div className="bg-purple-500 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center shadow-lg">
+                  <EyeIcon className="h-3 w-3 mr-1" />
                   VR
                 </div>
               )}
               <button
                 onClick={handleWishlist}
                 disabled={wishlistLoading || !user}
-                className="p-1 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all duration-200 shadow-lg disabled:opacity-50"
+                className="p-2 bg-white/95 backdrop-blur-sm rounded-full hover:bg-white hover:scale-110 transition-all duration-300 shadow-lg disabled:opacity-50"
               >
                 {wishlistLoading ? (
-                  <div className="h-3.5 w-3.5 border border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                  <div className="h-4 w-4 border-2 border-gray-400 border-t-purple-500 rounded-full animate-spin"></div>
                 ) : (
                   <HeartIcon 
-                    className={`h-3.5 w-3.5 transition-colors duration-200 ${
+                    className={`h-4 w-4 transition-colors duration-200 ${
                       isWishlisted ? 'text-red-500' : 'text-gray-400 hover:text-red-400'
                     }`} 
                   />
@@ -515,15 +602,15 @@ const PropertyCard = ({ property, user, onToggleWishlist }) => {
           </div>
         </div>
 
-        {/* Compact Property Details */}
-        <div className="p-3">
-          <div className="flex items-start justify-between mb-2">
+        {/* Property Details */}
+        <div className="p-4">
+          <div className="flex items-start justify-between mb-3">
             <div className="flex-1">
-              <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 group-hover:text-purple-500 transition-colors duration-200 mb-0.5 line-clamp-1">
+              <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 group-hover:text-purple-500 transition-colors duration-200 mb-1 line-clamp-1">
                 {property.title}
               </h3>
               <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
-                {property.subtitle}
+                {property.propertyType}
               </p>
             </div>
             <div className="text-right">
@@ -541,56 +628,42 @@ const PropertyCard = ({ property, user, onToggleWishlist }) => {
             </div>
           </div>
 
-          <div className="flex items-center text-gray-600 dark:text-gray-400 mb-2">
+          <div className="flex items-center text-gray-600 dark:text-gray-400 mb-3">
             <MapPinIcon className="h-3 w-3 mr-1 text-purple-500" />
             <span className="text-xs line-clamp-1">{property.location}</span>
           </div>
 
-          {/* Compact Property Features */}
-          {(property.bedrooms || property.bathrooms || property.area) && (
-            <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-md">
-              <div className="flex items-center space-x-3">
-                {property.bedrooms && (
-                  <div className="flex items-center">
-                    <HomeIcon className="h-3 w-3 mr-0.5" />
-                    <span>{property.bedrooms} bed</span>
-                  </div>
-                )}
-                {property.bathrooms && (
-                  <span>{property.bathrooms} bath</span>
-                )}
-              </div>
-              {property.area && (
-                <div className="font-medium text-purple-600 dark:text-purple-400">
-                  {property.area} {property.areaUnit}
+          {/* Property Features with Icons */}
+          {propertyFeatures.length > 0 && (
+            <div className="flex items-center space-x-3 text-xs text-gray-600 dark:text-gray-400 mb-3 p-2 bg-gray-50 dark:bg-gray-700 rounded-md">
+              {propertyFeatures.map((feature, index) => (
+                <div key={index} className="flex items-center space-x-1">
+                  {feature.icon}
+                  <span className="font-medium">{feature.value}</span>
                 </div>
-              )}
+              ))}
             </div>
           )}
 
-          {/* Compact Stats Row */}
-          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-2">
+          {/* Stats Row - Date Removed */}
+          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-3">
             <div className="flex items-center">
               <EyeIcon className="h-3 w-3 mr-0.5" />
               <span>{property.views || 0}</span>
             </div>
-            <div className="flex items-center">
-              <CalendarIcon className="h-3 w-3 mr-0.5" />
-              <span>{property.daysListed}d ago</span>
-            </div>
           </div>
 
-          {/* Compact Seller Info */}
-          <div className="flex items-center justify-between pt-2 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center">
+          {/* Seller Info */}
+          <div className="flex items-center pt-3 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex items-center flex-1">
               <div className="relative">
-                <div className="w-6 h-6 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full flex items-center justify-center">
+                <div className="w-7 h-7 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full flex items-center justify-center">
                   <span className="text-white text-xs font-bold">
                     {property.seller.name.charAt(0)}
                   </span>
                 </div>
                 {property.seller.verified && (
-                  <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full flex items-center justify-center">
+                  <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
                     <span className="text-white text-xs">✓</span>
                   </div>
                 )}
@@ -599,17 +672,10 @@ const PropertyCard = ({ property, user, onToggleWishlist }) => {
                 <div className="text-xs font-semibold text-gray-900 dark:text-gray-100 line-clamp-1">
                   {property.seller.name}
                 </div>
-                <div className="text-xs text-gray-500 capitalize flex items-center">
+                <div className="text-xs text-gray-500 capitalize">
                   <span>{property.seller.type}</span>
                 </div>
               </div>
-            </div>
-            
-            <div className="flex items-center">
-              <StarIcon className="h-3 w-3 text-yellow-400 mr-0.5" />
-              <span className="text-xs font-medium text-gray-900 dark:text-gray-100">
-                {property.seller.rating.toFixed(1)}
-              </span>
             </div>
           </div>
         </div>
