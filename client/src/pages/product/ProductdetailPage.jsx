@@ -1,3 +1,4 @@
+// pages/ProductDetailPage.jsx
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
@@ -12,7 +13,9 @@ import {
   PhoneIcon,
   EyeIcon,
   ClockIcon,
-  CheckIcon
+  CheckIcon,
+  ChevronDownIcon,
+  ChevronUpIcon
 } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 import { 
@@ -21,7 +24,7 @@ import {
   toggleWishlist,
   clearCurrentProduct 
 } from '../../store/slices/productSlice';
-import ProductImageGallery from '../../components/product/productImageGallery'
+import ProductImageGallery from '../../components/product/ProductImageGallery';
 import ProductInfo from '../../components/product/ProductInfo';
 import ProductDescription from '../../components/product/ProductDescription';
 import SellerInfo from '../../components/product/SellerInfo';
@@ -82,7 +85,7 @@ const ProductDetailPage = () => {
 
   const handleWishlist = () => {
     if (!isAuthenticated) {
-      toast.error('Please login to save property');
+      toast.error('Please login to save product');
       return;
     }
     dispatch(toggleWishlist(product._id));
@@ -98,33 +101,71 @@ const ProductDetailPage = () => {
 
   const isWishlisted = wishlistedItems.includes(product?._id);
   const isOwner = user?._id === product?.seller?._id;
-  const isPropertyProduct = ['homes', 'plots', 'commercials'].includes(product?.productType);
+  const isRealEstate = ['homes', 'plots', 'commercials'].includes(product?.productType);
   const hasRegistrationFee = product?.propertyDetails?.registrationFee && product.propertyDetails.registrationFee > 0;
 
-  // Format price for display
+  // Enhanced price formatting with correct field paths from API
   const formatPrice = () => {
-    if (!product?.pricing) return 'Contact for price';
+    // Based on API response, price data is in the pricing object
+    let priceValue = product?.displayPrice || product?.pricing?.basePrice;
+    let currencyValue = product?.pricing?.currency || 'ETB';
     
-    const { basePrice, salePrice, currency, rentPrice } = product.pricing;
-    const finalPrice = salePrice || basePrice || 0;
+    // Check if price exists and is valid
+    if (priceValue === null || priceValue === undefined || priceValue === '') {
+      return 'Contact for price';
+    }
     
-    if (product.listingType === 'rent' && rentPrice?.monthly) {
-      if (rentPrice.monthly >= 1000000) {
-        return `${(rentPrice.monthly / 1000000).toFixed(1)}M ${currency || 'ETB'}/month`;
+    const price = parseFloat(priceValue);
+    
+    if (isNaN(price)) {
+      return 'Contact for price';
+    }
+
+    // Handle price display based on price type
+    if (product?.pricing?.priceType === 'on-request') {
+      return 'Price on Request';
+    }
+
+    // Add price type prefix if needed
+    let pricePrefix = '';
+    if (product?.pricing?.priceType === 'starting-from') {
+      pricePrefix = 'Starting from ';
+    }
+
+    // Format currency symbol
+    const getCurrencySymbol = (curr) => {
+      const symbols = { ETB: 'Br', USD: '$', EUR: '€' };
+      return symbols[curr] || curr;
+    };
+
+    const currencySymbol = getCurrencySymbol(currencyValue);
+    
+    // Format based on listing type
+    if (product?.listingType === 'rent') {
+      const suffix = '/month';
+      if (price >= 1000000) {
+        return `${pricePrefix}${currencySymbol}${(price / 1000000).toFixed(1)}M${suffix}`;
       }
-      if (rentPrice.monthly >= 1000) {
-        return `${(rentPrice.monthly / 1000).toFixed(0)}K ${currency || 'ETB'}/month`;
+      if (price >= 1000) {
+        return `${pricePrefix}${currencySymbol}${(price / 1000).toFixed(0)}K${suffix}`;
       }
-      return `${rentPrice.monthly.toLocaleString()} ${currency || 'ETB'}/month`;
+      return `${pricePrefix}${currencySymbol}${price.toLocaleString()}${suffix}`;
     }
     
-    if (finalPrice >= 1000000) {
-      return `${(finalPrice / 1000000).toFixed(1)}M ${currency || 'ETB'}`;
+    // For sale prices
+    if (price >= 1000000) {
+      return `${pricePrefix}${currencySymbol}${(price / 1000000).toFixed(1)}M`;
     }
-    if (finalPrice >= 1000) {
-      return `${(finalPrice / 1000).toFixed(0)}K ${currency || 'ETB'}`;
+    if (price >= 1000) {
+      return `${pricePrefix}${currencySymbol}${(price / 1000).toFixed(0)}K`;
     }
-    return `${finalPrice.toLocaleString()} ${currency || 'ETB'}`;
+    return `${pricePrefix}${currencySymbol}${price.toLocaleString()}`;
+  };
+
+  // Get currency symbol helper
+  const getCurrencySymbol = () => {
+    const currencyMap = { ETB: 'Br', USD: '$', EUR: '€' };
+    return currencyMap[product?.pricing?.currency] || 'Br';
   };
 
   if (productLoading) {
@@ -132,7 +173,7 @@ const ProductDetailPage = () => {
       <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <LoadingSpinner size="lg" />
-          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading property details...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading product details...</p>
         </div>
       </div>
     );
@@ -146,17 +187,17 @@ const ProductDetailPage = () => {
             <ExclamationTriangleIcon className="h-8 w-8 text-red-500" />
           </div>
           <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-            Property Not Found
+            Product Not Found
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm leading-relaxed">
-            {error || 'The property you are looking for does not exist or has been removed.'}
+            {error || 'The product you are looking for does not exist or has been removed.'}
           </p>
           <div className="space-y-3">
             <Button variant="outline" onClick={handleBack} className="w-full">
               Go Back
             </Button>
             <Button onClick={() => navigate('/products')} className="w-full">
-              Browse Properties
+              Browse Products
             </Button>
           </div>
         </div>
@@ -168,13 +209,34 @@ const ProductDetailPage = () => {
     return null;
   }
 
+  // Dynamic tabs based on available content
   const tabs = [
     { id: 'overview', label: 'Overview' },
-    { id: 'details', label: 'Details' },
-    ...(isPropertyProduct ? [
-      { id: 'location', label: 'Location' },
-      { id: 'amenities', label: 'Amenities' }
-    ] : []),
+    // Only show details tab if there are specifications/details
+    ...((() => {
+      const hasSpecs = product.specifications?.length > 0 ||
+                      product.brand || product.model || product.condition ||
+                      product.vehicleDetails || product.equipmentDetails || 
+                      product.businessDetails || product.warranty?.duration ||
+                      product.inventory?.sku || product.inventory?.stock ||
+                      (isRealEstate && product.propertyDetails?.yearBuilt);
+      return hasSpecs ? [{ id: 'details', label: 'Details' }] : [];
+    })()),
+    // Only show location tab if there's location data
+    ...((() => {
+      const hasLocation = product.fullAddress || product.propertyDetails?.location?.address ||
+                         product.propertyDetails?.location?.landmarks?.length > 0;
+      return isRealEstate && hasLocation ? [{ id: 'location', label: 'Location' }] : [];
+    })()),
+    // Only show amenities tab if there are features/amenities
+    ...((() => {
+      const propDetails = product.propertyDetails;
+      const hasFeatures = propDetails?.features?.length > 0 || 
+                         propDetails?.amenities?.length > 0 ||
+                         (propDetails?.utilities && Object.values(propDetails.utilities).some(Boolean)) ||
+                         (product.productType === 'plots' && propDetails?.landDetails);
+      return isRealEstate && hasFeatures ? [{ id: 'amenities', label: 'Features' }] : [];
+    })()),
     { id: 'reviews', label: `Reviews` },
   ];
 
@@ -227,7 +289,7 @@ const ProductDetailPage = () => {
               <ProductImageGallery product={product} />
             </div>
 
-            {/* Property Overview */}
+            {/* Product Overview */}
             <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6">
               <div className="flex items-start justify-between mb-6">
                 <div className="flex-1">
@@ -244,22 +306,22 @@ const ProductDetailPage = () => {
                         Featured
                       </Badge>
                     )}
+
+                    {product.isPromoted && (
+                      <Badge variant="purple" className="font-medium">
+                        Promoted
+                      </Badge>
+                    )}
                   </div>
 
                   <h1 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4 leading-tight">
                     {product.title}
                   </h1>
 
-                  {isPropertyProduct && product.propertyDetails?.location && (
+                  {isRealEstate && product.fullAddress && (
                     <div className="flex items-center text-gray-600 dark:text-gray-400 mb-4">
                       <MapPinIcon className="h-5 w-5 mr-2 flex-shrink-0" />
-                      <span className="text-lg">
-                        {[
-                          product.propertyDetails.location.subcity,
-                          product.propertyDetails.location.city,
-                          product.propertyDetails.location.region
-                        ].filter(Boolean).join(', ')}
-                      </span>
+                      <span className="text-lg">{product.fullAddress}</span>
                     </div>
                   )}
 
@@ -287,9 +349,19 @@ const ProductDetailPage = () => {
                 </div>
               </div>
 
-              {/* Quick Features for Properties */}
-              {isPropertyProduct && product.propertyDetails && (
+              {/* Quick Features for Real Estate */}
+              {isRealEstate && product.propertyDetails && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl">
+                  {product.propertyDetails.area?.value && (
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                        {product.propertyDetails.area.value}
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        {product.propertyDetails.area.unit || 'sqm'}
+                      </div>
+                    </div>
+                  )}
                   {product.propertyDetails.bedrooms && (
                     <div className="text-center">
                       <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -304,16 +376,6 @@ const ProductDetailPage = () => {
                         {product.propertyDetails.bathrooms}
                       </div>
                       <div className="text-sm text-gray-600 dark:text-gray-400">Bathrooms</div>
-                    </div>
-                  )}
-                  {product.propertyDetails.area?.value && (
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                        {product.propertyDetails.area.value}
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        {product.propertyDetails.area.unit || 'sqm'}
-                      </div>
                     </div>
                   )}
                   {product.propertyDetails.parkingSpaces && (
@@ -359,11 +421,11 @@ const ProductDetailPage = () => {
                   <ProductDetails product={product} />
                 )}
                 
-                {activeTab === 'location' && isPropertyProduct && (
+                {activeTab === 'location' && isRealEstate && (
                   <ProductLocation product={product} />
                 )}
 
-                {activeTab === 'amenities' && isPropertyProduct && (
+                {activeTab === 'amenities' && isRealEstate && (
                   <ProductAmenities product={product} />
                 )}
                 
@@ -383,7 +445,7 @@ const ProductDetailPage = () => {
             {!isOwner && (
               <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                  Interested in this property?
+                  Interested in this {isRealEstate ? 'property' : 'product'}?
                 </h3>
                 
                 <div className="space-y-3">
@@ -395,16 +457,18 @@ const ProductDetailPage = () => {
                     Send Message
                   </Button>
                   
-                  <Button 
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => setShowContactModal(true)}
-                    leftIcon={<PhoneIcon className="h-5 w-5" />}
-                  >
-                    Call Now
-                  </Button>
+                  {product.contactInfo?.phone && (
+                    <Button 
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => window.open(`tel:${product.contactInfo.phone}`)}
+                      leftIcon={<PhoneIcon className="h-5 w-5" />}
+                    >
+                      Call Now
+                    </Button>
+                  )}
                   
-                  {isPropertyProduct && (
+                  {isRealEstate && (
                     <Button 
                       variant="outline"
                       className="w-full"
@@ -425,7 +489,7 @@ const ProductDetailPage = () => {
                     >
                       Register Interest
                       <span className="ml-2 text-sm opacity-90">
-                        {product.propertyDetails.registrationFee.toLocaleString()} {product.pricing?.currency || 'ETB'}
+                        {getCurrencySymbol()}{product.propertyDetails.registrationFee.toLocaleString()}
                       </span>
                     </Button>
                   </div>
@@ -443,47 +507,57 @@ const ProductDetailPage = () => {
               />
             </div>
 
-            {/* Property Highlights */}
-            {isPropertyProduct && product.propertyDetails && (
-              <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-                  Property Highlights
-                </h3>
-                <div className="space-y-3">
-                  {product.propertyDetails.yearBuilt && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Year Built</span>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">
-                        {product.propertyDetails.yearBuilt}
-                      </span>
+            {/* Property Highlights - only show if there's data */}
+            {isRealEstate && product.propertyDetails && (
+              (() => {
+                const propDetails = product.propertyDetails;
+                const hasHighlights = propDetails.yearBuilt || propDetails.floors || 
+                                     propDetails.furnishingStatus || propDetails.titleDeedStatus;
+                
+                if (!hasHighlights) return null;
+                
+                return (
+                  <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                      Property Highlights
+                    </h3>
+                    <div className="space-y-3">
+                      {propDetails.yearBuilt && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Year Built</span>
+                          <span className="font-medium text-gray-900 dark:text-gray-100">
+                            {propDetails.yearBuilt}
+                          </span>
+                        </div>
+                      )}
+                      {propDetails.floors && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Floors</span>
+                          <span className="font-medium text-gray-900 dark:text-gray-100">
+                            {propDetails.floors}
+                          </span>
+                        </div>
+                      )}
+                      {propDetails.furnishingStatus && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Furnishing</span>
+                          <span className="font-medium text-gray-900 dark:text-gray-100 capitalize">
+                            {propDetails.furnishingStatus.replace('-', ' ')}
+                          </span>
+                        </div>
+                      )}
+                      {propDetails.titleDeedStatus && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600 dark:text-gray-400">Title Deed</span>
+                          <span className="font-medium text-gray-900 dark:text-gray-100 capitalize">
+                            {propDetails.titleDeedStatus.replace('-', ' ')}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                  {product.propertyDetails.floors && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Floors</span>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">
-                        {product.propertyDetails.floors}
-                      </span>
-                    </div>
-                  )}
-                  {product.propertyDetails.furnishingStatus && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Furnishing</span>
-                      <span className="font-medium text-gray-900 dark:text-gray-100 capitalize">
-                        {product.propertyDetails.furnishingStatus.replace('-', ' ')}
-                      </span>
-                    </div>
-                  )}
-                  {product.propertyDetails.titleDeedStatus && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Title Deed</span>
-                      <span className="font-medium text-gray-900 dark:text-gray-100 capitalize">
-                        {product.propertyDetails.titleDeedStatus.replace('-', ' ')}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </div>
+                  </div>
+                );
+              })()
             )}
 
             {/* Safety Notice */}
@@ -493,7 +567,7 @@ const ProductDetailPage = () => {
               </h4>
               <ul className="text-xs text-amber-700 dark:text-amber-300 space-y-1">
                 <li>• Meet in public places</li>
-                <li>• Verify property documents</li>
+                <li>• Verify {isRealEstate ? 'property documents' : 'product authenticity'}</li>
                 <li>• Don't pay in advance</li>
                 <li>• Use secure payment methods</li>
               </ul>
@@ -501,7 +575,7 @@ const ProductDetailPage = () => {
           </div>
         </div>
 
-        {/* Related Properties */}
+        {/* Related Products */}
         {relatedProducts.length > 0 && (
           <div className="mt-16">
             <RelatedProducts products={relatedProducts} />
@@ -530,7 +604,7 @@ const ProductDetailPage = () => {
         />
       )}
 
-      {isPropertyProduct && (
+      {isRealEstate && (
         <AppointmentBookingModal
           isOpen={showAppointmentModal}
           onClose={() => setShowAppointmentModal(false)}
@@ -541,7 +615,7 @@ const ProductDetailPage = () => {
   );
 };
 
-// Clean Product Details Component
+// Updated Product Details Component
 const ProductDetails = ({ product }) => {
   const details = [];
 
@@ -553,7 +627,7 @@ const ProductDetails = ({ product }) => {
     value: product.condition.charAt(0).toUpperCase() + product.condition.slice(1).replace('-', ' ')
   });
 
-  // Property specific details
+  // Real Estate specific details
   if (['homes', 'plots', 'commercials'].includes(product.productType)) {
     const propDetails = product.propertyDetails;
     
@@ -571,6 +645,7 @@ const ProductDetails = ({ product }) => {
         value: propDetails.titleDeedStatus.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())
       });
     }
+    if (propDetails?.balconies) details.push({ label: 'Balconies', value: propDetails.balconies });
   }
 
   // Vehicle details
@@ -580,8 +655,56 @@ const ProductDetails = ({ product }) => {
     if (vehDetails.model) details.push({ label: 'Model', value: vehDetails.model });
     if (vehDetails.year) details.push({ label: 'Year', value: vehDetails.year });
     if (vehDetails.mileage) details.push({ label: 'Mileage', value: `${vehDetails.mileage} km` });
-    if (vehDetails.fuelType) details.push({ label: 'Fuel Type', value: vehDetails.fuelType });
-    if (vehDetails.transmission) details.push({ label: 'Transmission', value: vehDetails.transmission });
+    if (vehDetails.fuelType) details.push({ label: 'Fuel Type', value: vehDetails.fuelType.charAt(0).toUpperCase() + vehDetails.fuelType.slice(1) });
+    if (vehDetails.transmission) details.push({ label: 'Transmission', value: vehDetails.transmission.charAt(0).toUpperCase() + vehDetails.transmission.slice(1) });
+    if (vehDetails.color) details.push({ label: 'Color', value: vehDetails.color });
+    if (vehDetails.engineSize) details.push({ label: 'Engine Size', value: vehDetails.engineSize });
+    if (vehDetails.bodyType) details.push({ label: 'Body Type', value: vehDetails.bodyType });
+  }
+
+  // Equipment details
+  if (product.equipmentDetails) {
+    const equipDetails = product.equipmentDetails;
+    if (equipDetails.manufacturer) details.push({ label: 'Manufacturer', value: equipDetails.manufacturer });
+    if (equipDetails.model) details.push({ label: 'Model', value: equipDetails.model });
+    if (equipDetails.year) details.push({ label: 'Year', value: equipDetails.year });
+    if (equipDetails.hoursUsed) details.push({ label: 'Hours Used', value: equipDetails.hoursUsed });
+    if (equipDetails.condition) details.push({ label: 'Condition', value: equipDetails.condition });
+  }
+
+  // Business details
+  if (product.businessDetails) {
+    const bizDetails = product.businessDetails;
+    if (bizDetails.businessType) details.push({ label: 'Business Type', value: bizDetails.businessType });
+    if (bizDetails.establishedYear) details.push({ label: 'Established Year', value: bizDetails.establishedYear });
+    if (bizDetails.employees) details.push({ label: 'Employees', value: bizDetails.employees });
+    if (bizDetails.annualRevenue) details.push({ label: 'Annual Revenue', value: `${product.pricing?.currency || 'ETB'} ${parseFloat(bizDetails.annualRevenue).toLocaleString()}` });
+  }
+
+  // General specifications
+  if (product.specifications && product.specifications.length > 0) {
+    product.specifications.forEach(spec => {
+      if (spec.name && spec.value) {
+        details.push({ label: spec.name, value: spec.value, group: spec.group });
+      }
+    });
+  }
+
+  // Warranty information
+  if (product.warranty?.duration) {
+    details.push({ 
+      label: 'Warranty', 
+      value: `${product.warranty.duration} ${product.warranty.unit} (${product.warranty.type})` 
+    });
+  }
+
+  // Inventory information
+  if (product.inventory?.sku) details.push({ label: 'SKU', value: product.inventory.sku });
+  if (product.inventory?.stock) details.push({ label: 'Stock', value: product.inventory.stock });
+
+  // Don't render the section if no details available
+  if (details.length === 0) {
+    return null;
   }
 
   return (
@@ -590,46 +713,67 @@ const ProductDetails = ({ product }) => {
         Specifications
       </h3>
       
-      {details.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {details.map((detail, index) => (
-            <div 
-              key={index}
-              className="flex justify-between py-3 border-b border-gray-100 dark:border-gray-800 last:border-b-0"
-            >
-              <span className="text-gray-600 dark:text-gray-400 font-medium">
-                {detail.label}
-              </span>
-              <span className="text-gray-900 dark:text-gray-100 font-semibold">
-                {detail.value}
-              </span>
+      <div className="space-y-6">
+        {/* Group specifications by category */}
+        {(() => {
+          const grouped = details.reduce((acc, detail) => {
+            const group = detail.group || 'General';
+            if (!acc[group]) acc[group] = [];
+            acc[group].push(detail);
+            return acc;
+          }, {});
+
+          return Object.entries(grouped).map(([groupName, groupDetails]) => (
+            <div key={groupName}>
+              {Object.keys(grouped).length > 1 && (
+                <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">
+                  {groupName}
+                </h4>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {groupDetails.map((detail, index) => (
+                  <div 
+                    key={index}
+                    className="flex justify-between py-3 border-b border-gray-100 dark:border-gray-800 last:border-b-0"
+                  >
+                    <span className="text-gray-600 dark:text-gray-400 font-medium">
+                      {detail.label}
+                    </span>
+                    <span className="text-gray-900 dark:text-gray-100 font-semibold">
+                      {detail.value}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-8">
-          <p className="text-gray-500 dark:text-gray-400">
-            No detailed specifications available.
-          </p>
-        </div>
-      )}
+          ));
+        })()}
+      </div>
     </div>
   );
 };
 
-// Clean Product Location Component
+// Updated Product Location Component
 const ProductLocation = ({ product }) => {
   const location = product.propertyDetails?.location;
 
-  if (!location) {
-    return (
-      <div className="text-center py-8">
-        <MapPinIcon className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-        <p className="text-gray-500 dark:text-gray-400">
-          No location information available.
-        </p>
-      </div>
-    );
+  if (!location && !product.fullAddress) {
+    return null;
+  }
+
+  // Check if we have any meaningful location data
+  const hasAddress = location?.address || product.fullAddress;
+  const hasCity = location?.city;
+  const hasRegion = location?.region;
+  const hasCoordinates = location?.coordinates && (location.coordinates.lat || location.coordinates.lng);
+  const hasLandmarks = location?.landmarks && location.landmarks.length > 0;
+  const hasFacilities = location?.nearbyFacilities && location.nearbyFacilities.length > 0;
+  const hasDirections = location?.directions;
+  const hasTransport = location?.publicTransport;
+
+  // If no meaningful location data, don't render
+  if (!hasAddress && !hasCity && !hasRegion && !hasCoordinates && !hasLandmarks && !hasFacilities && !hasDirections && !hasTransport) {
+    return null;
   }
 
   return (
@@ -640,55 +784,125 @@ const ProductLocation = ({ product }) => {
       
       <div className="space-y-6">
         {/* Address Information */}
-        <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
-          <div className="space-y-2">
-            {location.address && (
-              <div className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                {location.address}
-              </div>
-            )}
-            
-            <div className="text-gray-600 dark:text-gray-400">
-              {[location.subcity, location.city, location.region].filter(Boolean).join(', ')}
+        {(hasAddress || hasCity || hasRegion) && (
+          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
+            <div className="space-y-2">
+              {hasAddress && (
+                <div className="text-lg font-medium text-gray-900 dark:text-gray-100">
+                  {location?.address || product.fullAddress}
+                </div>
+              )}
+              
+              {(hasCity || hasRegion) && (
+                <div className="text-gray-600 dark:text-gray-400">
+                  {[location?.subcity, location?.city, location?.region].filter(Boolean).join(', ')}
+                </div>
+              )}
+              
+              {location?.country && (
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  {location.country}
+                </div>
+              )}
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Map Placeholder */}
-        <div className="h-64 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center">
-          <div className="text-center">
-            <MapPinIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-500 dark:text-gray-400 font-medium">
-              Interactive Map
-            </p>
-            <p className="text-sm text-gray-400">
-              Coming Soon
-            </p>
+        {/* Coordinates */}
+        {hasCoordinates && (
+          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4">
+            <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">GPS Coordinates</h4>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              {location.coordinates.lat && (
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Latitude:</span>
+                  <span className="ml-2 font-mono">{location.coordinates.lat}</span>
+                </div>
+              )}
+              {location.coordinates.lng && (
+                <div>
+                  <span className="text-gray-500 dark:text-gray-400">Longitude:</span>
+                  <span className="ml-2 font-mono">{location.coordinates.lng}</span>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Map Placeholder - only show if we have coordinates or address */}
+        {(hasCoordinates || hasAddress) && (
+          <div className="h-64 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center">
+            <div className="text-center">
+              <MapPinIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+              <p className="text-gray-500 dark:text-gray-400 font-medium">
+                Interactive Map
+              </p>
+              <p className="text-sm text-gray-400">
+                Coming Soon
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Landmarks */}
+        {hasLandmarks && (
+          <div>
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              Nearby Landmarks
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {location.landmarks.map((landmark, index) => (
+                <div key={index} className="flex items-center p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                  <MapPinIcon className="h-5 w-5 text-gray-400 mr-3 flex-shrink-0" />
+                  <span className="text-gray-900 dark:text-gray-100">{landmark}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Nearby Facilities */}
-        {location.nearbyFacilities && location.nearbyFacilities.length > 0 && (
+        {hasFacilities && (
           <div>
             <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
               Nearby Facilities
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {location.nearbyFacilities.slice(0, 6).map((facility, index) => (
+              {location.nearbyFacilities.map((facility, index) => (
                 <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                  <div>
-                    <div className="font-medium text-gray-900 dark:text-gray-100 capitalize">
-                      {facility.type.replace('-', ' ')}
-                    </div>
-                    <div className="text-sm text-gray-600 dark:text-gray-400">
-                      {facility.name}
-                    </div>
-                  </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400 font-medium">
-                    {facility.distance}m
-                  </div>
+                  <span className="text-gray-900 dark:text-gray-100 capitalize">
+                    {facility.replace('-', ' ')}
+                  </span>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Directions */}
+        {hasDirections && (
+          <div>
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              Directions
+            </h4>
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+              <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line">
+                {location.directions}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Public Transport */}
+        {hasTransport && (
+          <div>
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              Public Transport
+            </h4>
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+              <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line">
+                {location.publicTransport}
+              </p>
             </div>
           </div>
         )}
@@ -697,18 +911,22 @@ const ProductLocation = ({ product }) => {
   );
 };
 
-// Clean Product Amenities Component
+// Updated Product Amenities Component
 const ProductAmenities = ({ product }) => {
   const propDetails = product.propertyDetails;
   
   if (!propDetails) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-gray-500 dark:text-gray-400">
-          No amenities information available.
-        </p>
-      </div>
-    );
+    return null;
+  }
+
+  const hasFeatures = propDetails.features && propDetails.features.length > 0;
+  const hasAmenities = propDetails.amenities && propDetails.amenities.length > 0;
+  const hasUtilities = propDetails.utilities && Object.values(propDetails.utilities).some(Boolean);
+  const hasLandDetails = product.productType === 'plots' && propDetails.landDetails;
+
+  // Don't render if no features, amenities, or utilities
+  if (!hasFeatures && !hasAmenities && !hasUtilities && !hasLandDetails) {
+    return null;
   }
 
   return (
@@ -719,7 +937,7 @@ const ProductAmenities = ({ product }) => {
       
       <div className="space-y-8">
         {/* Property Features */}
-        {propDetails.features && propDetails.features.length > 0 && (
+        {hasFeatures && (
           <div>
             <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
               Property Features
@@ -738,7 +956,7 @@ const ProductAmenities = ({ product }) => {
         )}
 
         {/* Building Amenities */}
-        {propDetails.amenities && propDetails.amenities.length > 0 && (
+        {hasAmenities && (
           <div>
             <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
               Building Amenities
@@ -757,13 +975,15 @@ const ProductAmenities = ({ product }) => {
         )}
 
         {/* Utilities */}
-        {propDetails.utilities && (
+        {hasUtilities && (
           <div>
             <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
               Utilities & Services
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Object.entries(propDetails.utilities).map(([utility, available]) => (
+              {Object.entries(propDetails.utilities)
+                .filter(([utility, available]) => available !== undefined && available !== null)
+                .map(([utility, available]) => (
                 <div key={utility} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
                   <span className="text-gray-900 dark:text-gray-100 font-medium capitalize">
                     {utility.replace(/([A-Z])/g, ' $1').trim()}
@@ -780,9 +1000,62 @@ const ProductAmenities = ({ product }) => {
             </div>
           </div>
         )}
+
+        {/* Land Details (for plots) */}
+        {hasLandDetails && (
+          <div>
+            <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+              Land Details
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {propDetails.landDetails.landUse && (
+                <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                  <span className="text-gray-600 dark:text-gray-400 text-sm">Land Use:</span>
+                  <div className="font-medium text-gray-900 dark:text-gray-100 capitalize">
+                    {propDetails.landDetails.landUse.replace('-', ' ')}
+                  </div>
+                </div>
+              )}
+              {propDetails.landDetails.topography && (
+                <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                  <span className="text-gray-600 dark:text-gray-400 text-sm">Topography:</span>
+                  <div className="font-medium text-gray-900 dark:text-gray-100 capitalize">
+                    {propDetails.landDetails.topography}
+                  </div>
+                </div>
+              )}
+              {propDetails.landDetails.soilType && (
+                <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                  <span className="text-gray-600 dark:text-gray-400 text-sm">Soil Type:</span>
+                  <div className="font-medium text-gray-900 dark:text-gray-100">
+                    {propDetails.landDetails.soilType}
+                  </div>
+                </div>
+              )}
+              {propDetails.landDetails.waterSource && (
+                <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                  <span className="text-gray-600 dark:text-gray-400 text-sm">Water Source:</span>
+                  <div className="font-medium text-gray-900 dark:text-gray-100 capitalize">
+                    {propDetails.landDetails.waterSource}
+                  </div>
+                </div>
+              )}
+              {propDetails.landDetails.accessRoad && (
+                <div className="p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                  <span className="text-gray-600 dark:text-gray-400 text-sm">Access Road:</span>
+                  <div className="font-medium text-gray-900 dark:text-gray-100 capitalize">
+                    {propDetails.landDetails.accessRoad}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
+
+
 
 export default ProductDetailPage;

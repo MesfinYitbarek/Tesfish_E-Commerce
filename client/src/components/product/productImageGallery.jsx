@@ -1,3 +1,4 @@
+// components/product/ProductImageGallery.jsx
 import { useState, useRef } from 'react';
 import { 
   ChevronLeftIcon, 
@@ -96,11 +97,16 @@ const ProductImageGallery = ({ product }) => {
             </div>
           )}
 
-          {/* Property Badges */}
+          {/* Product Badges */}
           <div className="absolute top-4 left-4 flex flex-col space-y-2">
-            {product.featured && (
+            {product.isFeatured && (
               <span className="px-3 py-1 bg-yellow-500 text-white text-sm font-medium rounded-full">
                 Featured
+              </span>
+            )}
+            {product.isPromoted && (
+              <span className="px-3 py-1 bg-purple-500 text-white text-sm font-medium rounded-full">
+                Promoted
               </span>
             )}
             {product.status === 'urgent' && (
@@ -108,7 +114,7 @@ const ProductImageGallery = ({ product }) => {
                 Urgent
               </span>
             )}
-            {product.pricing?.negotiable && (
+            {product.negotiable && (
               <span className="px-3 py-1 bg-green-500 text-white text-sm font-medium rounded-full">
                 Negotiable
               </span>
@@ -159,6 +165,13 @@ const ProductImageGallery = ({ product }) => {
                       alt={`${product.title} - Image ${index + 1}`}
                       className="w-full h-full object-cover"
                     />
+                    {image.isPrimary && (
+                      <div className="absolute inset-0 bg-primary-500/20 flex items-center justify-center">
+                        <span className="text-xs text-primary-700 font-medium bg-white/90 px-1 rounded">
+                          Primary
+                        </span>
+                      </div>
+                    )}
                   </button>
                 ))}
               </div>

@@ -1,218 +1,304 @@
+// components/product/ProductDescription.jsx
 import { useState } from 'react';
 import { ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 
+// Updated Product Description Component
 const ProductDescription = ({ product }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
   const [showFullDescription, setShowFullDescription] = useState(false);
+  const [showFullShortDescription, setShowFullShortDescription] = useState(false);
 
   const description = product.description || '';
+  const shortDescription = product.shortDescription || '';
   const isLongDescription = description.length > 500;
-  const displayDescription = showFullDescription || !isLongDescription 
-    ? description 
+  const isLongShortDescription = shortDescription.length > 150;
+
+  const displayDescription = showFullDescription || !isLongDescription
+    ? description
     : description.substring(0, 500) + '...';
 
-  const features = product.type === 'real-estate' 
-    ? product.realEstateDetails?.features || []
-    : product.serviceDetails?.features || [];
+  const displayShortDescription = showFullShortDescription || !isLongShortDescription
+    ? shortDescription
+    : shortDescription.substring(0, 150) + '...';
 
-  const amenities = product.realEstateDetails?.amenities || [];
-  const specifications = getSpecifications(product);
+  const hasTags = product.tags && product.tags.length > 0;
+  const hasPaymentMethods = product.paymentMethods && product.paymentMethods.length > 0;
+  const hasInstallments = product.installmentOptions && product.installmentOptions.length > 0;
+  const hasWarranty = product.warranty?.duration;
+  const hasReturnPolicy = product.returnPolicy?.returnable;
+  const hasShipping = product.shipping && (product.shipping.freeShipping || product.shipping.shippingCost || product.shipping.weight || product.shipping.shippingClass);
+  const hasNotes = product.notes;
 
   return (
     <div className="space-y-6">
+      {/* Short Description */}
+      {shortDescription && (
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+            Summary
+          </h3>
+
+          <div className="prose dark:prose-invert max-w-none">
+            <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
+              {displayShortDescription}
+            </p>
+
+            {isLongShortDescription && (
+              <button
+                onClick={() => setShowFullShortDescription(!showFullShortDescription)}
+                className="mt-2 text-primary-500 hover:text-primary-600 font-medium text-sm flex items-center"
+              >
+                {showFullShortDescription ? (
+                  <>
+                    Show less
+                    <ChevronUpIcon className="h-4 w-4 ml-1" />
+                  </>
+                ) : (
+                  <>
+                    Read more
+                    <ChevronDownIcon className="h-4 w-4 ml-1" />
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Main Description */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-          Description
-        </h3>
-        
-        <div className="prose dark:prose-invert max-w-none">
-          <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
-            {displayDescription}
-          </p>
-          
-          {isLongDescription && (
-            <button
-              onClick={() => setShowFullDescription(!showFullDescription)}
-              className="mt-2 text-primary-500 hover:text-primary-600 font-medium text-sm flex items-center"
-            >
-              {showFullDescription ? (
-                <>
-                  Show less
-                  <ChevronUpIcon className="h-4 w-4 ml-1" />
-                </>
-              ) : (
-                <>
-                  Read more
-                  <ChevronDownIcon className="h-4 w-4 ml-1" />
-                </>
-              )}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Features */}
-      {features.length > 0 && (
+      {description && (
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-            {product.type === 'real-estate' ? 'Property Features' : 'Service Features'}
+            {shortDescription ? 'Detailed Description' : 'Description'}
           </h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {features.map((feature, index) => (
-              <div
-                key={index}
-                className="flex items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+
+          <div className="prose dark:prose-invert max-w-none">
+            <p className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-line">
+              {displayDescription}
+            </p>
+
+            {isLongDescription && (
+              <button
+                onClick={() => setShowFullDescription(!showFullDescription)}
+                className="mt-2 text-primary-500 hover:text-primary-600 font-medium text-sm flex items-center"
               >
-                <div className="w-2 h-2 bg-primary-500 rounded-full mr-3"></div>
-                <span className="text-gray-700 dark:text-gray-300">{feature}</span>
-              </div>
+                {showFullDescription ? (
+                  <>
+                    Show less
+                    <ChevronUpIcon className="h-4 w-4 ml-1" />
+                  </>
+                ) : (
+                  <>
+                    Read more
+                    <ChevronDownIcon className="h-4 w-4 ml-1" />
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tags */}
+      {hasTags && (
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+            Tags
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {product.tags.map((tag, index) => (
+              <span
+                key={index}
+                className="px-3 py-1 bg-primary-100 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300 rounded-full text-sm"
+              >
+                {tag}
+              </span>
             ))}
           </div>
         </div>
       )}
 
-      {/* Amenities (Real Estate) */}
-      {product.type === 'real-estate' && amenities.length > 0 && (
+      {/* Payment Methods */}
+      {hasPaymentMethods && (
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-            Amenities
+            Accepted Payment Methods
           </h3>
-          
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-            {amenities.map((amenity, index) => (
-              <div
+          <div className="flex flex-wrap gap-2">
+            {product.paymentMethods.map((method, index) => (
+              <span
                 key={index}
-                className="flex items-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg"
+                className="px-3 py-1 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg text-sm font-medium"
               >
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
-                <span className="text-gray-700 dark:text-gray-300 text-sm">{amenity}</span>
-              </div>
+                {method}
+              </span>
             ))}
           </div>
         </div>
       )}
 
-      {/* Specifications */}
-      {specifications.length > 0 && (
+      {/* Installment Options */}
+      {hasInstallments && (
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-            Specifications
+            Installment Plans Available
           </h3>
-          
-          <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {specifications.map((spec, index) => (
-                <div
-                  key={index}
-                  className="flex justify-between py-2 border-b border-gray-200 dark:border-gray-700 last:border-b-0"
-                >
-                  <span className="text-gray-600 dark:text-gray-400 font-medium">
-                    {spec.label}
-                  </span>
-                  <span className="text-gray-900 dark:text-gray-100">
-                    {spec.value}
-                  </span>
+          <div className="space-y-3">
+            {product.installmentOptions.map((option, index) => (
+              <div key={index} className="p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <span className="font-medium text-blue-900 dark:text-blue-100">
+                      {option.months} months plan
+                    </span>
+                    {option.description && (
+                      <p className="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                        {option.description}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold text-blue-900 dark:text-blue-100">
+                      {product.currency || 'ETB'} {option.monthlyAmount.toLocaleString()}/month
+                    </div>
+                    {option.downPayment > 0 && (
+                      <div className="text-sm text-blue-600 dark:text-blue-400">
+                        Down: {product.currency || 'ETB'} {option.downPayment.toLocaleString()}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Warranty Information */}
+      {hasWarranty && (
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+            Warranty Information
+          </h3>
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-green-700 dark:text-green-300 font-medium">Duration:</span>
+                <span className="text-green-900 dark:text-green-100">
+                  {product.warranty.duration} {product.warranty.unit}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-green-700 dark:text-green-300 font-medium">Type:</span>
+                <span className="text-green-900 dark:text-green-100 capitalize">
+                  {product.warranty.type}
+                </span>
+              </div>
+              {product.warranty.description && (
+                <div className="mt-3 pt-3 border-t border-green-200 dark:border-green-800">
+                  <p className="text-green-800 dark:text-green-200 text-sm">
+                    {product.warranty.description}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Additional Information */}
-      {product.additionalInfo && (
+      {/* Return Policy */}
+      {hasReturnPolicy && (
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-            Additional Information
+            Return Policy
           </h3>
-          
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-            <p className="text-gray-700 dark:text-gray-300">
-              {product.additionalInfo}
+          <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-orange-700 dark:text-orange-300 font-medium">Returns Accepted:</span>
+                <span className="text-green-600 dark:text-green-400 font-semibold">Yes</span>
+              </div>
+              {product.returnPolicy.returnPeriod && (
+                <div className="flex justify-between">
+                  <span className="text-orange-700 dark:text-orange-300 font-medium">Return Period:</span>
+                  <span className="text-orange-900 dark:text-orange-100">
+                    {product.returnPolicy.returnPeriod} days
+                  </span>
+                </div>
+              )}
+              {product.returnPolicy.conditions && product.returnPolicy.conditions.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-orange-200 dark:border-orange-800">
+                  <p className="text-orange-700 dark:text-orange-300 font-medium mb-2">Conditions:</p>
+                  <ul className="list-disc list-inside text-orange-800 dark:text-orange-200 text-sm space-y-1">
+                    {product.returnPolicy.conditions.map((condition, index) => (
+                      <li key={index}>{condition}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shipping Information */}
+      {hasShipping && (
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+            Shipping Information
+          </h3>
+          <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+            <div className="space-y-2">
+              {product.shipping.freeShipping ? (
+                <div className="flex justify-between">
+                  <span className="text-purple-700 dark:text-purple-300 font-medium">Shipping:</span>
+                  <span className="text-green-600 dark:text-green-400 font-semibold">Free</span>
+                </div>
+              ) : product.shipping.shippingCost && (
+                <div className="flex justify-between">
+                  <span className="text-purple-700 dark:text-purple-300 font-medium">Shipping Cost:</span>
+                  <span className="text-purple-900 dark:text-purple-100">
+                    {product.currency || 'ETB'} {parseFloat(product.shipping.shippingCost).toLocaleString()}
+                  </span>
+                </div>
+              )}
+
+              {product.shipping.weight && (
+                <div className="flex justify-between">
+                  <span className="text-purple-700 dark:text-purple-300 font-medium">Weight:</span>
+                  <span className="text-purple-900 dark:text-purple-100">
+                    {product.shipping.weight} kg
+                  </span>
+                </div>
+              )}
+
+              {product.shipping.shippingClass && (
+                <div className="flex justify-between">
+                  <span className="text-purple-700 dark:text-purple-300 font-medium">Shipping Class:</span>
+                  <span className="text-purple-900 dark:text-purple-100">
+                    {product.shipping.shippingClass}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Additional Notes */}
+      {hasNotes && (
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+            Additional Notes
+          </h3>
+          <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line">
+              {product.notes}
             </p>
           </div>
-        </div>
-      )}
-
-      {/* Terms and Conditions */}
-      {(product.terms || product.type === 'service') && (
-        <div>
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center justify-between w-full text-left"
-          >
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              Terms & Conditions
-            </h3>
-            {isExpanded ? (
-              <ChevronUpIcon className="h-5 w-5 text-gray-400" />
-            ) : (
-              <ChevronDownIcon className="h-5 w-5 text-gray-400" />
-            )}
-          </button>
-          
-          {isExpanded && (
-            <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-              {product.terms ? (
-                <p className="text-gray-700 dark:text-gray-300 text-sm whitespace-pre-line">
-                  {product.terms}
-                </p>
-              ) : (
-                <div className="text-gray-700 dark:text-gray-300 text-sm space-y-2">
-                  <p>• All prices are subject to change without notice</p>
-                  <p>• Payment terms to be discussed with seller</p>
-                  <p>• Inspection recommended before purchase</p>
-                  {product.type === 'service' && (
-                    <>
-                      <p>• Service availability subject to schedule</p>
-                      <p>• Cancellation policy applies</p>
-                      <p>• Additional charges may apply for extra services</p>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
     </div>
   );
 };
-
-// Helper function to get specifications
-function getSpecifications(product) {
-  const specs = [];
-
-  if (product.type === 'real-estate' && product.realEstateDetails) {
-    const details = product.realEstateDetails;
-    
-    if (details.yearBuilt) specs.push({ label: 'Year Built', value: details.yearBuilt });
-    if (details.floorNumber) specs.push({ label: 'Floor', value: details.floorNumber });
-    if (details.totalFloors) specs.push({ label: 'Total Floors', value: details.totalFloors });
-    if (details.furnishingStatus) specs.push({ label: 'Furnishing', value: details.furnishingStatus });
-    if (details.facing) specs.push({ label: 'Facing', value: details.facing });
-    if (details.constructionStatus) specs.push({ label: 'Construction Status', value: details.constructionStatus });
-  }
-
-  if (product.type === 'service' && product.serviceDetails) {
-    const details = product.serviceDetails;
-    
-    if (details.experienceLevel) specs.push({ label: 'Experience Level', value: details.experienceLevel });
-    if (details.teamSize) specs.push({ label: 'Team Size', value: details.teamSize });
-    if (details.languages) specs.push({ label: 'Languages', value: details.languages.join(', ') });
-    if (details.certifications && details.certifications.length > 0) {
-      specs.push({ label: 'Certifications', value: details.certifications.join(', ') });
-    }
-  }
-
-  // General product specs
-  if (product.brand) specs.push({ label: 'Brand', value: product.brand });
-  if (product.model) specs.push({ label: 'Model', value: product.model });
-  if (product.warranty) specs.push({ label: 'Warranty', value: product.warranty });
-
-  return specs;
-}
 
 export default ProductDescription;

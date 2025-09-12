@@ -1,3 +1,4 @@
+// components/product/SellerInfo.jsx
 import {
   CheckCircleIcon,
   StarIcon,
@@ -9,119 +10,95 @@ import {
   BuildingOfficeIcon,
   UserIcon
 } from '@heroicons/react/24/outline';
-import { formatRelativeTime } from '../../utils/helpers';
 import Button from '../ui/Button';
 
-const SellerInfo = ({ product, onContactSeller, isOwner }) => {
-  const seller = product.seller;
+const SellerInfo = ({ product, onContactSeller, isOwner, compact = false }) => {
+  const contactInfo = product.contactInfo;
 
-  if (!seller) {
-    return (
-      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 p-6">
-        <p className="text-gray-500 dark:text-gray-400">Seller information not available</p>
-      </div>
-    );
+  if (!contactInfo) {
+    return null;
   }
 
+  // Get seller information based on contactInfo
   const getSellerInfo = () => {
-    if (seller.userType === 'company') {
-      return {
-        name: seller.companyProfile?.companyName || 'Company',
-        type: 'Company',
-        avatar: seller.companyProfile?.logo,
-        description: seller.companyProfile?.description,
-        location: seller.companyProfile?.contactInfo?.address,
-        phone: seller.companyProfile?.contactInfo?.phone,
-        email: seller.companyProfile?.contactInfo?.email,
-        website: seller.companyProfile?.website,
-        businessCategories: seller.companyProfile?.businessCategories || [],
-        establishedYear: seller.companyProfile?.establishedYear,
-        teamSize: seller.companyProfile?.teamSize,
-        verified: seller.isVerified,
-        joinedDate: seller.createdAt,
-        rating: seller.rating || 0,
-        totalReviews: seller.totalReviews || 0,
-        totalListings: seller.totalListings || 0,
-        responseTime: seller.responseTime || 'Within 24 hours',
-        responseRate: seller.responseRate || 95
-      };
-    } else if (seller.userType === 'individual') {
-      const profile = seller.individualProfile;
-      return {
-        name: `${profile?.firstName || ''} ${profile?.lastName || ''}`.trim() || 'Individual',
-        type: 'Individual Seller',
-        avatar: profile?.avatar,
-        description: profile?.bio,
-        location: profile?.location,
-        phone: profile?.phone,
-        email: seller.email,
-        verified: seller.isVerified,
-        joinedDate: seller.createdAt,
-        rating: seller.rating || 0,
-        totalReviews: seller.totalReviews || 0,
-        totalListings: seller.totalListings || 0,
-        responseTime: seller.responseTime || 'Within 24 hours',
-        responseRate: seller.responseRate || 95
-      };
+    // Get phone from seller contactInfo if not in main contactInfo
+    const phone = contactInfo.phone || 
+                  product.seller?.companyProfile?.contactInfo?.phone || 
+                  product.seller?.individualProfile?.phone;
+    
+    // Get email from contactInfo (priority) or seller profile
+    const email = contactInfo.email || 
+                  product.seller?.companyProfile?.contactInfo?.email || 
+                  product.seller?.individualProfile?.email;
+
+    // Basic seller name based on type
+    let sellerName = 'Seller';
+    let sellerType = 'Seller';
+    
+    if (product.sellerType === 'company' && product.seller?.companyProfile?.companyName) {
+      sellerName = product.seller.companyProfile.companyName;
+      sellerType = 'Company';
+    } else if (product.sellerType === 'individual' && product.seller?.individualProfile) {
+      const profile = product.seller.individualProfile;
+      sellerName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Individual Seller';
+      sellerType = 'Individual Seller';
     }
 
     return {
-      name: 'Unknown Seller',
-      type: 'User',
-      verified: false,
-      joinedDate: seller.createdAt,
-      rating: 0,
-      totalReviews: 0,
-      totalListings: 0,
-      responseTime: 'Unknown',
-      responseRate: 0
+      name: sellerName,
+      type: sellerType,
+      phone: phone,
+      email: email,
+      verified: product.isVerified || false,
+      rating: product.seller?.sellerRating?.average || 0,
+      totalReviews: product.seller?.sellerRating?.totalReviews || 0
     };
   };
 
   const sellerInfo = getSellerInfo();
+  const preferredContactMethod = contactInfo.preferredContactMethod;
+
+  // Get preferred contact method display
+  const getPreferredContactDisplay = () => {
+    const methods = {
+      phone: 'Phone Call',
+      whatsapp: 'WhatsApp',
+      email: 'Email',
+      sms: 'SMS'
+    };
+    return methods[preferredContactMethod] || 'Phone Call';
+  };
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 p-6">
+    <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 p-6 ${compact ? 'space-y-4' : 'space-y-6'}`}>
       {/* Header */}
-      <div className="flex items-start space-x-4 mb-6">
+      <div className="flex items-start space-x-4">
         <div className="relative">
-          {sellerInfo.avatar ? (
-            <img
-              src={sellerInfo.avatar}
-              alt={sellerInfo.name}
-              className="w-16 h-16 rounded-full object-cover"
-            />
-          ) : (
-            <div className="w-16 h-16 bg-primary-500 rounded-full flex items-center justify-center">
-              {seller.userType === 'company' ? (
-                <BuildingOfficeIcon className="h-8 w-8 text-white" />
-              ) : (
-                <UserIcon className="h-8 w-8 text-white" />
-              )}
-            </div>
-          )}
+          <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center">
+            {product.sellerType === 'company' ? (
+              <BuildingOfficeIcon className="h-6 w-6 text-white" />
+            ) : (
+              <UserIcon className="h-6 w-6 text-white" />
+            )}
+          </div>
 
           {sellerInfo.verified && (
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center border-2 border-white dark:border-gray-900">
-              <CheckCircleIcon className="h-4 w-4 text-white" />
+            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center border-2 border-white dark:border-gray-900">
+              <CheckCircleIcon className="h-3 w-3 text-white" />
             </div>
           )}
         </div>
 
         <div className="flex-1">
-          <div className="flex items-start justify-between">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                {sellerInfo.name}
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {sellerInfo.type}
-                {sellerInfo.verified && (
-                  <span className="ml-2 text-green-500 font-medium">• Verified</span>
-                )}
-              </p>
-            </div>
-          </div>
+          <h3 className={`${compact ? 'text-base' : 'text-lg'} font-semibold text-gray-900 dark:text-gray-100`}>
+            {sellerInfo.name}
+          </h3>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            {sellerInfo.type}
+            {sellerInfo.verified && (
+              <span className="ml-2 text-green-500 font-medium">• Verified</span>
+            )}
+          </p>
 
           {/* Rating */}
           {sellerInfo.rating > 0 && (
@@ -145,135 +122,169 @@ const SellerInfo = ({ product, onContactSeller, isOwner }) => {
         </div>
       </div>
 
-      {/* Description */}
-      {sellerInfo.description && (
-        <div className="mb-6">
-          <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-            {sellerInfo.description}
+      {/* Contact Details */}
+      <div className="space-y-3">
+        {sellerInfo.phone && (
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center text-gray-600 dark:text-gray-400">
+              <PhoneIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+              <span>{sellerInfo.phone}</span>
+            </div>
+            {preferredContactMethod === 'phone' && (
+              <span className="text-xs bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-2 py-1 rounded-full">
+                Preferred
+              </span>
+            )}
+          </div>
+        )}
+
+        {sellerInfo.email && (
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center text-gray-600 dark:text-gray-400 min-w-0 flex-1">
+              <EnvelopeIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+              <span className="truncate">{sellerInfo.email}</span>
+            </div>
+            {preferredContactMethod === 'email' && (
+              <span className="text-xs bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-2 py-1 rounded-full ml-2">
+                Preferred
+              </span>
+            )}
+          </div>
+        )}
+
+        {preferredContactMethod === 'whatsapp' && sellerInfo.phone && (
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center text-gray-600 dark:text-gray-400">
+              <div className="h-4 w-4 mr-2 bg-green-500 rounded text-white text-xs flex items-center justify-center font-bold">
+                W
+              </div>
+              <span>WhatsApp</span>
+            </div>
+            <span className="text-xs bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400 px-2 py-1 rounded-full">
+              Preferred
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Contact Preference Info */}
+      {preferredContactMethod && (
+        <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          <p className="text-sm text-blue-700 dark:text-blue-300">
+            <strong>Preferred contact:</strong> {getPreferredContactDisplay()}
           </p>
         </div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            {sellerInfo.totalListings}
-          </div>
-          <div className="text-xs text-gray-600 dark:text-gray-400">
-            Active Listings
-          </div>
-        </div>
-
-        <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            {sellerInfo.responseRate}%
-          </div>
-          <div className="text-xs text-gray-600 dark:text-gray-400">
-            Response Rate
-          </div>
-        </div>
-      </div>
-
-      {/* Details */}
-      <div className="space-y-3 mb-6">
-        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-          <CalendarIcon className="h-4 w-4 mr-2" />
-          <span>
-            {sellerInfo.joinedDate
-              ? `Joined ${formatRelativeTime(sellerInfo.joinedDate)}`
-              : 'Member since unknown date'
-            }
-          </span>
-        </div>
-
-        <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-          <ClockIcon className="h-4 w-4 mr-2" />
-          <span>Responds {sellerInfo.responseTime}</span>
-        </div>
-
-        {sellerInfo.location && (
-          <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-            <MapPinIcon className="h-4 w-4 mr-2" />
-            <span>{sellerInfo.location}</span>
-          </div>
-        )}
-
-        {seller.userType === 'company' && sellerInfo.businessCategories.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-3">
-            {sellerInfo.businessCategories.map((category, index) => (
-              <span
-                key={index}
-                className="px-2 py-1 bg-primary-100 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 text-xs rounded-full"
-              >
-                {category.replace('-', ' ')}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Company Additional Info */}
-      {seller.userType === 'company' && (
-        <div className="mb-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            {sellerInfo.establishedYear && (
-              <div>
-                <span className="text-gray-600 dark:text-gray-400">Established:</span>
-                <span className="ml-1 text-gray-900 dark:text-gray-100">{sellerInfo.establishedYear}</span>
-              </div>
-            )}
-
-            {sellerInfo.teamSize && (
-              <div>
-                <span className="text-gray-600 dark:text-gray-400">Team Size:</span>
-                <span className="ml-1 text-gray-900 dark:text-gray-100">{sellerInfo.teamSize}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Contact Actions */}
-      {!isOwner && (
-        <div className="space-y-3">
-          <Button
-            className="w-full"
-            onClick={onContactSeller}
-          >
-            <EnvelopeIcon className="h-4 w-4 mr-2" />
-            Contact Seller
-          </Button>
-
-          {sellerInfo.phone && (
+      {!isOwner && (sellerInfo.phone || sellerInfo.email) && (
+        <div className="space-y-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+          {/* Primary contact button based on preference */}
+          {preferredContactMethod === 'phone' && sellerInfo.phone ? (
             <Button
-              variant="outline"
-              className="w-full"
+              size="sm"
+              className="w-full bg-blue-500 hover:bg-blue-600"
               onClick={() => window.open(`tel:${sellerInfo.phone}`)}
             >
               <PhoneIcon className="h-4 w-4 mr-2" />
-              Call Now
+              Call Now (Preferred)
+            </Button>
+          ) : preferredContactMethod === 'whatsapp' && sellerInfo.phone ? (
+            <Button
+              size="sm"
+              className="w-full bg-green-500 hover:bg-green-600"
+              onClick={() => window.open(`https://wa.me/${sellerInfo.phone.replace(/\D/g, '')}`)}
+            >
+              <div className="h-4 w-4 mr-2 bg-white rounded text-green-500 text-xs flex items-center justify-center font-bold">
+                W
+              </div>
+              WhatsApp (Preferred)
+            </Button>
+          ) : sellerInfo.email ? (
+            <Button
+              size="sm"
+              className="w-full bg-blue-500 hover:bg-blue-600"
+              onClick={onContactSeller}
+            >
+              <EnvelopeIcon className="h-4 w-4 mr-2" />
+              Send Email (Preferred)
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              className="w-full bg-blue-500 hover:bg-blue-600"
+              onClick={onContactSeller}
+            >
+              <EnvelopeIcon className="h-4 w-4 mr-2" />
+              Contact Seller
             </Button>
           )}
 
-          {sellerInfo.website && (
-            <Button
-              variant="ghost"
-              className="w-full"
-              onClick={() => window.open(sellerInfo.website, '_blank')}
-            >
-              Visit Website
-            </Button>
-          )}
+          {/* Alternative contact methods */}
+          <div className="grid grid-cols-2 gap-2">
+            {sellerInfo.phone && preferredContactMethod !== 'phone' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(`tel:${sellerInfo.phone}`)}
+              >
+                <PhoneIcon className="h-4 w-4 mr-1" />
+                Call
+              </Button>
+            )}
+
+            {sellerInfo.phone && preferredContactMethod !== 'whatsapp' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(`https://wa.me/${sellerInfo.phone.replace(/\D/g, '')}`)}
+              >
+                <div className="h-4 w-4 mr-1 bg-green-500 rounded text-white text-xs flex items-center justify-center font-bold">
+                  W
+                </div>
+                WhatsApp
+              </Button>
+            )}
+
+            {sellerInfo.email && preferredContactMethod !== 'email' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onContactSeller}
+              >
+                <EnvelopeIcon className="h-4 w-4 mr-1" />
+                Email
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
-      {/* Report Link */}
-      {!isOwner && (
-        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-          <button className="text-xs text-gray-500 hover:text-red-500 transition-colors">
-            Report this listing
-          </button>
+      {/* Basic Stats */}
+      {(sellerInfo.totalReviews > 0 || product.seller?.totalListings) && (
+        <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="grid grid-cols-2 gap-4 text-center">
+            {product.seller?.totalListings && (
+              <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  {product.seller.totalListings}
+                </div>
+                <div className="text-xs text-gray-600 dark:text-gray-400">
+                  Listings
+                </div>
+              </div>
+            )}
+            {sellerInfo.totalReviews > 0 && (
+              <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  {sellerInfo.totalReviews}
+                </div>
+                <div className="text-xs text-gray-600 dark:text-gray-400">
+                  Reviews
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
