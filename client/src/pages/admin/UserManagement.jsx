@@ -381,9 +381,6 @@ const UserManagement = () => {
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                  Activity
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -472,27 +469,7 @@ const UserManagement = () => {
                           </div>
                         )}
                       </div>
-                    </td>
-
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="space-y-1">
-                        <div className="text-sm text-gray-900 dark:text-gray-100">
-                          {user.listingsCount} sales
-                        </div>
-                        <div className="text-sm text-gray-600 dark:text-gray-400">
-                          {user.totalOrders || 0} orders
-                        </div>
-                        {user.reportsCount > 0 && (
-                          <div className="text-sm text-red-600 dark:text-red-400">
-                            {user.reportsCount} reports
-                          </div>
-                        )}
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          Last active {formatRelativeTime(user.lastActive)}
-                        </div>
-                      </div>
-                    </td>
-
+                    </td>              
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center space-x-2">
                         <button
