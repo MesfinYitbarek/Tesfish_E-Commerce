@@ -7,22 +7,24 @@ import {
   MapPinIcon, 
   HomeIcon,
   EyeIcon,
-  FireIcon,
-  ExclamationTriangleIcon,
-  TagIcon
+  SparklesIcon,
+  ArrowRightIcon,
+  Square3Stack3DIcon,
+  TagIcon,
+  FireIcon
 } from '@heroicons/react/24/outline';
-import { HeartIcon, PlayIcon } from '@heroicons/react/24/solid';
-
+import { HeartIcon as HeartSolidIcon } from '@heroicons/react/24/solid';
 import { 
   fetchFeaturedProducts,
   toggleWishlist,
   selectFeaturedProducts,
   selectIsLoading,
-  selectError
+  selectWishlistIds
 } from '../../store/slices/productSlice';
 import Button from '../ui/Button';
 import LoadingSpinner from '../ui/LoadingSpinner';
 import { formatCurrency } from '../../utils/helpers';
+import { toast } from 'react-hot-toast';
 
 // Custom Icons for Property Features
 const BedIcon = ({ className }) => (
@@ -47,49 +49,33 @@ const FeaturedProperties = () => {
   const dispatch = useDispatch();
   const featuredProducts = useSelector(selectFeaturedProducts);
   const isLoading = useSelector(selectIsLoading);
-  const error = useSelector(selectError);
-  const { user } = useSelector((state) => state.auth);
+  const wishlistIds = useSelector(selectWishlistIds);
+  const { user, isAuthenticated } = useSelector((state) => state.auth);
 
   const [currentSlide, setCurrentSlide] = useState(0);
   const [autoPlay, setAutoPlay] = useState(true);
-  const [viewMode, setViewMode] = useState('grid');
-  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
-    fetchFeaturedData();
+    dispatch(fetchFeaturedProducts(8));
   }, [dispatch]);
 
-  // Auto-play carousel
+  // Auto-play functionality
   useEffect(() => {
-    if (!autoPlay || viewMode !== 'carousel' || featuredProducts.length === 0) return;
+    if (!autoPlay || featuredProducts.length === 0) return;
     
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % Math.ceil(featuredProducts.length / getItemsPerSlide()));
-    }, 5000);
+    }, 4000);
     
     return () => clearInterval(interval);
-  }, [autoPlay, featuredProducts.length, viewMode]);
+  }, [autoPlay, featuredProducts.length]);
 
   const getItemsPerSlide = () => {
     if (typeof window !== 'undefined') {
-      if (window.innerWidth >= 1024) return 4;
+      if (window.innerWidth >= 1024) return 3;
       if (window.innerWidth >= 768) return 2;
     }
     return 1;
-  };
-
-  const fetchFeaturedData = async () => {
-    try {
-      await dispatch(fetchFeaturedProducts(8)).unwrap();
-      setRetryCount(0);
-    } catch (error) {
-      console.error('Error fetching featured products:', error);
-      setRetryCount(prev => prev + 1);
-    }
-  };
-
-  const handleRetry = () => {
-    fetchFeaturedData();
   };
 
   const nextSlide = () => {
@@ -100,13 +86,14 @@ const FeaturedProperties = () => {
     setCurrentSlide((prev) => (prev - 1 + Math.ceil(featuredProducts.length / getItemsPerSlide())) % Math.ceil(featuredProducts.length / getItemsPerSlide()));
   };
 
-  // Transform API data to component format - Updated to use correct image path
+  // Transform API data to component format
   const transformProductData = (product) => {
     return {
       id: product._id,
       title: product.title,
       subtitle: product.category?.name || 'Property',
-      location: `${product.propertyDetails?.location?.city || 'Addis Ababa'}, ${product.propertyDetails?.location?.region || 'Ethiopia'}`,
+      // Updated location handling to match second page
+      location: getLocationDisplay(product),
       price: product.pricing?.basePrice || 0,
       currency: product.pricing?.currency || 'ETB',
       originalPrice: product.pricing?.originalPrice,
@@ -115,71 +102,66 @@ const FeaturedProperties = () => {
       area: product.propertyDetails?.area?.value,
       areaUnit: product.propertyDetails?.area?.unit || 'sqm',
       parkingSpaces: product.propertyDetails?.parkingSpaces,
-      lotSize: product.propertyDetails?.lotSize?.value,
-      yearBuilt: product.propertyDetails?.yearBuilt,
       propertyType: product.subProductType || product.productType || 'property',
       status: product.isFeatured ? 'featured' : product.isPromoted ? 'promoted' : 'available',
-      // Updated to use media.images from API
+      // Updated image handling
       images: product.media?.images?.map(img => img.url) || [],
       virtualTour: product.features?.includes('Virtual Tour') || false,
       featured: product.isFeatured || false,
       trending: product.isPromoted || false,
       views: product.views || 0,
+      // Enhanced seller information
       seller: {
-        name: product.seller?.companyProfile?.companyName || 
-              `${product.seller?.individualProfile?.firstName || ''} ${product.seller?.individualProfile?.lastName || ''}`.trim() ||
-              product.seller?.displayName ||
-              'Property Owner',
+        name: getSellername(product.seller),
         type: product.seller?.userType || 'individual',
         verified: product.seller?.isVerified || false,
         responseTime: '2 hours'
       },
-      amenities: product.propertyDetails?.features || product.features || [],
-      description: product.description || 'Beautiful property in a prime location.',
       listingType: product.listingType || 'sell',
       condition: product.condition || 'excellent',
-      furnishingStatus: product.propertyDetails?.furnishingStatus || 'unfurnished',
-      // Additional sections
+      // Additional fields for other product types
       brand: product.brand,
       model: product.model,
       vehicleDetails: product.vehicleDetails
     };
   };
 
-  if (isLoading && featuredProducts.length === 0) {
-    return (
-      <section className="py-12 bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-              Featured Properties
-            </h2>
-          </div>
-          <LoadingSpinner size="lg" text="Loading featured properties..." />
-        </div>
-      </section>
-    );
-  }
+  // Helper function to get location display
+  const getLocationDisplay = (product) => {
+    if (['homes', 'plots', 'commercials'].includes(product.productType) && product.propertyDetails?.location) {
+      const location = product.propertyDetails.location;
+      const parts = [];
 
-  if (error && featuredProducts.length === 0) {
+      if (location.subcity) parts.push(location.subcity);
+      if (location.city) parts.push(location.city);
+      if (location.region && parts.length === 0) parts.push(location.region);
+
+      return parts.length > 0 ? parts.join(', ') : 'Ethiopia';
+    }
+    return 'Ethiopia';
+  };
+
+  // Helper function to get seller name
+  const getSellername = (seller) => {
+    if (!seller) return 'Property Owner';
+    
+    if (seller.userType === 'company' && seller.companyProfile) {
+      return seller.companyProfile.companyName || 'Real Estate Company';
+    } else if (seller.userType === 'individual' && seller.individualProfile) {
+      const firstName = seller.individualProfile.firstName || '';
+      const lastName = seller.individualProfile.lastName || '';
+      return `${firstName} ${lastName}`.trim() || 'Property Owner';
+    }
+    
+    return seller.displayName || 'Property Owner';
+  };
+
+  if (isLoading) {
     return (
-      <section className="py-12 bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
-        <div className="container mx-auto px-4">
-          <div className="text-center">
-            <ExclamationTriangleIcon className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
-              Failed to Load Featured Properties
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              {error || 'Unable to fetch featured properties at the moment.'}
-            </p>
-            <Button 
-              onClick={handleRetry}
-              className="bg-purple-600 hover:bg-purple-700"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Retrying...' : `Try Again ${retryCount > 0 ? `(${retryCount})` : ''}`}
-            </Button>
+      <section className="py-12 bg-gradient-to-b from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-800/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-center">
+            <LoadingSpinner size="lg" text="Loading featured properties..." />
           </div>
         </div>
       </section>
@@ -187,232 +169,144 @@ const FeaturedProperties = () => {
   }
 
   if (featuredProducts.length === 0) {
-    return (
-      <section className="py-12 bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
-        <div className="container mx-auto px-4">
-          <div className="text-center">
-            <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-              Featured Properties
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              No featured properties available at the moment.
-            </p>
-            <Link to="/products?category=real-estate">
-              <Button className="bg-purple-600 hover:bg-purple-700">
-                Browse All Properties
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
-    );
+    return null;
   }
 
   const transformedProperties = featuredProducts.map(transformProductData);
 
   return (
-    <section className="py-12 bg-gradient-to-br from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between mb-8">
-          <div className="max-w-xl">
-            <div className="flex items-center mb-2">
-              <FireIcon className="h-5 w-5 text-orange-500 mr-2" />
-              <span className="px-2 py-1 bg-orange-100 text-orange-600 dark:bg-orange-900 dark:text-orange-300 rounded-full text-xs font-medium">
-                Hand-picked Selection
-              </span>
+    <section className="py-12 bg-gradient-to-b from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-800/50 relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-[0.02] dark:opacity-[0.03]">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='1'%3E%3Ccircle cx='7' cy='7' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+        }}></div>
+      </div>
+
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Enhanced Header */}
+        <div className="flex items-end justify-between mb-8">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center px-3 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-full text-xs font-medium mb-3 border border-blue-100 dark:border-blue-800/30">
+              <SparklesIcon className="h-3 w-3 mr-1" />
+              Hand-picked Selection
             </div>
-            <h2 className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 dark:text-white mb-3 tracking-tight">
               Featured Properties
             </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
-              Discover our curated collection of {transformedProperties.length} premium properties across Ethiopia.
+            <p className="text-lg text-slate-600 dark:text-slate-300 leading-relaxed">
+              Discover our curated collection of premium properties 
+              <span className="text-blue-600 dark:text-blue-400 font-semibold"> across Ethiopia</span>
             </p>
           </div>
           
+          {/* Navigation Controls */}
           <div className="hidden lg:flex items-center space-x-2">
-            {/* Compact View Mode Toggle */}
-            <div className="flex bg-white dark:bg-gray-800 rounded-md p-0.5 shadow-md">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                  viewMode === 'grid'
-                    ? 'bg-purple-500 text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                }`}
-              >
-                Grid
-              </button>
-              <button
-                onClick={() => setViewMode('carousel')}
-                className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
-                  viewMode === 'carousel'
-                    ? 'bg-purple-500 text-white shadow-sm'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-                }`}
-              >
-                Carousel
-              </button>
-            </div>
-            
-            {/* Compact Navigation Controls */}
-            {viewMode === 'carousel' && (
-              <div className="flex space-x-1">
-                <button
-                  onClick={prevSlide}
-                  className="p-2 rounded-lg bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600"
-                >
-                  <ChevronLeftIcon className="h-4 w-4 text-gray-600 dark:text-gray-400" />
-                </button>
-                <button
-                  onClick={nextSlide}
-                  className="p-2 rounded-lg bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all duration-200 border border-gray-200 dark:border-gray-700 hover:border-purple-300 dark:hover:border-purple-600"
-                >
-                  <ChevronRightIcon className="h-4 w-4 text-gray-600 dark:text-gray-400" />
-                </button>
-                <button
-                  onClick={() => setAutoPlay(!autoPlay)}
-                  className={`p-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 border ${
-                    autoPlay
-                      ? 'bg-purple-500 text-white border-purple-500'
-                      : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700'
-                  }`}
-                >
-                  <PlayIcon className="h-4 w-4" />
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Loading overlay for refresh */}
-        {isLoading && featuredProducts.length > 0 && (
-          <div className="relative">
-            <div className="absolute inset-0 bg-white/70 dark:bg-gray-900/70 z-10 flex items-center justify-center rounded-xl">
-              <LoadingSpinner size="lg" text="Refreshing..." />
-            </div>
-          </div>
-        )}
-
-        {/* Compact Properties Display */}
-        {viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {transformedProperties.map((property) => (
-              <PropertyCard 
-                key={property.id} 
-                property={property} 
-                currentUser={user}
-                onToggleWishlist={(productId) => dispatch(toggleWishlist(productId))}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="relative overflow-hidden rounded-xl">
-            <div 
-              className="flex transition-transform duration-500 ease-out"
-              style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+            <button
+              onClick={() => setAutoPlay(!autoPlay)}
+              className={`p-2 rounded-lg border transition-all duration-200 ${
+                autoPlay
+                  ? 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/20 dark:border-blue-800/30 dark:text-blue-400'
+                  : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300 dark:bg-slate-800 dark:border-slate-700 dark:hover:border-slate-600'
+              }`}
+              title={autoPlay ? 'Pause autoplay' : 'Start autoplay'}
             >
-              {Array.from({ length: Math.ceil(transformedProperties.length / getItemsPerSlide()) }).map((_, slideIndex) => (
-                <div key={slideIndex} className="w-full flex-shrink-0">
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 px-1">
-                    {transformedProperties
-                      .slice(slideIndex * getItemsPerSlide(), slideIndex * getItemsPerSlide() + getItemsPerSlide())
-                      .map((property) => (
-                        <PropertyCard 
-                          key={property.id} 
-                          property={property} 
-                          currentUser={user}
-                          onToggleWishlist={(productId) => dispatch(toggleWishlist(productId))}
-                        />
-                      ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            {/* Compact Carousel Indicators */}
-            <div className="flex justify-center mt-4 space-x-1">
-              {Array.from({ length: Math.ceil(transformedProperties.length / getItemsPerSlide()) }).map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentSlide(index)}
-                  className={`w-2 h-2 rounded-full transition-all duration-200 ${
-                    index === currentSlide
-                      ? 'bg-purple-500 scale-125'
-                      : 'bg-gray-300 dark:bg-gray-600 hover:bg-purple-300'
-                  }`}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Mobile Navigation */}
-        {viewMode === 'carousel' && (
-          <div className="flex lg:hidden justify-center mt-4 space-x-2">
+              <Square3Stack3DIcon className="h-4 w-4" />
+            </button>
             <button
               onClick={prevSlide}
-              className="p-2 rounded-lg bg-white dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-700"
+              className="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white transition-all duration-200 hover:shadow-md"
             >
               <ChevronLeftIcon className="h-4 w-4" />
             </button>
             <button
               onClick={nextSlide}
-              className="p-2 rounded-lg bg-white dark:bg-gray-800 shadow-md border border-gray-200 dark:border-gray-700"
+              className="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white transition-all duration-200 hover:shadow-md"
             >
               <ChevronRightIcon className="h-4 w-4" />
             </button>
           </div>
-        )}
+        </div>
 
-        {/* Compact Call to Action */}
-        <div className="text-center mt-8">
-          <Link to="/products?featured=true">
-            <Button size="sm" className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 transform hover:scale-105 transition-all duration-200 shadow-lg text-sm px-6 py-2 mr-3">
-              View All Featured
-            </Button>
-          </Link>
-          <Link to="/products">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="border-purple-200 text-purple-600 hover:bg-purple-50 dark:border-purple-700 dark:text-purple-400 dark:hover:bg-purple-900/20 text-sm px-6 py-2"
-            >
-              Browse All Properties
-            </Button>
-          </Link>
+        {/* Properties Grid */}
+        <div className="relative">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 mb-8">
+            {transformedProperties.slice(0, 6).map((property, index) => (
+              <PropertyCard 
+                key={property.id} 
+                property={property} 
+                index={index}
+                isWishlisted={wishlistIds.includes(property.id)}
+                onToggleWishlist={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  
+                  if (!isAuthenticated) {
+                    toast.error('Please login to add to wishlist');
+                    return;
+                  }
+
+                  try {
+                    await dispatch(toggleWishlist(property.id)).unwrap();
+                  } catch (error) {
+                    toast.error('Failed to update wishlist');
+                  }
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Enhanced CTA Section */}
+        <div className="text-center bg-gradient-to-r from-slate-50 to-blue-50/30 dark:from-slate-800/50 dark:to-slate-700/30 rounded-xl p-6 lg:p-8 border border-slate-200/60 dark:border-slate-700/60 backdrop-blur-sm">
+          <h3 className="text-xl lg:text-2xl font-bold text-slate-900 dark:text-white mb-3">
+            Ready to find your perfect property?
+          </h3>
+          <p className="text-base text-slate-600 dark:text-slate-300 mb-6 max-w-2xl mx-auto">
+            Explore our complete collection of premium properties with advanced search and filtering options.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Link to="/products?featured=true">
+              <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 text-sm px-6 py-2">
+                <SparklesIcon className="h-4 w-4 mr-2" />
+                View all featured
+              </Button>
+            </Link>
+            <Link to="/products">
+              <Button 
+                variant="outline" 
+                className="border-slate-300 text-slate-700 hover:border-slate-400 hover:text-slate-900 dark:border-slate-600 dark:text-slate-300 dark:hover:border-slate-500 dark:hover:text-white text-sm px-6 py-2"
+              >
+                Browse all properties
+                <ArrowRightIcon className="h-4 w-4 ml-2" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     </section>
   );
 };
 
-// Updated Property Card Component
-const PropertyCard = ({ property, user, onToggleWishlist }) => {
+// Enhanced Property Card with Wishlist Functionality
+const PropertyCard = ({ property, index, isWishlisted, onToggleWishlist }) => {
+  const [imageError, setImageError] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isWishlisted, setIsWishlisted] = useState(false);
-  const [isImageLoading, setIsImageLoading] = useState(true);
   const [wishlistLoading, setWishlistLoading] = useState(false);
-
+  
   // Default fallback image
   const DEFAULT_IMAGE = 'https://pfst.cf2.poecdn.net/base/image/70fc72a6f139f7623b25514d5c5b01d32c3115c8447048c0be1aca5a1e4c5603?w=400&h=300';
-
-  const handleWishlist = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (!user) {
-      return;
+  
+  // Get current image with fallback
+  const getCurrentImage = () => {
+    if (property.images && property.images.length > 0) {
+      return property.images[currentImageIndex] || DEFAULT_IMAGE;
     }
+    return DEFAULT_IMAGE;
+  };
 
-    setWishlistLoading(true);
-    try {
-      await onToggleWishlist(property.id);
-      setIsWishlisted(!isWishlisted);
-    } catch (error) {
-      console.error('Error toggling wishlist:', error);
-    } finally {
-      setWishlistLoading(false);
-    }
+  const handleImageError = () => {
+    setImageError(true);
   };
 
   const nextImage = (e) => {
@@ -431,256 +325,239 @@ const PropertyCard = ({ property, user, onToggleWishlist }) => {
     }
   };
 
-  const getStatusBadge = () => {
-    if (property.featured) {
-      return { color: 'bg-purple-500', text: 'Featured' };
+  const handleWishlistClick = async (e) => {
+    setWishlistLoading(true);
+    try {
+      await onToggleWishlist(e);
+    } finally {
+      setWishlistLoading(false);
     }
-    if (property.trending) {
-      return { color: 'bg-orange-500', text: 'Promoted' };
-    }
-    if (property.listingType === 'rent') {
-      return { color: 'bg-blue-500', text: 'For Rent' };
-    }
-    return { color: 'bg-green-500', text: 'For Sale' };
   };
 
-  const statusBadge = getStatusBadge();
-
-  // Handle image load error
-  const handleImageError = (e) => {
-    if (e.target.src !== DEFAULT_IMAGE) {
-      e.target.src = DEFAULT_IMAGE;
-    }
-    setIsImageLoading(false);
-  };
-
-  // Get current image with fallback
-  const getCurrentImage = () => {
-    if (property.images && property.images.length > 0) {
-      return property.images[currentImageIndex] || DEFAULT_IMAGE;
-    }
-    return DEFAULT_IMAGE;
-  };
-
-  // Get property features with icons (like ProductCard)
+  // Get property features with icons
   const getPropertyFeatures = () => {
     const features = [];
 
-    if (['homes', 'plots', 'commercials'].includes(property.propertyType) && property) {
+    if (['homes', 'plots', 'commercials'].includes(property.propertyType)) {
       if (property.bedrooms) {
         features.push({
-          icon: <BedIcon className="h-4 w-4 text-purple-500" />,
-          value: property.bedrooms
+          icon: <BedIcon className="h-3 w-3 text-blue-500" />,
+          value: property.bedrooms,
+          label: property.bedrooms > 1 ? 'beds' : 'bed'
         });
       }
       if (property.bathrooms) {
         features.push({
-          icon: <BathIcon className="h-4 w-4 text-purple-500" />,
-          value: property.bathrooms
+          icon: <BathIcon className="h-3 w-3 text-blue-500" />,
+          value: property.bathrooms,
+          label: property.bathrooms > 1 ? 'baths' : 'bath'
         });
       }
       if (property.area) {
         features.push({
-          icon: <HomeIcon className="h-4 w-4 text-purple-500" />,
-          value: `${property.area} ${property.areaUnit}`
+          icon: <Square3Stack3DIcon className="h-3 w-3 text-blue-500" />,
+          value: property.area,
+          label: property.areaUnit
         });
       }
       if (property.parkingSpaces) {
         features.push({
-          icon: <ParkingIcon className="h-4 w-4 text-purple-500" />,
-          value: property.parkingSpaces
+          icon: <ParkingIcon className="h-3 w-3 text-blue-500" />,
+          value: property.parkingSpaces,
+          label: 'parking'
         });
       }
     } else if (property.propertyType === 'others') {
       if (property.vehicleDetails) {
         const { make, year, fuelType } = property.vehicleDetails;
-        if (year) features.push({ icon: <TagIcon className="h-4 w-4 text-purple-500" />, value: year.toString() });
-        if (make) features.push({ icon: <TagIcon className="h-4 w-4 text-purple-500" />, value: make });
-        if (fuelType) features.push({ icon: <TagIcon className="h-4 w-4 text-purple-500" />, value: fuelType });
+        if (year) features.push({ icon: <TagIcon className="h-3 w-3 text-blue-500" />, value: year, label: '' });
+        if (make) features.push({ icon: <TagIcon className="h-3 w-3 text-blue-500" />, value: make, label: '' });
+        if (fuelType) features.push({ icon: <TagIcon className="h-3 w-3 text-blue-500" />, value: fuelType, label: '' });
       }
-      if (property.brand) features.push({ icon: <TagIcon className="h-4 w-4 text-purple-500" />, value: property.brand });
-      if (property.model) features.push({ icon: <TagIcon className="h-4 w-4 text-purple-500" />, value: property.model });
+      if (property.brand) features.push({ icon: <TagIcon className="h-3 w-3 text-blue-500" />, value: property.brand, label: '' });
+      if (property.model) features.push({ icon: <TagIcon className="h-3 w-3 text-blue-500" />, value: property.model, label: '' });
     }
 
-    return features.slice(0, 4);
+    return features.slice(0, 3);
   };
 
   const propertyFeatures = getPropertyFeatures();
 
   return (
-    <Link to={`/products/${property.id}`} className="group block">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 border border-gray-100 dark:border-gray-700">
-        {/* Image Gallery */}
-        <div className="relative h-48 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800">
-          <img
-            src={getCurrentImage()}
-            alt={property.title}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-            onLoad={() => setIsImageLoading(false)}
-            onError={handleImageError}
-            loading="lazy"
-          />
-          
-          {isImageLoading && (
-            <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse flex items-center justify-center">
-              <div className="w-8 h-8 border-2 border-gray-300 border-t-purple-500 rounded-full animate-spin"></div>
-            </div>
-          )}
-          
-          {/* Image Navigation */}
-          {property.images && property.images.length > 1 && (
-            <>
-              <button
-                onClick={prevImage}
-                className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/70 backdrop-blur-sm text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-black/90 hover:scale-110"
-              >
-                <ChevronLeftIcon className="h-4 w-4" />
-              </button>
-              <button
-                onClick={nextImage}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/70 backdrop-blur-sm text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-black/90 hover:scale-110"
-              >
-                <ChevronRightIcon className="h-4 w-4" />
-              </button>
-              
-              {/* Image Indicators */}
-              <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-1">
-                {property.images.slice(0, 5).map((_, index) => (
-                  <div
-                    key={index}
-                    className={`w-2 h-2 rounded-full transition-all duration-300 ${
-                      index === currentImageIndex ? 'bg-white scale-125 shadow-lg' : 'bg-white/60 hover:bg-white/80'
-                    }`}
-                  />
-                ))}
-                {property.images.length > 5 && (
-                  <div className="text-white text-xs bg-black/70 px-2 py-1 rounded-full backdrop-blur-sm">
-                    +{property.images.length - 5}
+    <div 
+      className="group"
+      style={{ animationDelay: `${index * 100}ms` }}
+    >
+      <Link to={`/products/${property.id}`} className="block">
+        <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 border border-slate-200/60 dark:border-slate-700/60">
+          {/* Enhanced Image */}
+          <div className="relative h-48 lg:h-52 overflow-hidden">
+            <img
+              src={imageError ? DEFAULT_IMAGE : getCurrentImage()}
+              alt={property.title}
+              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+              onError={handleImageError}
+              loading="lazy"
+            />
+            
+            {/* Gradient Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            
+            {/* Image Navigation */}
+            {property.images && property.images.length > 1 && (
+              <>
+                <button
+                  onClick={prevImage}
+                  className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black/70 backdrop-blur-sm text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-black/90"
+                >
+                  <ChevronLeftIcon className="h-3 w-3" />
+                </button>
+                <button
+                  onClick={nextImage}
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black/70 backdrop-blur-sm text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-black/90"
+                >
+                  <ChevronRightIcon className="h-3 w-3" />
+                </button>
+                
+                {/* Image Indicators */}
+                <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 flex space-x-1">
+                  {property.images.slice(0, 5).map((_, imgIndex) => (
+                    <div
+                      key={imgIndex}
+                      className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                        imgIndex === currentImageIndex ? 'bg-white scale-125' : 'bg-white/60'
+                      }`}
+                    />
+                  ))}
+                  {property.images.length > 5 && (
+                    <div className="text-white text-xs bg-black/70 px-1 rounded">
+                      +{property.images.length - 5}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+            
+            {/* Enhanced Badges */}
+            <div className="absolute top-3 left-3 right-3 flex justify-between items-start">
+              <div className="flex flex-col space-y-1">
+                {property.featured && (
+                  <div className="inline-flex items-center px-2 py-1 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs font-semibold rounded-full shadow-lg backdrop-blur-sm">
+                    <SparklesIcon className="h-2.5 w-2.5 mr-1" />
+                    Featured
+                  </div>
+                )}
+                {property.trending && (
+                  <div className="inline-flex items-center px-2 py-1 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-semibold rounded-full shadow-lg backdrop-blur-sm">
+                    <FireIcon className="h-2.5 w-2.5 mr-1" />
+                    Hot Deal
                   </div>
                 )}
               </div>
-            </>
-          )}
-
-          {/* Top Badges */}
-          <div className="absolute top-3 left-3 right-3 flex justify-between items-start">
-            <div className="flex flex-col space-y-1">
-              <span className={`${statusBadge.color} text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg`}>
-                {statusBadge.text}
-              </span>
-              {property.trending && (
-                <span className="bg-orange-500 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center shadow-lg">
-                  <FireIcon className="h-3 w-3 mr-1" />
-                  Hot
-                </span>
-              )}
-            </div>
-            
-            <div className="flex flex-col space-y-1">
-              {property.virtualTour && (
-                <div className="bg-purple-500 text-white text-xs font-bold px-3 py-1 rounded-full flex items-center shadow-lg">
-                  <EyeIcon className="h-3 w-3 mr-1" />
-                  VR
-                </div>
-              )}
+              
+              {/* Wishlist Button */}
               <button
-                onClick={handleWishlist}
-                disabled={wishlistLoading || !user}
-                className="p-2 bg-white/95 backdrop-blur-sm rounded-full hover:bg-white hover:scale-110 transition-all duration-300 shadow-lg disabled:opacity-50"
+                onClick={handleWishlistClick}
+                disabled={wishlistLoading}
+                className="p-2 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white hover:scale-110 transition-all duration-300 shadow-lg group/heart disabled:opacity-50"
               >
                 {wishlistLoading ? (
-                  <div className="h-4 w-4 border-2 border-gray-400 border-t-purple-500 rounded-full animate-spin"></div>
+                  <div className="h-4 w-4 border-2 border-gray-400 border-t-red-500 rounded-full animate-spin"></div>
                 ) : (
-                  <HeartIcon 
-                    className={`h-4 w-4 transition-colors duration-200 ${
-                      isWishlisted ? 'text-red-500' : 'text-gray-400 hover:text-red-400'
+                  <HeartSolidIcon 
+                    className={`h-4 w-4 transition-colors ${
+                      isWishlisted ? 'text-red-500' : 'text-slate-600 group-hover/heart:text-red-500'
                     }`} 
                   />
                 )}
               </button>
             </div>
-          </div>
-        </div>
 
-        {/* Property Details */}
-        <div className="p-4">
-          <div className="flex items-start justify-between mb-3">
-            <div className="flex-1">
-              <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 group-hover:text-purple-500 transition-colors duration-200 mb-1 line-clamp-1">
-                {property.title}
-              </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
-                {property.propertyType}
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
-                {property.listingType === 'rent' 
-                  ? `${formatCurrency(property.price, property.currency)}/mo`
-                  : formatCurrency(property.price, property.currency)
-                }
+            {/* Property Type Badge */}
+            <div className="absolute bottom-3 left-3">
+              <div className="px-2 py-1 bg-white/90 backdrop-blur-sm rounded-md text-xs font-medium text-slate-700 shadow-sm">
+                {property.listingType === 'rent' ? 'For Rent' : 'For Sale'}
               </div>
-              {property.originalPrice && property.originalPrice > property.price && (
-                <div className="text-xs text-gray-400 line-through">
-                  {formatCurrency(property.originalPrice, property.currency)}
-                </div>
-              )}
             </div>
           </div>
 
-          <div className="flex items-center text-gray-600 dark:text-gray-400 mb-3">
-            <MapPinIcon className="h-3 w-3 mr-1 text-purple-500" />
-            <span className="text-xs line-clamp-1">{property.location}</span>
-          </div>
-
-          {/* Property Features with Icons */}
-          {propertyFeatures.length > 0 && (
-            <div className="flex items-center space-x-3 text-xs text-gray-600 dark:text-gray-400 mb-3 p-2 bg-gray-50 dark:bg-gray-700 rounded-md">
-              {propertyFeatures.map((feature, index) => (
-                <div key={index} className="flex items-center space-x-1">
-                  {feature.icon}
-                  <span className="font-medium">{feature.value}</span>
+          {/* Enhanced Content */}
+          <div className="p-4">
+            <div className="flex items-start justify-between mb-2">
+              <div className="flex-1">
+                <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors duration-200 mb-2 line-clamp-2">
+                  {property.title}
+                </h3>
+                <div className="flex items-center text-slate-500 dark:text-slate-400 mb-3">
+                  <MapPinIcon className="h-3 w-3 mr-1 text-blue-500" />
+                  <span className="text-xs">{property.location}</span>
                 </div>
-              ))}
+              </div>
             </div>
-          )}
 
-          {/* Stats Row - Date Removed */}
-          <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-3">
-            <div className="flex items-center">
-              <EyeIcon className="h-3 w-3 mr-0.5" />
-              <span>{property.views || 0}</span>
-            </div>
-          </div>
+            {/* Property Features */}
+            {propertyFeatures.length > 0 && (
+              <div className="flex items-center space-x-3 text-xs text-slate-600 dark:text-slate-300 mb-3 p-2 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                {propertyFeatures.map((feature, featureIndex) => (
+                  <div key={featureIndex} className="flex items-center space-x-1">
+                    {feature.icon}
+                    <span className="font-medium">{feature.value}</span>
+                    {feature.label && <span>{feature.label}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
 
-          {/* Seller Info */}
-          <div className="flex items-center pt-3 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center flex-1">
-              <div className="relative">
-                <div className="w-7 h-7 bg-gradient-to-r from-purple-500 to-purple-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-xs font-bold">
-                    {property.seller.name.charAt(0)}
-                  </span>
+            {/* Price and Views */}
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-lg font-bold text-slate-900 dark:text-white">
+                  {formatCurrency(property.price, property.currency)}
+                  {property.listingType === 'rent' && (
+                    <span className="text-xs font-normal text-slate-500 dark:text-slate-400">/month</span>
+                  )}
                 </div>
-                {property.seller.verified && (
-                  <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
-                    <span className="text-white text-xs">✓</span>
+                {property.originalPrice && property.originalPrice > property.price && (
+                  <div className="text-xs text-slate-400 line-through">
+                    {formatCurrency(property.originalPrice, property.currency)}
                   </div>
                 )}
               </div>
-              <div className="ml-2">
-                <div className="text-xs font-semibold text-gray-900 dark:text-gray-100 line-clamp-1">
-                  {property.seller.name}
-                </div>
-                <div className="text-xs text-gray-500 capitalize">
-                  <span>{property.seller.type}</span>
-                </div>
+              <div className="flex items-center text-slate-500 dark:text-slate-400">
+                <EyeIcon className="h-3 w-3 mr-1" />
+                <span className="text-xs font-medium">{property.views || 0}</span>
               </div>
             </div>
+
+            {/* Seller Info */}
+            {/* <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-700 mt-3">
+              <div className="flex items-center">
+                <div className="relative">
+                  <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-xs font-bold">
+                      {property.seller.name.charAt(0)}
+                    </span>
+                  </div>
+                  {property.seller.verified && (
+                    <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs">✓</span>
+                    </div>
+                  )}
+                </div>
+                <div className="ml-2">
+                  <div className="text-xs font-semibold text-slate-900 dark:text-white line-clamp-1">
+                    {property.seller.name}
+                  </div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400 capitalize">
+                    {property.seller.type}
+                  </div>
+                </div>
+              </div>
+            </div> */}
           </div>
         </div>
-      </div>
-    </Link>
+      </Link>
+    </div>
   );
 };
 

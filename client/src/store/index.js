@@ -7,10 +7,12 @@ import chatSlice from './slices/chatSlice';
 import notificationSlice from './slices/notificationSlice';
 import uiSlice from './slices/uiSlice';
 import appointmentSlice from './slices/appointmentSlice';
-import serviceInquirySlice from './slices/serviceInquirySlice'
-import adminSlice from './slices/adminSlice'
+import serviceInquirySlice from './slices/serviceInquirySlice';
+import adminSlice from './slices/adminSlice';
+import profileSlice from './slices/profileSlice'
 export const store = configureStore({
   reducer: {
+    profile: profileSlice,
     admin: adminSlice,
     auth: authSlice,
     products: productSlice,

@@ -1033,7 +1033,7 @@ export const selectRelatedProducts = (state) => state.products.relatedProducts;
 export const selectCategories = (state) => state.products.categories;
 export const selectPropertyTypes = (state) => state.products.propertyTypes;
 export const selectWishlistedItems = (state) => state.products.wishlistedItems;
-
+export const selectWishlistIds = (state) => state.products.wishlistedItems;
 // Loading selectors
 export const selectIsLoading = (state) => state.products.isLoading;
 export const selectProductLoading = (state) => state.products.productLoading;

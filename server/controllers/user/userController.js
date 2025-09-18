@@ -109,18 +109,42 @@ export const updateUser = async (req, res) => {
       });
     }
 
-    // Handle profile image upload
+    // 🔹 Parse JSON string fields (from multipart/form-data)
+    ['companyProfile', 'individualProfile', 'customerProfile'].forEach(field => {
+      if (req.body[field] && typeof req.body[field] === 'string') {
+        try {
+          req.body[field] = JSON.parse(req.body[field]);
+          console.log(`Parsed ${field}:`, req.body[field]);
+        } catch (err) {
+          console.error(`❌ Error parsing ${field}:`, err.message);
+        }
+      }
+    });
+
+    // 🔹 Handle profile image upload
     if (req.file) {
       const uploadResult = await uploadToCloudinary(req.file.path, 'profiles');
-      
+
       if (user.userType === 'company') {
-        req.body.companyProfile = { ...req.body.companyProfile, logo: uploadResult.secure_url };
+        req.body.companyProfile = {
+          ...req.body.companyProfile,
+          logo: uploadResult.secure_url
+        };
       } else if (user.userType === 'individual') {
-        req.body.individualProfile = { ...req.body.individualProfile, avatar: uploadResult.secure_url };
+        req.body.individualProfile = {
+          ...req.body.individualProfile,
+          avatar: uploadResult.secure_url
+        };
       } else if (user.userType === 'customer') {
-        req.body.customerProfile = { ...req.body.customerProfile, avatar: uploadResult.secure_url };
+        req.body.customerProfile = {
+          ...req.body.customerProfile,
+          avatar: uploadResult.secure_url
+        };
       }
     }
+
+    // 🔹 Debug final body before saving
+    console.log("Final update body:", req.body);
 
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
@@ -133,6 +157,7 @@ export const updateUser = async (req, res) => {
       message: 'User updated successfully',
       data: { user: updatedUser }
     });
+
   } catch (error) {
     console.error('Update user error:', error);
     res.status(500).json({
@@ -141,6 +166,8 @@ export const updateUser = async (req, res) => {
     });
   }
 };
+
+
 
 // @desc    Delete user
 // @route   DELETE /api/users/:id

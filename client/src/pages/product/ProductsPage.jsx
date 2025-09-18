@@ -1,3 +1,4 @@
+// pages/ProductsPage.jsx - Compact Design
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
@@ -28,7 +29,7 @@ const ProductsPage = () => {
   const dispatch = useDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
   const [showMobileFilters, setShowMobileFilters] = useState(false);
-  const [showDesktopFilters, setShowDesktopFilters] = useState(true); // Desktop filter toggle state
+  const [showDesktopFilters, setShowDesktopFilters] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
 
   const {
@@ -83,7 +84,7 @@ const ProductsPage = () => {
 
   const handleFilterChange = (newFilters) => {
     dispatch(setFilters(newFilters));
-    setShowMobileFilters(false); // Close mobile filters after selection
+    setShowMobileFilters(false);
   };
 
   const handleClearFilters = () => {
@@ -101,22 +102,23 @@ const ProductsPage = () => {
 
   // Simplified quick filters for mobile
   const quickFilters = [
-    { key: 'productType', value: 'homes', label: 'Homes', icon: <HomeIcon className="h-4 w-4" /> },
-    { key: 'productType', value: 'plots', label: 'Plots', icon: <MapIcon className="h-4 w-4" /> },
-    { key: 'productType', value: 'commercials', label: 'Commercial', icon: <BuildingOfficeIcon className="h-4 w-4" /> },
-    { key: 'listingType', value: 'sell', label: 'For Sale', icon: <ShoppingBagIcon className="h-4 w-4" /> },
-    { key: 'listingType', value: 'rent', label: 'For Rent', icon: <HomeIcon className="h-4 w-4" /> },
-    { key: 'featured', value: 'true', label: 'Featured', icon: <SparklesIcon className="h-4 w-4" /> }
+    { key: 'productType', value: 'homes', label: 'Homes', icon: <HomeIcon className="h-3 w-3" /> },
+    { key: 'productType', value: 'plots', label: 'Plots', icon: <MapIcon className="h-3 w-3" /> },
+    { key: 'productType', value: 'commercials', label: 'Commercial', icon: <BuildingOfficeIcon className="h-3 w-3" /> },
+    { key: 'productType', value: 'others', label: 'Others', icon: <BuildingOfficeIcon className="h-3 w-3" /> },
+    { key: 'listingType', value: 'sell', label: 'For Sale', icon: <ShoppingBagIcon className="h-3 w-3" /> },
+    { key: 'listingType', value: 'rent', label: 'For Rent', icon: <HomeIcon className="h-3 w-3" /> },
+    { key: 'featured', value: 'true', label: 'Featured', icon: <SparklesIcon className="h-3 w-3" /> }
   ];
 
   const renderQuickFilters = () => (
-    <div className="px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
-      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+    <div className="px-3 py-2 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
         {quickFilters.map((filter) => (
           <button
             key={`${filter.key}-${filter.value}`}
             onClick={() => handleFilterChange({ [filter.key]: filter.value })}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+            className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
               filters[filter.key] === filter.value
                 ? 'bg-blue-500 text-white shadow-md'
                 : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
@@ -133,10 +135,10 @@ const ProductsPage = () => {
   const renderProductView = () => {
     if (isLoading) {
       return (
-        <div className="flex-1 flex items-center justify-center py-12">
+        <div className="flex-1 flex items-center justify-center py-8">
           <div className="text-center">
             <LoadingSpinner size="lg" />
-            <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
               Loading properties...
             </p>
           </div>
@@ -146,18 +148,18 @@ const ProductsPage = () => {
 
     if (error) {
       return (
-        <div className="flex-1 flex items-center justify-center py-12">
+        <div className="flex-1 flex items-center justify-center py-8">
           <div className="text-center max-w-md px-4">
-            <div className="w-16 h-16 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <ExclamationTriangleIcon className="h-8 w-8 text-red-500" />
+            <div className="w-12 h-12 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-3">
+              <ExclamationTriangleIcon className="h-6 w-6 text-red-500" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">
               Something went wrong
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{error}</p>
             <button
               onClick={() => dispatch(fetchProducts(filters))}
-              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium"
+              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium text-sm"
             >
               Try Again
             </button>
@@ -168,26 +170,26 @@ const ProductsPage = () => {
 
     if (!products || products.length === 0) {
       return (
-        <div className="text-center py-12 px-4">
-          <div className="w-20 h-20 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-            <MagnifyingGlassIcon className="w-10 h-10 text-gray-400" />
+        <div className="text-center py-8 px-4">
+          <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-3">
+            <MagnifyingGlassIcon className="w-8 h-8 text-gray-400" />
           </div>
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
             No properties found
           </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
+          <p className="text-gray-600 dark:text-gray-400 mb-4 max-w-md mx-auto text-sm">
             Try adjusting your filters or browse different categories to find what you're looking for.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <div className="flex flex-col sm:flex-row gap-2 justify-center">
             <button
               onClick={handleClearFilters}
-              className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800"
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-sm"
             >
               Clear Filters
             </button>
             <button
               onClick={() => handleFilterChange({ productType: '', category: '' })}
-              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
+              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm"
             >
               Browse All
             </button>
@@ -234,16 +236,16 @@ const ProductsPage = () => {
       <div className="hidden lg:block">
         <button
           onClick={() => setShowDesktopFilters(!showDesktopFilters)}
-          className="fixed left-4 top-1/2 transform -translate-y-1/2 z-30 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 p-3 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 transition-all duration-300"
+          className="fixed left-3 top-1/2 transform -translate-y-1/2 z-30 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 p-2.5 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 transition-all duration-300"
           aria-label={showDesktopFilters ? "Hide filters" : "Show filters"}
         >
           {showDesktopFilters ? (
-            <ChevronLeftIcon className="h-5 w-5" />
+            <ChevronLeftIcon className="h-4 w-4" />
           ) : (
-            <div className="flex items-center space-x-2">
-              <ChevronRightIcon className="h-5 w-5" />
+            <div className="flex items-center space-x-1.5">
+              <ChevronRightIcon className="h-4 w-4" />
               {getActiveFiltersCount() > 0 && (
-                <span className="bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
+                <span className="bg-blue-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center font-bold">
                   {getActiveFiltersCount()}
                 </span>
               )}
@@ -258,23 +260,23 @@ const ProductsPage = () => {
         <AnimatePresence>
           {showDesktopFilters && (
             <motion.div
-              initial={{ x: -320, opacity: 0 }}
+              initial={{ x: -280, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -320, opacity: 0 }}
+              exit={{ x: -280, opacity: 0 }}
               transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="hidden lg:block w-80 flex-shrink-0"
+              className="hidden lg:block w-72 flex-shrink-0"
             >
-              <div className="sticky top-32 p-4">
+              <div className="sticky top-24 p-3">
                 <div className="bg-white dark:bg-gray-900 rounded-lg shadow-md border border-gray-200 dark:border-gray-800">
-                  <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-800">
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
                       Filters
                     </h3>
                     <button
                       onClick={() => setShowDesktopFilters(false)}
                       className="p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
                     >
-                      <XMarkIcon className="h-5 w-5 text-gray-500" />
+                      <XMarkIcon className="h-4 w-4 text-gray-500" />
                     </button>
                   </div>
                   <ProductFilters
@@ -292,13 +294,13 @@ const ProductsPage = () => {
         </AnimatePresence>
 
         {/* Content Area */}
-        <div className={`flex-1 min-w-0 transition-all duration-300 ${showDesktopFilters ? 'lg:pl-0' : 'lg:pl-16'}`}>
-          <div className="p-4">
+        <div className={`flex-1 min-w-0 transition-all duration-300 ${showDesktopFilters ? 'lg:pl-0' : 'lg:pl-12'}`}>
+          <div className="p-3">
             {renderProductView()}
 
             {/* Pagination */}
             {!isLoading && products && products.length > 0 && (
-              <div className="mt-8">
+              <div className="mt-6">
                 <ProductPagination
                   currentPage={pagination?.currentPage || 1}
                   totalPages={pagination?.totalPages || 1}
@@ -315,11 +317,11 @@ const ProductsPage = () => {
       {/* Mobile Filter Button - Fixed styling */}
       <button
         onClick={() => setShowMobileFilters(true)}
-        className="lg:hidden fixed bottom-4 right-4 z-40 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white p-4 rounded-full shadow-lg transition-all duration-200 hover:scale-105 active:scale-95"
+        className="lg:hidden fixed bottom-4 right-4 z-40 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-all duration-200 hover:scale-105 active:scale-95"
       >
-        <FunnelIcon className="h-6 w-6" />
+        <FunnelIcon className="h-5 w-5" />
         {getActiveFiltersCount() > 0 && (
-          <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-6 w-6 flex items-center justify-center font-bold">
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-bold">
             {getActiveFiltersCount()}
           </span>
         )}
@@ -343,15 +345,15 @@ const ProductsPage = () => {
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               className="ml-auto w-full max-w-sm bg-white dark:bg-gray-900 h-full overflow-hidden flex flex-col"
             >
-              <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-800">
+                <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
                   Filters
                 </h3>
                 <button
                   onClick={() => setShowMobileFilters(false)}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+                  className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                 >
-                  <XMarkIcon className="h-5 w-5" />
+                  <XMarkIcon className="h-4 w-4" />
                 </button>
               </div>
               <div className="flex-1 overflow-y-auto">
