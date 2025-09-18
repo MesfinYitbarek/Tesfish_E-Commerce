@@ -107,6 +107,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <LazyWrapper><HomePage /></LazyWrapper> },
       { path: 'products', element: <LazyWrapper><ProductsPage /></LazyWrapper> },
+      { path: 'registration/:id/payment-success', element: <LazyWrapper><PaymentSuccessPage /></LazyWrapper> },
       { path: 'products/:id', element: <LazyWrapper><ProductDetailPage /></LazyWrapper> },
       { path: 'properties', element: <LazyWrapper><PropertiesPage /></LazyWrapper> },
       { path: 'properties/:id', element: <LazyWrapper><PropertyDetailPage /></LazyWrapper> },
@@ -122,7 +123,7 @@ export const router = createBrowserRouter([
     element: <AuthLayout />,
     children: [
       { path: 'login', element: <LazyWrapper><LoginPage /></LazyWrapper> },
-      { path: 'register', element: <LazyWrapper><RegisterPage /></LazyWrapper> }
+      { path: 'register', element: <LazyWrapper><RegisterPage /></LazyWrapper> },
     ]
   },
 
@@ -157,7 +158,6 @@ export const router = createBrowserRouter([
       
       // Property Registration Management
       { path: 'registrations', element: <LazyWrapper><PropertyRegistrations /></LazyWrapper> },
-      { path: 'registration/:id/payment-success', element: <LazyWrapper><PaymentSuccessPage /></LazyWrapper> },
       
       // Communication & Business
       { path: 'messages', element: <LazyWrapper><Messages /></LazyWrapper> },
