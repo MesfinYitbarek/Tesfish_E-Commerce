@@ -6,6 +6,7 @@ import { validationResult } from 'express-validator';
 import { uploadToCloudinary } from '../../utils/upload/cloudinaryService.js';
 import { initiatePayment, verifyPayment } from '../../Services/paymentService.js';
 import { generatePDF } from '../../utils/pdfGenerator.js';
+import { generateTxRef } from '../../Services/chapaService.js';
 
 // Helper function to generate registration number
 // const generateRegistrationNumber = async () => {
@@ -197,8 +198,8 @@ export const submitRegistration = async (req, res) => {
     console.log('Registration created:', registration._id);
 
     // Create payment record
-    const tx_ref = `REG-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-    console.log('Generated tx_ref:', tx_ref);
+    const tx_ref = generateTxRef({ prefix: 'REG', size: 20 });
+console.log('Generated tx_ref:', tx_ref);
 
     const payment = await Payment.create({
       paymentId: tx_ref,
@@ -223,21 +224,22 @@ export const submitRegistration = async (req, res) => {
 
     // Initiate Chapa payment
     console.log('Initiating Chapa payment...');
-    const chapaResp = await initiateChapa({
-      tx_ref,
-      amount: property.propertyDetails.registrationFee,
-      currency: property.pricing?.currency || 'ETB',
-      email: personalInfo.email,
-      firstName: personalInfo.firstName,
-      lastName: personalInfo.lastName,
-      phone: personalInfo.phone,
-      callbackUrl,
-      returnUrl,
-      customization: {
-        title: 'Property Registration Fee',
-        description: `Registration fee for ${property.title}`
-      }
-    });
+    // In your controller:
+const chapaResp = await initiateChapa({
+  tx_ref,
+  amount: property.propertyDetails.registrationFee,
+  currency: property.pricing?.currency || 'ETB',
+  email: personalInfo.email,
+  firstName: personalInfo.firstName,
+  lastName: personalInfo.lastName,
+  phone: personalInfo.phone,
+  callbackUrl,
+  returnUrl,
+  customization: {
+    title: 'TesGold Reg', // 11 characters - fits within 16
+    description: `Property registration for ${property.title}` // Will be truncated to 50 chars automatically
+  }
+});
 
     console.log('Chapa response:', chapaResp);
 
