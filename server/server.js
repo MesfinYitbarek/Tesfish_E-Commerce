@@ -67,7 +67,9 @@ app.use(
         "img-src": [
           "'self'",
           "data:",
-          "https://res.cloudinary.com" // Cloudinary images
+          "https://res.cloudinary.com", // Cloudinary images
+          "https://images.unsplash.com", // Unsplash images
+          "https://plus.unsplash.com"    // (sometimes Unsplash uses this domain)
         ],
         "script-src": [
           "'self'",
@@ -90,6 +92,7 @@ app.use(
     crossOriginEmbedderPolicy: false,
   })
 );
+
 app.use((req, res, next) => {
   if (req.body) req.body = mongoSanitize.sanitize(req.body);
   if (req.params) req.params = mongoSanitize.sanitize(req.params);
