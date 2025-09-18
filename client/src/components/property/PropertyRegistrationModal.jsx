@@ -22,7 +22,7 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
   const dispatch = useDispatch();
   const { isSubmitting } = useSelector((state) => state.products);
   const { user } = useSelector((state) => state.auth);
-
+  
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     personalInfo: {
@@ -71,25 +71,37 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
   const [documents, setDocuments] = useState([]);
   const [errors, setErrors] = useState({});
 
+  // Pre-fill form with user data when modal opens
   useEffect(() => {
     if (isOpen && user) {
+      console.log('Pre-filling form with user data:', user);
+      
       setFormData(prev => ({
         ...prev,
         personalInfo: {
           ...prev.personalInfo,
-          firstName: user?.individualProfile?.firstName || user?.firstName || '',
-          lastName: user?.individualProfile?.lastName || user?.lastName || '',
+          firstName: user?.customerProfile?.firstName || 
+                    user?.individualProfile?.firstName || 
+                    user?.firstName || '',
+          lastName: user?.customerProfile?.lastName || 
+                   user?.individualProfile?.lastName || 
+                   user?.lastName || '',
           email: user?.email || '',
-          phone: user?.individualProfile?.phone || user?.phone || ''
+          phone: user?.customerProfile?.phone || 
+                 user?.individualProfile?.phone || 
+                 user?.phone || ''
         }
       }));
     }
   }, [isOpen, user]);
 
   const handleInputChange = (section, field, value, subsection = null) => {
+    console.log('Input change:', { section, field, value, subsection });
+    
     setFormData(prev => {
+      let newData;
       if (subsection) {
-        return {
+        newData = {
           ...prev,
           [section]: {
             ...prev[section],
@@ -100,7 +112,7 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
           }
         };
       } else {
-        return {
+        newData = {
           ...prev,
           [section]: {
             ...prev[section],
@@ -108,6 +120,9 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
           }
         };
       }
+      
+      console.log('Updated form data:', newData);
+      return newData;
     });
 
     // Clear errors
@@ -156,7 +171,7 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
         toast.error(`${file.name} is too large. Maximum size is 10MB.`);
         return;
       }
-      
+
       if (!['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
         toast.error(`${file.name} is not a supported file type.`);
         return;
@@ -172,73 +187,139 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
     setDocuments(prev => prev.filter((_, i) => i !== index));
   };
 
+  // Enhanced validation function
   const validateStep = (step) => {
     const newErrors = {};
+    console.log('Validating step:', step, 'Form data:', formData);
 
     if (step === 1) {
       // Personal Information validation
-      if (!formData.personalInfo.firstName.trim()) {
+      if (!formData.personalInfo.firstName || !formData.personalInfo.firstName.trim()) {
         newErrors['personalInfo.firstName'] = 'First name is required';
       }
-      if (!formData.personalInfo.lastName.trim()) {
+      if (!formData.personalInfo.lastName || !formData.personalInfo.lastName.trim()) {
         newErrors['personalInfo.lastName'] = 'Last name is required';
       }
-      if (!formData.personalInfo.email.trim()) {
+      if (!formData.personalInfo.email || !formData.personalInfo.email.trim()) {
         newErrors['personalInfo.email'] = 'Email is required';
       } else if (!/\S+@\S+\.\S+/.test(formData.personalInfo.email)) {
         newErrors['personalInfo.email'] = 'Please enter a valid email';
       }
-      if (!formData.personalInfo.phone.trim()) {
+      if (!formData.personalInfo.phone || !formData.personalInfo.phone.trim()) {
         newErrors['personalInfo.phone'] = 'Phone number is required';
       }
-      if (!formData.personalInfo.occupation.trim()) {
+      if (!formData.personalInfo.occupation || !formData.personalInfo.occupation.trim()) {
         newErrors['personalInfo.occupation'] = 'Occupation is required';
       }
     }
 
     if (step === 2) {
       // Address validation
-      if (!formData.address.current.street.trim()) {
+      if (!formData.address.current.street || !formData.address.current.street.trim()) {
         newErrors['address.current.street'] = 'Current address is required';
       }
-      if (!formData.address.current.city.trim()) {
+      if (!formData.address.current.city || !formData.address.current.city.trim()) {
         newErrors['address.current.city'] = 'Current city is required';
       }
-      if (!formData.address.current.region.trim()) {
+      if (!formData.address.current.region || !formData.address.current.region.trim()) {
         newErrors['address.current.region'] = 'Current region is required';
       }
 
       if (!formData.address.permanent.sameAsCurrent) {
-        if (!formData.address.permanent.street.trim()) {
+        if (!formData.address.permanent.street || !formData.address.permanent.street.trim()) {
           newErrors['address.permanent.street'] = 'Permanent address is required';
         }
-        if (!formData.address.permanent.city.trim()) {
+        if (!formData.address.permanent.city || !formData.address.permanent.city.trim()) {
           newErrors['address.permanent.city'] = 'Permanent city is required';
         }
-        if (!formData.address.permanent.region.trim()) {
+        if (!formData.address.permanent.region || !formData.address.permanent.region.trim()) {
           newErrors['address.permanent.region'] = 'Permanent region is required';
         }
       }
 
       // Emergency contact validation
-      if (!formData.emergencyContact.name.trim()) {
+      if (!formData.emergencyContact.name || !formData.emergencyContact.name.trim()) {
         newErrors['emergencyContact.name'] = 'Emergency contact name is required';
       }
-      if (!formData.emergencyContact.phone.trim()) {
+      if (!formData.emergencyContact.phone || !formData.emergencyContact.phone.trim()) {
         newErrors['emergencyContact.phone'] = 'Emergency contact phone is required';
       }
-      if (!formData.emergencyContact.relationship.trim()) {
+      if (!formData.emergencyContact.relationship || !formData.emergencyContact.relationship.trim()) {
         newErrors['emergencyContact.relationship'] = 'Relationship is required';
       }
     }
 
+    console.log('Validation errors:', newErrors);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  // Enhanced validation for final submission
+  const validateAllSteps = () => {
+    const allErrors = {};
+    
+    // Step 1 validation
+    if (!formData.personalInfo.firstName?.trim()) {
+      allErrors['personalInfo.firstName'] = 'First name is required';
+    }
+    if (!formData.personalInfo.lastName?.trim()) {
+      allErrors['personalInfo.lastName'] = 'Last name is required';
+    }
+    if (!formData.personalInfo.email?.trim()) {
+      allErrors['personalInfo.email'] = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(formData.personalInfo.email)) {
+      allErrors['personalInfo.email'] = 'Please enter a valid email';
+    }
+    if (!formData.personalInfo.phone?.trim()) {
+      allErrors['personalInfo.phone'] = 'Phone number is required';
+    }
+    if (!formData.personalInfo.occupation?.trim()) {
+      allErrors['personalInfo.occupation'] = 'Occupation is required';
+    }
+
+    // Step 2 validation
+    if (!formData.address.current.street?.trim()) {
+      allErrors['address.current.street'] = 'Current address is required';
+    }
+    if (!formData.address.current.city?.trim()) {
+      allErrors['address.current.city'] = 'Current city is required';
+    }
+    if (!formData.address.current.region?.trim()) {
+      allErrors['address.current.region'] = 'Current region is required';
+    }
+
+    if (!formData.address.permanent.sameAsCurrent) {
+      if (!formData.address.permanent.street?.trim()) {
+        allErrors['address.permanent.street'] = 'Permanent address is required';
+      }
+      if (!formData.address.permanent.city?.trim()) {
+        allErrors['address.permanent.city'] = 'Permanent city is required';
+      }
+      if (!formData.address.permanent.region?.trim()) {
+        allErrors['address.permanent.region'] = 'Permanent region is required';
+      }
+    }
+
+    if (!formData.emergencyContact.name?.trim()) {
+      allErrors['emergencyContact.name'] = 'Emergency contact name is required';
+    }
+    if (!formData.emergencyContact.phone?.trim()) {
+      allErrors['emergencyContact.phone'] = 'Emergency contact phone is required';
+    }
+    if (!formData.emergencyContact.relationship?.trim()) {
+      allErrors['emergencyContact.relationship'] = 'Relationship is required';
+    }
+
+    setErrors(allErrors);
+    return Object.keys(allErrors).length === 0;
+  };
+
   const handleNext = () => {
+    console.log('Next button clicked, validating step:', currentStep);
     if (validateStep(currentStep)) {
       setCurrentStep(prev => prev + 1);
+    } else {
+      toast.error('Please fill in all required fields before proceeding.');
     }
   };
 
@@ -246,57 +327,93 @@ const PropertyRegistrationModal = ({ isOpen, onClose, product }) => {
     setCurrentStep(prev => prev - 1);
   };
 
-  // Handle form submission with better error handling
-const handleSubmit = async () => {
-  if (!validateStep(currentStep)) return;
-
-  try {
-    const registrationData = new FormData();
+  // Enhanced form submission with comprehensive validation
+  const handleSubmit = async () => {
+    console.log('Submit button clicked, validating all steps');
     
-    // Add propertyId as a simple string
-    registrationData.append('propertyId', product._id);
-    
-    // Add JSON data as strings (they will be parsed by the backend middleware)
-    registrationData.append('personalInfo', JSON.stringify(formData.personalInfo));
-    registrationData.append('address', JSON.stringify(formData.address));
-    registrationData.append('emergencyContact', JSON.stringify(formData.emergencyContact));
-    registrationData.append('financialInfo', JSON.stringify(formData.financialInfo));
-
-    // Add documents
-    documents.forEach((file) => {
-      registrationData.append('documents', file);
-    });
-
-    console.log('Submitting registration data:', {
-      propertyId: product._id,
-      personalInfo: formData.personalInfo,
-      address: formData.address,
-      emergencyContact: formData.emergencyContact,
-      financialInfo: formData.financialInfo,
-      documentsCount: documents.length
-    });
-
-    const result = await dispatch(submitPropertyRegistration(registrationData)).unwrap();
-    
-    if (result.paymentUrl) {
-      // Redirect to payment page
-      window.open(result.paymentUrl, '_blank');
+    // Validate all steps before submission
+    if (!validateAllSteps()) {
+      toast.error('Please fill in all required fields before submitting.');
+      return;
     }
 
-    toast.success('Registration submitted successfully!');
-    onClose();
+    // Final validation check
+    const requiredFields = [
+      { field: 'personalInfo.firstName', value: formData.personalInfo.firstName },
+      { field: 'personalInfo.lastName', value: formData.personalInfo.lastName },
+      { field: 'personalInfo.email', value: formData.personalInfo.email },
+      { field: 'personalInfo.phone', value: formData.personalInfo.phone },
+      { field: 'personalInfo.occupation', value: formData.personalInfo.occupation }
+    ];
 
-  } catch (error) {
-    console.error('Registration error:', error);
-    
-    // Handle validation errors
-    if (error.includes('Validation failed')) {
-      toast.error('Please check all required fields and try again.');
-    } else {
-      toast.error(error || 'Failed to submit registration');
+    const missingFields = requiredFields.filter(({ value }) => !value || !value.trim());
+    if (missingFields.length > 0) {
+      console.error('Missing required fields:', missingFields);
+      toast.error('Please fill in all required fields.');
+      setCurrentStep(1); // Go back to first step
+      return;
     }
-  }
-};
+
+    try {
+      const registrationData = new FormData();
+
+      // Add propertyId as a simple string
+      registrationData.append('propertyId', product._id);
+
+      // Add JSON data as strings (they will be parsed by the backend middleware)
+      registrationData.append('personalInfo', JSON.stringify(formData.personalInfo));
+      registrationData.append('address', JSON.stringify(formData.address));
+      registrationData.append('emergencyContact', JSON.stringify(formData.emergencyContact));
+      registrationData.append('financialInfo', JSON.stringify(formData.financialInfo));
+
+      // Add documents
+      documents.forEach((file) => {
+        registrationData.append('documents', file);
+      });
+
+      console.log('Submitting registration data:', {
+        propertyId: product._id,
+        personalInfo: formData.personalInfo,
+        address: formData.address,
+        emergencyContact: formData.emergencyContact,
+        financialInfo: formData.financialInfo,
+        documentsCount: documents.length
+      });
+
+      const result = await dispatch(submitPropertyRegistration(registrationData)).unwrap();
+
+      if (result.paymentUrl) {
+        toast.success('Registration created! Redirecting to payment...');
+        setTimeout(() => {
+          window.location.href = result.paymentUrl;
+        }, 1000);
+        return;
+      }
+
+      toast.success('Registration submitted successfully!');
+      onClose();
+
+    } catch (error) {
+      console.error('Registration submission error:', error);
+
+      // Handle specific validation errors from backend
+      if (typeof error === 'string' && error.includes('Validation failed')) {
+        toast.error('Please check all required fields and try again.');
+        setCurrentStep(1); // Go back to first step to fix errors
+      } else if (typeof error === 'object' && error.errors) {
+        // Handle detailed validation errors
+        const backendErrors = {};
+        error.errors.forEach(err => {
+          backendErrors[err.field] = err.message;
+        });
+        setErrors(backendErrors);
+        toast.error('Please fix the validation errors and try again.');
+        setCurrentStep(1);
+      } else {
+        toast.error(error || 'Failed to submit registration');
+      }
+    }
+  };
 
   const getStepTitle = () => {
     switch (currentStep) {
@@ -386,12 +503,31 @@ const handleSubmit = async () => {
             </span>
           </div>
           <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-            <div 
+            <div
               className="bg-indigo-500 h-2 rounded-full transition-all duration-300"
               style={{ width: `${(currentStep / 4) * 100}%` }}
             ></div>
           </div>
         </div>
+
+        {/* Error Summary */}
+        {Object.keys(errors).length > 0 && (
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <div className="flex items-start">
+              <ExclamationTriangleIcon className="h-5 w-5 text-red-500 mt-0.5 mr-3" />
+              <div>
+                <h4 className="text-sm font-medium text-red-800 dark:text-red-200">
+                  Please fix the following errors:
+                </h4>
+                <ul className="list-disc list-inside text-sm text-red-700 dark:text-red-300 mt-1">
+                  {Object.entries(errors).map(([field, message]) => (
+                    <li key={field}>{message}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Step Content */}
         <div className="min-h-[400px]">
@@ -413,6 +549,7 @@ const handleSubmit = async () => {
                       onChange={(e) => handleInputChange('personalInfo', 'firstName', e.target.value)}
                       error={errors['personalInfo.firstName']}
                       className="text-base"
+                      required
                     />
                     <Input
                       label="Last Name *"
@@ -420,6 +557,7 @@ const handleSubmit = async () => {
                       onChange={(e) => handleInputChange('personalInfo', 'lastName', e.target.value)}
                       error={errors['personalInfo.lastName']}
                       className="text-base"
+                      required
                     />
                   </div>
 
@@ -431,6 +569,7 @@ const handleSubmit = async () => {
                       onChange={(e) => handleInputChange('personalInfo', 'email', e.target.value)}
                       error={errors['personalInfo.email']}
                       className="text-base"
+                      required
                     />
                     <Input
                       label="Phone Number *"
@@ -438,6 +577,8 @@ const handleSubmit = async () => {
                       onChange={(e) => handleInputChange('personalInfo', 'phone', e.target.value)}
                       error={errors['personalInfo.phone']}
                       className="text-base"
+                      placeholder="+251 911 234 567"
+                      required
                     />
                   </div>
 
@@ -447,6 +588,7 @@ const handleSubmit = async () => {
                       value={formData.personalInfo.alternatePhone}
                       onChange={(e) => handleInputChange('personalInfo', 'alternatePhone', e.target.value)}
                       className="text-base"
+                      placeholder="+251 911 234 567"
                     />
                     <Input
                       label="Date of Birth"
@@ -470,6 +612,7 @@ const handleSubmit = async () => {
                       onChange={(e) => handleInputChange('personalInfo', 'occupation', e.target.value)}
                       error={errors['personalInfo.occupation']}
                       className="text-base"
+                      required
                     />
                   </div>
 
@@ -486,6 +629,7 @@ const handleSubmit = async () => {
                       value={formData.personalInfo.monthlyIncome}
                       onChange={(e) => handleInputChange('personalInfo', 'monthlyIncome', e.target.value)}
                       className="text-base"
+                      placeholder="Enter amount in ETB"
                     />
                   </div>
                 </div>
@@ -506,6 +650,7 @@ const handleSubmit = async () => {
                         onChange={(e) => handleInputChange('address', 'street', e.target.value, 'current')}
                         error={errors['address.current.street']}
                         className="text-base"
+                        required
                       />
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <Input
@@ -514,6 +659,7 @@ const handleSubmit = async () => {
                           onChange={(e) => handleInputChange('address', 'city', e.target.value, 'current')}
                           error={errors['address.current.city']}
                           className="text-base"
+                          required
                         />
                         <Input
                           label="Region *"
@@ -521,6 +667,7 @@ const handleSubmit = async () => {
                           onChange={(e) => handleInputChange('address', 'region', e.target.value, 'current')}
                           error={errors['address.current.region']}
                           className="text-base"
+                          required
                         />
                         <Input
                           label="Zip Code"
@@ -556,6 +703,7 @@ const handleSubmit = async () => {
                           onChange={(e) => handleInputChange('address', 'street', e.target.value, 'permanent')}
                           error={errors['address.permanent.street']}
                           className="text-base"
+                          required
                         />
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <Input
@@ -564,6 +712,7 @@ const handleSubmit = async () => {
                             onChange={(e) => handleInputChange('address', 'city', e.target.value, 'permanent')}
                             error={errors['address.permanent.city']}
                             className="text-base"
+                            required
                           />
                           <Input
                             label="Region *"
@@ -571,6 +720,7 @@ const handleSubmit = async () => {
                             onChange={(e) => handleInputChange('address', 'region', e.target.value, 'permanent')}
                             error={errors['address.permanent.region']}
                             className="text-base"
+                            required
                           />
                           <Input
                             label="Zip Code"
@@ -596,6 +746,7 @@ const handleSubmit = async () => {
                           onChange={(e) => handleInputChange('emergencyContact', 'name', e.target.value)}
                           error={errors['emergencyContact.name']}
                           className="text-base"
+                          required
                         />
                         <div>
                           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -605,6 +756,7 @@ const handleSubmit = async () => {
                             value={formData.emergencyContact.relationship}
                             onChange={(e) => handleInputChange('emergencyContact', 'relationship', e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-base"
+                            required
                           >
                             <option value="">Select relationship</option>
                             {relationshipOptions.map(option => (
@@ -625,6 +777,8 @@ const handleSubmit = async () => {
                           onChange={(e) => handleInputChange('emergencyContact', 'phone', e.target.value)}
                           error={errors['emergencyContact.phone']}
                           className="text-base"
+                          placeholder="+251 911 234 567"
+                          required
                         />
                         <Input
                           label="Email Address"
@@ -645,7 +799,7 @@ const handleSubmit = async () => {
                   <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
                     Financial Information (Optional)
                   </h4>
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Input
                       label="Bank Name"
@@ -824,7 +978,7 @@ const handleSubmit = async () => {
               </Button>
             )}
           </div>
-          
+
           <div className="flex space-x-3">
             <Button
               variant="outline"
@@ -833,7 +987,7 @@ const handleSubmit = async () => {
             >
               Cancel
             </Button>
-            
+
             {currentStep < 4 ? (
               <Button
                 onClick={handleNext}

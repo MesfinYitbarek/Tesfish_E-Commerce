@@ -8,6 +8,32 @@ import { initiatePayment, verifyPayment } from '../../Services/paymentService.js
 import { generatePDF } from '../../utils/pdfGenerator.js';
 
 // Helper function to generate registration number
+// const generateRegistrationNumber = async () => {
+//   try {
+//     const count = await PropertyRegistration.countDocuments();
+//     const year = new Date().getFullYear();
+//     const sequence = String(count + 1).padStart(6, '0');
+//     return `REG${year}${sequence}`;
+//   } catch (error) {
+//     // Fallback with timestamp if count fails
+//     const timestamp = Date.now().toString().slice(-6);
+//     const year = new Date().getFullYear();
+//     return `REG${year}${timestamp}`;
+//   }
+// };
+
+// @desc    Submit property registration
+// @route   POST /api/property-registrations
+// @access  Private (Customer)
+// backend/controllers/propertyRegistrationController.js
+
+import Payment from '../../models/Payment.js';
+import { initiateChapa, verifyChapa } from '../../Services/chapaService.js';
+
+/**
+ * Submit registration (create registration + payment initiation)
+ */
+// Helper function to generate registration number
 const generateRegistrationNumber = async () => {
   try {
     const count = await PropertyRegistration.countDocuments();
@@ -22,23 +48,65 @@ const generateRegistrationNumber = async () => {
   }
 };
 
-// @desc    Submit property registration
-// @route   POST /api/property-registrations
-// @access  Private (Customer)
+/**
+ * Submit registration (create registration + payment initiation)
+ */
 export const submitRegistration = async (req, res) => {
   try {
+    console.log('=== Property Registration Submission ===');
+    console.log('Request body:', req.body);
+    console.log('Request files:', req.files?.length || 0);
+
+    // Validate request
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({
         success: false,
         message: 'Validation failed',
-        errors: errors.array().map(err => ({ field: err.path, message: err.msg }))
+        errors: errors.array().map(err => ({ 
+          field: err.path || err.param, 
+          message: err.msg,
+          value: err.value 
+        }))
       });
     }
 
     const { propertyId, personalInfo, address, emergencyContact, financialInfo } = req.body;
 
-    // Verify property
+    console.log('Parsed data:', {
+      propertyId,
+      personalInfo,
+      address: address?.current,
+      emergencyContact: emergencyContact?.name
+    });
+
+    // Validate required fields manually as backup
+    if (!personalInfo?.firstName?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: [{ field: 'personalInfo.firstName', message: 'First name is required', value: personalInfo?.firstName || '' }]
+      });
+    }
+
+    if (!personalInfo?.lastName?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: [{ field: 'personalInfo.lastName', message: 'Last name is required', value: personalInfo?.lastName || '' }]
+      });
+    }
+
+    if (!personalInfo?.phone?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: [{ field: 'personalInfo.phone', message: 'Phone number is required', value: personalInfo?.phone || '' }]
+      });
+    }
+
+    // Fetch product
     const property = await Product.findById(propertyId).populate('seller');
     if (!property) {
       return res.status(404).json({ 
@@ -47,33 +115,37 @@ export const submitRegistration = async (req, res) => {
       });
     }
 
+    console.log('Property found:', {
+      id: property._id,
+      title: property.title,
+      registrationFee: property.propertyDetails?.registrationFee
+    });
+
     if (!property.propertyDetails?.registrationFee || property.propertyDetails.registrationFee <= 0) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Property does not require registration' 
+        message: 'Property does not require registration or registration fee not set' 
       });
     }
 
-    // Check for existing registration
+    // Check for existing pending registration
     const existingRegistration = await PropertyRegistration.findOne({
       property: propertyId,
       customer: req.user.id,
-      status: { $in: ['pending', 'approved', 'under-review'] }
+      'payment.paymentStatus': { $in: ['pending', 'processing'] }
     });
 
     if (existingRegistration) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Already registered for this property' 
+        message: 'You already have a pending registration for this property' 
       });
     }
-
-    // Generate registration number
-    const registrationNumber = await generateRegistrationNumber();
 
     // Handle document uploads
     const documents = [];
     if (req.files?.length > 0) {
+      console.log('Processing', req.files.length, 'documents');
       for (const file of req.files) {
         try {
           const uploadResult = await uploadToCloudinary(file.path, 'registrations/documents');
@@ -83,130 +155,237 @@ export const submitRegistration = async (req, res) => {
             url: uploadResult.secure_url,
             publicId: uploadResult.public_id
           });
+          console.log('Document uploaded:', file.originalname);
         } catch (err) {
           console.error('Document upload error:', err);
+          // Continue with other documents, don't fail the entire process
         }
       }
     }
 
-    // Handle permanent address
-    if (address.permanent.sameAsCurrent) {
-      address.permanent = { ...address.current, sameAsCurrent: true };
+    // Handle sameAsCurrent address
+    const processedAddress = { ...address };
+    if (address?.permanent?.sameAsCurrent) {
+      processedAddress.permanent = { 
+        ...address.current, 
+        sameAsCurrent: true 
+      };
     }
 
-    // Create registration
+    // Create registration record
+    const registrationNumber = await generateRegistrationNumber();
+    console.log('Generated registration number:', registrationNumber);
+
     const registration = await PropertyRegistration.create({
       registrationNumber,
       property: propertyId,
       customer: req.user.id,
       personalInfo,
-      address,
+      address: processedAddress,
       emergencyContact,
       financialInfo,
       documents,
+      status: 'pending',
       payment: {
-        registrationFee: property.propertyDetails.registrationFee,
+        amount: property.propertyDetails.registrationFee,
         currency: property.pricing?.currency || 'ETB',
-        paymentMethod: 'chapa',
+        provider: 'chapa',
         paymentStatus: 'pending'
       }
     });
 
-    await registration.populate([
-      { path: 'property', select: 'title propertyDetails.registrationFee pricing.currency seller' },
-      { path: 'customer', select: 'customerProfile email' }
-    ]);
+    console.log('Registration created:', registration._id);
+
+    // Create payment record
+    const tx_ref = `REG-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    console.log('Generated tx_ref:', tx_ref);
+
+    const payment = await Payment.create({
+      paymentId: tx_ref,
+      registration: registration._id,
+      payer: req.user.id,
+      amount: property.propertyDetails.registrationFee,
+      currency: property.pricing?.currency || 'ETB',
+      provider: 'chapa',
+      status: 'pending'
+    });
+
+    console.log('Payment record created:', payment._id);
+
+    // Prepare URLs
+    const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+    
+    const callbackUrl = `${baseUrl}/api/payments/chapa/webhook`;
+    const returnUrl = `${frontendUrl}/registration/${registration._id}/payment-success`;
+
+    console.log('Payment URLs:', { callbackUrl, returnUrl });
 
     // Initiate Chapa payment
-    const paymentResponse = await initiatePayment({
+    console.log('Initiating Chapa payment...');
+    const chapaResp = await initiateChapa({
+      tx_ref,
       amount: property.propertyDetails.registrationFee,
       currency: property.pricing?.currency || 'ETB',
       email: personalInfo.email,
-      phone: personalInfo.phone,
       firstName: personalInfo.firstName,
       lastName: personalInfo.lastName,
-      callbackUrl: `${process.env.FRONTEND_URL}/registration/${registration._id}/payment-callback`,
-      returnUrl: `${process.env.FRONTEND_URL}/registration/${registration._id}/payment-success`,
+      phone: personalInfo.phone,
+      callbackUrl,
+      returnUrl,
       customization: {
         title: 'Property Registration Fee',
         description: `Registration fee for ${property.title}`
       }
     });
 
-    if (paymentResponse.success) {
-      registration.payment.transactionId = paymentResponse.data.tx_ref;
+    console.log('Chapa response:', chapaResp);
+
+    if (!chapaResp.success) {
+      console.error('Chapa initiation failed:', chapaResp);
+      
+      // Update payment and registration status
+      payment.status = 'failed';
+      await payment.save();
+
+      registration.payment.paymentStatus = 'failed';
       await registration.save();
+
+      return res.status(500).json({ 
+        success: false, 
+        message: chapaResp.message || 'Failed to initiate payment',
+        details: chapaResp.details
+      });
     }
 
-    res.status(201).json({
+    // Update registration with payment info
+    registration.payment.tx_ref = tx_ref;
+    registration.payment.paymentRecord = payment._id;
+    await registration.save();
+
+    console.log('Registration updated with payment info');
+
+    // Return success response
+    return res.status(201).json({
       success: true,
-      message: 'Registration submitted successfully',
+      message: 'Registration created and payment initiated',
       data: {
-        registration,
-        paymentUrl: paymentResponse.data?.checkout_url || null
+        registration: {
+          _id: registration._id,
+          registrationNumber: registration.registrationNumber,
+          status: registration.status,
+          payment: registration.payment
+        },
+        paymentUrl: chapaResp.data.checkout_url,
+        tx_ref
       }
     });
 
-  } catch (error) {
-    console.error('Submit registration error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while submitting registration'
+  } catch (err) {
+    console.error('=== Registration Submission Error ===');
+    console.error('Error message:', err.message);
+    console.error('Error stack:', err.stack);
+    console.error('Full error:', JSON.stringify(err, Object.getOwnPropertyNames(err)));
+
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Server error while submitting registration',
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
     });
   }
 };
 
-// @desc    Verify registration payment
-// @route   POST /api/property-registrations/:id/verify-payment
-// @access  Private (Customer)
+/**
+ * Verify registration payment from frontend return page (idempotent)
+ * route: POST /api/property-registrations/:id/verify-payment
+ */
 export const verifyRegistrationPayment = async (req, res) => {
   try {
     const { id } = req.params;
     const { tx_ref } = req.body;
 
-    const registration = await PropertyRegistration.findById(id)
-      .populate('property', 'title seller')
-      .populate('customer', 'customerProfile email');
-
+    const registration = await PropertyRegistration.findById(id).populate('payment.paymentRecord');
     if (!registration) {
-      return res.status(404).json({
-        success: false,
-        message: 'Registration not found'
-      });
+      return res.status(404).json({ success: false, message: 'Registration not found' });
     }
 
-    // Verify payment with Chapa
-    const paymentVerification = await verifyPayment(tx_ref);
+    if (!tx_ref) {
+      return res.status(400).json({ success: false, message: 'tx_ref is required' });
+    }
 
-    if (paymentVerification.success && paymentVerification.data.status === 'success') {
+    // find payment document
+    const payment = await Payment.findOne({ paymentId: tx_ref });
+    if (!payment) {
+      return res.status(404).json({ success: false, message: 'Payment record not found' });
+    }
+
+    // If payment already completed, return success
+    if (payment.status === 'completed') {
+      return res.status(200).json({ success: true, message: 'Payment already completed', data: { registration } });
+    }
+
+    // Verify using Chapa
+    const verifyResp = await verifyChapa(tx_ref);
+    if (!verifyResp.success) {
+      // update payment to failed so frontend gets immediate feedback
+      payment.status = 'failed';
+      payment.gatewayResponse = verifyResp.message;
+      await payment.save();
+
+      registration.payment.paymentStatus = 'failed';
+      await registration.save();
+
+      return res.status(400).json({ success: false, message: verifyResp.message || 'Verification failed' });
+    }
+
+    const verifyData = verifyResp.data;
+
+    // Optional: ensure amount matches
+    const paidAmount = Number(verifyData.amount || verifyData?.meta?.amount || 0);
+    if (paidAmount && paidAmount !== Number(payment.amount)) {
+      payment.status = 'failed';
+      payment.gatewayResponse = verifyData;
+      await payment.save();
+
+      registration.payment.paymentStatus = 'failed';
+      await registration.save();
+
+      return res.status(400).json({ success: false, message: 'Amount mismatch' });
+    }
+
+    // idempotent update
+    if (verifyData.status === 'success') {
+      payment.status = 'completed';
+      payment.externalPaymentId = verifyData.reference || verifyData.tx_ref || verifyData.transaction_id || '';
+      payment.gatewayResponse = verifyData;
+      payment.paidAt = new Date();
+      await payment.save();
+
       registration.payment.paymentStatus = 'completed';
-      registration.payment.paymentDate = new Date();
-      registration.payment.transactionId = tx_ref;
+      registration.payment.paymentRecord = payment._id;
+      registration.payment.tx_ref = tx_ref;
+      registration.payment.paidAt = new Date();
       registration.status = 'under-review';
       await registration.save();
 
-      res.status(200).json({
-        success: true,
-        message: 'Payment verified successfully',
-        data: { registration }
-      });
-    } else {
-      registration.payment.paymentStatus = 'failed';
-      await registration.save();
-      res.status(400).json({
-        success: false,
-        message: 'Payment verification failed'
-      });
+      return res.status(200).json({ success: true, message: 'Payment verified', data: { registration } });
     }
 
-  } catch (error) {
-    console.error('Verify payment error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error while verifying payment'
-    });
+    // if not success
+    payment.status = 'failed';
+    payment.gatewayResponse = verifyData;
+    await payment.save();
+
+    registration.payment.paymentStatus = 'failed';
+    await registration.save();
+
+    return res.status(400).json({ success: false, message: 'Payment not successful', data: { registration } });
+  } catch (err) {
+    console.error('verifyRegistrationPayment error:', err);
+    return res.status(500).json({ success: false, message: 'Server error while verifying payment' });
   }
 };
+
 
 // @desc    Get customer registrations
 // @route   GET /api/property-registrations/my-registrations

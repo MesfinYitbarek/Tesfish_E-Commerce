@@ -12,6 +12,7 @@ import CustomerDashboardLayout from '../components/layout/CustomerDashboardLayou
 import CustomerNotificationsPage from '../pages/customer/CustomerNotificationsPage';
 import BusinessProfile from '../pages/dashboard/BusinessProfile';
 import ProductDetailPage from '../pages/product/ProductdetailPage';
+import PaymentSuccessPage from '../components/payment/PaymentSuccessPage';
 
 // Lazy Pages - Existing
 const HomePage = lazy(() => import('../pages/home/HomePage'));
@@ -156,6 +157,7 @@ export const router = createBrowserRouter([
       
       // Property Registration Management
       { path: 'registrations', element: <LazyWrapper><PropertyRegistrations /></LazyWrapper> },
+      { path: 'registration/:id/payment-success', element: <LazyWrapper><PaymentSuccessPage /></LazyWrapper> },
       
       // Communication & Business
       { path: 'messages', element: <LazyWrapper><Messages /></LazyWrapper> },

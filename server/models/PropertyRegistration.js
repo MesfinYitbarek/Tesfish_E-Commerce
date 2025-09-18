@@ -1,178 +1,79 @@
+// backend/models/PropertyRegistration.js
 import mongoose from 'mongoose';
 
+const personalInfoSchema = new mongoose.Schema({
+  firstName: String,
+  lastName: String,
+  email: String,
+  phone: String,
+  alternatePhone: String,
+  dateOfBirth: Date,
+  nationality: String,
+  occupation: String,
+  employer: String,
+  monthlyIncome: Number
+}, { _id: false });
+
+const addressSubSchema = new mongoose.Schema({
+  street: String,
+  city: String,
+  region: String,
+  country: { type: String, default: 'Ethiopia' },
+  zipCode: String,
+  sameAsCurrent: { type: Boolean, default: false }
+}, { _id: false });
+
+const emergencyContactSchema = new mongoose.Schema({
+  name: String,
+  relationship: String,
+  phone: String,
+  email: String
+}, { _id: false });
+
+const financialInfoSchema = new mongoose.Schema({
+  bankName: String,
+  accountNumber: String,
+  hasLoan: { type: Boolean, default: false },
+  loanDetails: String,
+  monthlyExpenses: Number
+}, { _id: false });
+
+const documentSchema = new mongoose.Schema({
+  type: String,
+  name: String,
+  url: String,
+  publicId: String
+}, { _id: false });
+
+const paymentSubSchema = new mongoose.Schema({
+  provider: { type: String, enum: ['chapa'], default: 'chapa' },
+  paymentStatus: { type: String, enum: ['pending', 'processing', 'completed', 'failed'], default: 'pending' },
+  tx_ref: { type: String }, // chapa tx_ref
+  paymentRecord: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment' },
+  amount: Number,
+  currency: { type: String, default: 'ETB' },
+  paidAt: Date
+}, { _id: false });
+
 const propertyRegistrationSchema = new mongoose.Schema({
-  // Property Reference
-  property: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Product',
-    required: true
-  },
-  
-  // Customer Information
-  customer: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  
-  // Registration Details
-  registrationNumber: {
-    type: String,
-    unique: true,
-   // required: true
-  },
-  
-  // Personal Information
-  personalInfo: {
-    firstName: {
-      type: String,
-      required: true
-    },
-    lastName: {
-      type: String,
-      required: true
-    },
-    email: {
-      type: String,
-      required: true
-    },
-    phone: {
-      type: String,
-      required: true
-    },
-    alternatePhone: String,
-    dateOfBirth: Date,
-    nationality: String,
-    occupation: String,
-    employer: String,
-    monthlyIncome: Number
-  },
-  
-  // Address Information
+  registrationNumber: { type: String, required: true, unique: true },
+  property: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+  customer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  personalInfo: personalInfoSchema,
   address: {
-    current: {
-      street: String,
-      city: String,
-      region: String,
-      country: String,
-      zipCode: String
-    },
-    permanent: {
-      street: String,
-      city: String,
-      region: String,
-      country: String,
-      zipCode: String,
-      sameAsCurrent: Boolean
-    }
+    current: addressSubSchema,
+    permanent: addressSubSchema
   },
-  
-  // Emergency Contact
-  emergencyContact: {
-    name: String,
-    relationship: String,
-    phone: String,
-    email: String
-  },
-  
-  // Financial Information
-  financialInfo: {
-    bankName: String,
-    accountNumber: String,
-    creditScore: String,
-    hasLoan: Boolean,
-    loanDetails: String,
-    monthlyExpenses: Number
-  },
-  
-  // Payment Information
-  payment: {
-    registrationFee: {
-      type: Number,
-      required: true
-    },
-    currency: {
-      type: String,
-      default: 'ETB'
-    },
-    paymentMethod: {
-      type: String,
-      enum: ['chapa', 'bank-transfer', 'cash'],
-      required: true
-    },
-    paymentStatus: {
-      type: String,
-      enum: ['pending', 'completed', 'failed', 'refunded'],
-      default: 'pending'
-    },
-    transactionId: String,
-    paymentDate: Date,
-    receiptUrl: String
-  },
-  
-  // Documents
-  documents: [{
-    type: {
-      type: String,
-      enum: ['id-card', 'passport', 'license', 'bank-statement', 'salary-slip', 'other']
-    },
-    name: String,
-    url: String,
-    publicId: String,
-    uploadedAt: {
-      type: Date,
-      default: Date.now
-    },
-    verified: {
-      type: Boolean,
-      default: false
-    }
-  }],
-  
-  // Status
-  status: {
-    type: String,
-    enum: ['pending', 'approved', 'rejected', 'under-review', 'completed'],
-    default: 'pending'
-  },
-  
-  // Notes and Comments
-  notes: String,
-  adminNotes: String,
-  
-  // Important Dates
-  submittedAt: {
-    type: Date,
-    default: Date.now
-  },
-  reviewedAt: Date,
-  approvedAt: Date,
-  completedAt: Date,
-  
-  // Reviewer Information
-  reviewedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  }
-}, {
-  timestamps: true
-});
+  emergencyContact: emergencyContactSchema,
+  financialInfo: financialInfoSchema,
+  documents: [documentSchema],
+  status: { type: String, enum: ['pending', 'under-review', 'approved', 'rejected'], default: 'pending' },
+  payment: paymentSubSchema,
+  notes: String
+}, { timestamps: true });
 
-// Indexes
-propertyRegistrationSchema.index({ property: 1 });
+propertyRegistrationSchema.index({ registrationNumber: 1 }, { unique: true });
 propertyRegistrationSchema.index({ customer: 1 });
-// propertyRegistrationSchema.index({ registrationNumber: 1 });
-propertyRegistrationSchema.index({ status: 1 });
-propertyRegistrationSchema.index({ 'payment.paymentStatus': 1 });
-propertyRegistrationSchema.index({ submittedAt: -1 });
-
-// Pre-save middleware to generate registration number
-propertyRegistrationSchema.pre('save', async function(next) {
-  if (this.isNew && !this.registrationNumber) {
-    const count = await this.constructor.countDocuments();
-    this.registrationNumber = `REG${new Date().getFullYear()}${String(count + 1).padStart(6, '0')}`;
-  }
-  next();
-});
+propertyRegistrationSchema.index({ property: 1 });
 
 export default mongoose.model('PropertyRegistration', propertyRegistrationSchema);
