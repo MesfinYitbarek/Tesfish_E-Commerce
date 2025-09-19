@@ -1,47 +1,46 @@
-// @desc Handle Chapa Webhook
-// @route POST /api/chapa/webhook
-// @access Public (Chapa calls it)
-import crypto from "crypto";
+import crypto from 'crypto';
+import PropertyRegistration from '../../models/PropertyRegistration.js';
 
 export const chapaWebhook = async (req, res) => {
   try {
-    const signature = req.headers["chapa-signature"];
-    const payload = JSON.stringify(req.body);
+    console.log('=== Incoming Chapa Webhook ===');
+    console.log('Headers:', req.headers);
 
-    // Verify signature
+    const signature = req.headers['x-chapa-signature'] || req.headers['chapa-signature'];
+
+    // Use raw body
+    const payload = req.body.toString('utf-8');
+
     const expectedSignature = crypto
-      .createHmac("sha256", process.env.CHAPA_WEBHOOK_SECRET)
+      .createHmac('sha256', process.env.CHAPA_WEBHOOK_SECRET)
       .update(payload)
-      .digest("hex");
+      .digest('hex');
 
     if (signature !== expectedSignature) {
-      return res.status(401).json({ success: false, message: "Invalid signature" });
+      console.warn('Invalid signature:', { signature, expectedSignature });
+      return res.status(401).json({ success: false, message: 'Invalid signature' });
     }
 
-    const { tx_ref, status } = req.body;
+    // Parse JSON after signature verification
+    const body = JSON.parse(payload);
+    const { tx_ref, status } = body;
 
-    // Find the registration using tx_ref
-    const registration = await PropertyRegistration.findOne({
-      "payment.transactionId": tx_ref,
-    });
-
+    const registration = await PropertyRegistration.findOne({ 'payment.tx_ref': tx_ref });
     if (!registration) {
-      return res.status(404).json({ success: false, message: "Registration not found" });
+      return res.status(404).json({ success: false, message: 'Registration not found' });
     }
 
-    if (status === "success") {
-      registration.payment.paymentStatus = "completed";
-      registration.payment.paymentDate = new Date();
-      registration.status = "under-review";
-    } else {
-      registration.payment.paymentStatus = "failed";
-    }
+    registration.payment.paymentStatus = status === 'success' ? 'completed' : 'failed';
+    if (status === 'success') registration.status = 'under-review';
+    registration.payment.paymentDate = new Date();
 
     await registration.save();
 
-    res.status(200).json({ success: true, message: "Webhook processed" });
-  } catch (error) {
-    console.error("Chapa Webhook error:", error);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.log('Webhook processed successfully:', tx_ref);
+    return res.status(200).json({ success: true, message: 'Webhook processed' });
+
+  } catch (err) {
+    console.error('Chapa Webhook error:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 };
