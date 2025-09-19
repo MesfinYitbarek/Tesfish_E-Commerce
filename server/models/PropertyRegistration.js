@@ -67,13 +67,47 @@ const propertyRegistrationSchema = new mongoose.Schema({
   emergencyContact: emergencyContactSchema,
   financialInfo: financialInfoSchema,
   documents: [documentSchema],
-  status: { type: String, enum: ['pending', 'under-review', 'approved', 'rejected'], default: 'pending' },
+  status: { 
+    type: String, 
+    enum: ['pending', 'under-review', 'approved', 'rejected', 'cancelled'], 
+    default: 'pending' 
+  },
   payment: paymentSubSchema,
-  notes: String
+  notes: String,
+  
+  // ✅ ADD MISSING ADMIN REVIEW FIELDS
+  reviewedBy: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User',
+    default: null
+  },
+  reviewedAt: { 
+    type: Date,
+    default: null
+  },
+  approvedAt: { 
+    type: Date,
+    default: null
+  },
+  rejectedAt: { 
+    type: Date,
+    default: null
+  },
+  
+  // ✅ ADD ADMIN NOTES FIELD
+  adminNotes: {
+    type: String,
+    default: null
+  }
 }, { timestamps: true });
 
+// Indexes
 propertyRegistrationSchema.index({ registrationNumber: 1 }, { unique: true });
 propertyRegistrationSchema.index({ customer: 1 });
 propertyRegistrationSchema.index({ property: 1 });
+propertyRegistrationSchema.index({ status: 1 });
+propertyRegistrationSchema.index({ 'payment.paymentStatus': 1 });
+propertyRegistrationSchema.index({ reviewedBy: 1 });
+propertyRegistrationSchema.index({ createdAt: -1 });
 
 export default mongoose.model('PropertyRegistration', propertyRegistrationSchema);
