@@ -30,5 +30,5 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: true,
   },
-  base: './', // 👈 important for Render/production so assets load correctly
+  base: '/', // 👈 important for Render/production so assets load correctly
 })
