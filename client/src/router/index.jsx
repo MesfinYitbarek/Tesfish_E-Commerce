@@ -13,6 +13,8 @@ import CustomerNotificationsPage from '../pages/customer/CustomerNotificationsPa
 import BusinessProfile from '../pages/dashboard/BusinessProfile';
 import ProductDetailPage from '../pages/product/ProductdetailPage';
 import PaymentSuccessPage from '../components/payment/PaymentSuccessPage';
+import AboutUs from '../pages/aboutUs/AboutUs';
+import ProjectsPage from '../pages/projects/ProjectsPage';
 
 // Lazy Pages - Existing
 const HomePage = lazy(() => import('../pages/home/HomePage'));
@@ -107,6 +109,8 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <LazyWrapper><HomePage /></LazyWrapper> },
       { path: 'products', element: <LazyWrapper><ProductsPage /></LazyWrapper> },
+      { path: 'about-us', element: <LazyWrapper><AboutUs /></LazyWrapper> },
+      { path: 'projects', element: <LazyWrapper><ProjectsPage /></LazyWrapper> },
       { path: 'registration/:id/payment-success', element: <LazyWrapper><PaymentSuccessPage /></LazyWrapper> },
       { path: 'products/:id', element: <LazyWrapper><ProductDetailPage /></LazyWrapper> },
       { path: 'properties', element: <LazyWrapper><PropertiesPage /></LazyWrapper> },

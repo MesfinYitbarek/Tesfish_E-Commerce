@@ -62,6 +62,8 @@ const Header = () => {
     { name: 'Home', href: '/' },
     { name: 'Products', href: '/products' },
     { name: 'Services', href: '/services' },
+    { name: 'About Us', href:'/about-us'},
+    { name: 'Projects', href:'/projects'}
   ];
 
   const quickSearchSuggestions = [
