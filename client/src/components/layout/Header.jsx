@@ -1,4 +1,4 @@
-// components/layout/Header.jsx - Compact Tailwind/Expo Inspired Design
+// components/layout/Header.jsx - Compact Tailwind/Expo Inspired Design with Products Dropdown
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
@@ -11,6 +11,11 @@ import {
   MoonIcon,
   BellIcon,
   SparklesIcon,
+  ChevronDownIcon,
+  HomeIcon,
+  BuildingOfficeIcon,
+  MapPinIcon,
+  TagIcon
 } from '@heroicons/react/24/outline';
 import { Menu, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
@@ -24,6 +29,7 @@ const Header = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [productsDropdownOpen, setProductsDropdownOpen] = useState(false);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -31,6 +37,53 @@ const Header = () => {
 
   const { user, isAuthenticated } = useSelector((state) => state.auth);
   const { darkMode } = useSelector((state) => state.ui);
+
+  const productTypes = {
+    homes: {
+      label: 'Homes',
+      icon: <HomeIcon className="h-4 w-4" />,
+      subTypes: [
+        { value: 'houses', label: 'Houses' },
+        { value: 'apartment', label: 'Apartments' },
+        { value: 'villas', label: 'Villas' },
+        { value: 'condos', label: 'Condos' },
+        { value: 'townhouses', label: 'Townhouses' }
+      ]
+    },
+    plots: {
+      label: 'Land & Plots',
+      icon: <MapPinIcon className="h-4 w-4" />,
+      subTypes: [
+        { value: 'residential-land', label: 'Residential Land' },
+        { value: 'commercial-land', label: 'Commercial Land' },
+        { value: 'mixed-use-land', label: 'Mixed Use Land' },
+        { value: 'agricultural-land', label: 'Agricultural Land' }
+      ]
+    },
+    commercials: {
+      label: 'Commercial',
+      icon: <BuildingOfficeIcon className="h-4 w-4" />,
+      subTypes: [
+        { value: 'offices', label: 'Offices' },
+        { value: 'warehouses', label: 'Warehouses' },
+        { value: 'shops', label: 'Shops' },
+        { value: 'buildings', label: 'Buildings' },
+        { value: 'factories', label: 'Factories' },
+        { value: 'hotels', label: 'Hotels' }
+      ]
+    },
+    others: {
+      label: 'Others',
+      icon: <TagIcon className="h-4 w-4" />,
+      subTypes: [
+        { value: 'vehicles', label: 'Vehicles' },
+        { value: 'electronics', label: 'Electronics' },
+        { value: 'furnitures', label: 'Furniture' },
+        { value: 'construction-equipment', label: 'Equipment' },
+        { value: 'agricultural-products', label: 'Agriculture' }
+      ]
+    }
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -42,6 +95,7 @@ const Header = () => {
 
   useEffect(() => {
     setMobileMenuOpen(false);
+    setProductsDropdownOpen(false);
   }, [location.pathname]);
 
   const handleLogout = () => {
@@ -58,12 +112,20 @@ const Header = () => {
     }
   };
 
+  const handleProductTypeClick = (productType, subType = '') => {
+    const params = new URLSearchParams();
+    params.append('productType', productType);
+    if (subType) params.append('subProductType', subType);
+    navigate(`/products?${params.toString()}`);
+    setProductsDropdownOpen(false);
+    setMobileMenuOpen(false);
+  };
+
   const navigation = [
     { name: 'Home', href: '/' },
-    { name: 'Products', href: '/products' },
     { name: 'Services', href: '/services' },
-    { name: 'About Us', href:'/about-us'},
-    { name: 'Projects', href:'/projects'}
+    { name: 'About Us', href: '/about-us' },
+    { name: 'Projects', href: '/projects' }
   ];
 
   const quickSearchSuggestions = [
@@ -116,6 +178,107 @@ const Header = () => {
                 {item.name}
               </Link>
             ))}
+
+            {/* Products Dropdown */}
+            <Menu as="div" className="relative">
+              <Menu.Button className={`flex items-center px-3 py-1.5 text-sm font-medium rounded-lg transition-all duration-200 ${
+                location.pathname === '/products'
+                  ? 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/20 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/50'
+              }`}>
+                Products
+                <ChevronDownIcon className="h-3 w-3 ml-1" />
+              </Menu.Button>
+
+              <Transition
+                as={Fragment}
+                enter="transition ease-out duration-200"
+                enterFrom="transform opacity-0 scale-95"
+                enterTo="transform opacity-100 scale-100"
+                leave="transition ease-in duration-150"
+                leaveFrom="transform opacity-100 scale-100"
+                leaveTo="transform opacity-0 scale-95"
+              >
+                <Menu.Items className="absolute left-0 mt-1 w-80 origin-top-left bg-white dark:bg-slate-800 rounded-lg shadow-xl ring-1 ring-black/5 dark:ring-white/5 focus:outline-none backdrop-blur-sm border border-slate-200 dark:border-slate-700">
+                  <div className="p-2">
+                    <div className="mb-2">
+                      <Menu.Item>
+                        {({ active }) => (
+                          <Link
+                            to="/products"
+                            className={cn(
+                              'flex items-center px-3 py-2 text-sm rounded-md transition-colors font-medium',
+                              active ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-300'
+                            )}
+                          >
+                            <MagnifyingGlassIcon className="h-4 w-4 mr-2" />
+                            Browse All Products
+                          </Link>
+                        )}
+                      </Menu.Item>
+                    </div>
+                    
+                    <div className="border-t border-slate-100 dark:border-slate-700 pt-2">
+                      <div className="grid grid-cols-2 gap-1">
+                        {Object.entries(productTypes).map(([key, category]) => (
+                          <div key={key} className="space-y-1">
+                            <Menu.Item>
+                              {({ active }) => (
+                                <button
+                                  onClick={() => handleProductTypeClick(key)}
+                                  className={cn(
+                                    'flex items-center w-full px-2 py-1.5 text-xs font-medium rounded-md transition-colors text-left',
+                                    active ? 'bg-slate-100 dark:bg-slate-700' : '',
+                                    'text-slate-700 dark:text-slate-300'
+                                  )}
+                                >
+                                  {category.icon}
+                                  <span className="ml-2">{category.label}</span>
+                                </button>
+                              )}
+                            </Menu.Item>
+                            
+                            <div className="ml-4 space-y-0.5">
+                              {category.subTypes.slice(0, 3).map((subType) => (
+                                <Menu.Item key={subType.value}>
+                                  {({ active }) => (
+                                    <button
+                                      onClick={() => handleProductTypeClick(key, subType.value)}
+                                      className={cn(
+                                        'block w-full px-2 py-1 text-xs rounded transition-colors text-left',
+                                        active ? 'bg-slate-50 dark:bg-slate-800 text-blue-600 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300'
+                                      )}
+                                    >
+                                      {subType.label}
+                                    </button>
+                                  )}
+                                </Menu.Item>
+                              ))}
+                              {category.subTypes.length > 3 && (
+                                <Menu.Item>
+                                  {({ active }) => (
+                                    <button
+                                      onClick={() => handleProductTypeClick(key)}
+                                      className={cn(
+                                        'block w-full px-2 py-1 text-xs rounded transition-colors text-left',
+                                        active ? 'bg-slate-50 dark:bg-slate-800' : '',
+                                        'text-blue-600 dark:text-blue-400 font-medium'
+                                      )}
+                                    >
+                                      View All →
+                                    </button>
+                                  )}
+                                </Menu.Item>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </Menu.Items>
+              </Transition>
+            </Menu>
           </nav>
 
           {/* Enhanced Search Bar */}
@@ -340,6 +503,55 @@ const Header = () => {
                     {item.name}
                   </Link>
                 ))}
+
+                {/* Mobile Products Section */}
+                <div className="space-y-1">
+                  <button
+                    onClick={() => setProductsDropdownOpen(!productsDropdownOpen)}
+                    className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                      location.pathname === '/products'
+                        ? 'text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/20'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/50'
+                    }`}
+                  >
+                    Products
+                    <ChevronDownIcon className={`h-4 w-4 transition-transform ${productsDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {productsDropdownOpen && (
+                    <div className="ml-4 space-y-1">
+                      <Link
+                        to="/products"
+                        className="block px-3 py-1.5 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 rounded-md"
+                        onClick={() => setMobileMenuOpen(false)}
+                      >
+                        Browse All Products
+                      </Link>
+                      {Object.entries(productTypes).map(([key, category]) => (
+                        <div key={key} className="space-y-0.5">
+                          <button
+                            onClick={() => handleProductTypeClick(key)}
+                            className="flex items-center w-full px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white rounded-md text-left"
+                          >
+                            {category.icon}
+                            <span className="ml-2">{category.label}</span>
+                          </button>
+                          <div className="ml-6 space-y-0.5">
+                            {category.subTypes.slice(0, 2).map((subType) => (
+                              <button
+                                key={subType.value}
+                                onClick={() => handleProductTypeClick(key, subType.value)}
+                                className="block w-full px-3 py-1 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 rounded text-left"
+                              >
+                                {subType.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </nav>
 
               {/* Mobile Auth */}
