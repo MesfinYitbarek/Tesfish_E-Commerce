@@ -17,6 +17,7 @@ import { fileURLToPath } from "url";
 
 // Routes
 import authRoutes from './routes/auth/authRoutes.js';
+import employeeRoutes from './routes/employee/employeeRoutes.js';
 import productRoutes from './routes/product/productRoutes.js';
 import paymentRoutes from './routes/payment/paymentRoutes.js';
 import bookingRoutes from './routes/booking/bookingRoutes.js';
@@ -157,6 +158,7 @@ app.get('/health', (req, res) => {
 
 // ---------------- API ROUTES ----------------
 app.use('/api/auth', authRoutes);
+app.use('/api/employees', employeeRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/payments', paymentRoutes);

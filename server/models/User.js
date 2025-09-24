@@ -17,8 +17,15 @@ const userSchema = new mongoose.Schema({
   },
   userType: {
     type: String,
-    enum: ['company', 'individual', 'customer', 'admin'],
+    enum: ['company', 'individual', 'customer', 'admin', 'employee'],
     required: true
+  },
+  employeeProfile: {
+    firstName: String,
+    lastName: String,
+    phone: String,
+    position: String, 
+    department: String
   },
 
   // Social Logins
@@ -27,7 +34,7 @@ const userSchema = new mongoose.Schema({
     unique: true,
     sparse: true // allows null for non-Google users
   },
-  
+
   // Account Status
   isVerified: {
     type: Boolean,
@@ -43,7 +50,7 @@ const userSchema = new mongoose.Schema({
     default: 'free'
   },
   subscriptionExpiry: Date,
-  
+
   // Seller Rating & Reviews
   sellerRating: {
     average: {
@@ -55,7 +62,7 @@ const userSchema = new mongoose.Schema({
       default: 0
     }
   },
-  
+
   // Company-specific fields
   companyProfile: {
     companyName: String,
@@ -114,7 +121,7 @@ const userSchema = new mongoose.Schema({
       sunday: { open: String, close: String, closed: Boolean }
     }
   },
-  
+
   // Individual-specific fields
   individualProfile: {
     firstName: String,
@@ -141,7 +148,7 @@ const userSchema = new mongoose.Schema({
     },
     sellingCategories: [String]
   },
-  
+
   // Customer-specific fields
   customerProfile: {
     firstName: String,
@@ -181,7 +188,7 @@ const userSchema = new mongoose.Schema({
       ref: 'Product'
     }]
   },
-  
+
   // Payment Information
   paymentMethods: [{
     type: {
@@ -191,13 +198,13 @@ const userSchema = new mongoose.Schema({
     details: mongoose.Schema.Types.Mixed,
     isDefault: Boolean
   }],
-  
+
   // Verification
   emailVerificationToken: String,
   emailVerificationExpiry: Date,
   passwordResetToken: String,
   passwordResetExpiry: Date,
-  
+
   // Notifications Preferences
   notificationSettings: {
     email: {
@@ -213,7 +220,7 @@ const userSchema = new mongoose.Schema({
       default: true
     }
   },
-  
+
   // Analytics
   totalSales: {
     type: Number,
@@ -230,7 +237,7 @@ const userSchema = new mongoose.Schema({
 });
 
 // Virtual for full name
-userSchema.virtual('fullName').get(function() {
+userSchema.virtual('fullName').get(function () {
   if (this.userType === 'company') {
     return this.companyProfile?.companyName;
   }
@@ -244,14 +251,14 @@ userSchema.virtual('fullName').get(function() {
 });
 
 // Password hashing middleware
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 12);
   next();
 });
 
 // Password comparison method
-userSchema.methods.comparePassword = async function(candidatePassword) {
+userSchema.methods.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
