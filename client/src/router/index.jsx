@@ -15,6 +15,7 @@ import ProductDetailPage from '../pages/product/ProductdetailPage';
 import PaymentSuccessPage from '../components/payment/PaymentSuccessPage';
 import AboutUs from '../pages/aboutUs/AboutUs';
 import ProjectsPage from '../pages/projects/ProjectsPage';
+import EmployeeManagement from '../pages/admin/EmployeeManagement';
 
 // Lazy Pages - Existing
 const HomePage = lazy(() => import('../pages/home/HomePage'));
@@ -187,7 +188,8 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <LazyWrapper><AdminDashboard /></LazyWrapper> },
-      { path: 'users', element: <LazyWrapper><UserManagement /></LazyWrapper> },
+      { path: 'employees', element: <LazyWrapper><EmployeeManagement /></LazyWrapper> },
+      { path: 'users', element: <LazyWrapper><UserManagement /></LazyWrapper> },     
       { path: 'analytics', element: <LazyWrapper><PlatformAnalytics /></LazyWrapper> },
       { path: 'listings', element: <LazyWrapper><ListingModeration /></LazyWrapper> },
       

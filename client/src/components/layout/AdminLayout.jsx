@@ -17,7 +17,9 @@ import {
   ClipboardDocumentListIcon,
   CurrencyDollarIcon,
   CalendarIcon,
-  ArrowRightOnRectangleIcon
+  ArrowRightOnRectangleIcon,
+  UserGroupIcon,
+  BriefcaseIcon
 } from '@heroicons/react/24/outline';
 import { logout } from '../../store/slices/authSlice';
 import NotificationPanel from '../../pages/dashboard/NotificationPanel';
@@ -68,8 +70,8 @@ const AdminLayout = () => {
       <Link
         to={to}
         className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${isActive
-            ? 'bg-primary-100 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
-            : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+          ? 'bg-primary-100 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300'
+          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
           }`}
         onClick={() => setSidebarOpen(false)}
       >
@@ -133,7 +135,11 @@ const AdminLayout = () => {
               icon={<UsersIcon className="h-5 w-5" />}
               label="User Management"
             />
-
+            <NavItem
+              to="/admin/employees"
+              icon={<UserGroupIcon className="h-5 w-5" />}
+              label="Employee Management"
+            />
             <NavItem
               to="/admin/listings"
               icon={<BuildingOfficeIcon className="h-5 w-5" />}
