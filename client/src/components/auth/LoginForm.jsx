@@ -10,7 +10,7 @@ import {
   LockClosedIcon
 } from '@heroicons/react/24/outline';
 
-import { login,googleLogin } from '../../store/slices/authSlice';
+import { login, googleLogin } from '../../store/slices/authSlice';
 //import authService from '../../services/authService';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
@@ -51,6 +51,8 @@ const LoginForm = () => {
         navigate('/admin', { replace: true });
       } else if (result?.user?.userType === 'customer') {
         navigate('/customer', { replace: true });
+      } else if (result?.user?.userType === 'employee') {
+        navigate('/employee', { replace: true });
       } else {
         navigate(from, { replace: true });
       }
@@ -64,19 +66,19 @@ const LoginForm = () => {
   };
 
   const handleGoogleSuccess = async (response) => {
-  try {
-    const idToken = response.credential; // Google One Tap gives this
-    if (!idToken) {
-      console.error("No ID token returned from Google");
-      return;
-    }
+    try {
+      const idToken = response.credential; // Google One Tap gives this
+      if (!idToken) {
+        console.error("No ID token returned from Google");
+        return;
+      }
 
-    // ✅ Call googleLogin thunk, not login
-    dispatch(googleLogin(idToken));
-  } catch (err) {
-    console.error("Google login error:", err);
-  }
-};
+      // ✅ Call googleLogin thunk, not login
+      dispatch(googleLogin(idToken));
+    } catch (err) {
+      console.error("Google login error:", err);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -193,7 +195,7 @@ const LoginForm = () => {
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-3">
-           <GoogleLogin
+          <GoogleLogin
             onSuccess={handleGoogleSuccess}
             onError={() => console.error('Google Login Failed')}
             useOneTap // optional: enable One-Tap popup

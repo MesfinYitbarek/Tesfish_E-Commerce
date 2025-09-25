@@ -16,6 +16,8 @@ import PaymentSuccessPage from '../components/payment/PaymentSuccessPage';
 import AboutUs from '../pages/aboutUs/AboutUs';
 import ProjectsPage from '../pages/projects/ProjectsPage';
 import EmployeeManagement from '../pages/admin/EmployeeManagement';
+import EmployeeLayout from '../components/layout/EmployeeLayout';
+import EmployeeOverview from '../pages/dashboard/EmployeeDashboard';
 
 // Lazy Pages - Existing
 const HomePage = lazy(() => import('../pages/home/HomePage'));
@@ -75,6 +77,9 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
     }
     if (requiredRole === 'customer') {
       return <Navigate to="/dashboard" replace />;
+    }
+    if (requiredRole === 'employee') {
+      return <Navigate to="/employee" replace />;
     }
     return <Navigate to="/" replace />;
   }
@@ -154,23 +159,23 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <LazyWrapper><DashboardOverview /></LazyWrapper> },
-      
+
       // Product/Listing Management
       { path: 'products', element: <LazyWrapper><MyListings /></LazyWrapper> },
       { path: 'products/create', element: <LazyWrapper><CreateProduct /></LazyWrapper> },
       { path: 'products/:id/edit', element: <LazyWrapper><EditProduct /></LazyWrapper> },
       { path: 'listings/create', element: <LazyWrapper><CreateProduct /></LazyWrapper> },
-      
+
       // Property Registration Management
       { path: 'registrations', element: <LazyWrapper><PropertyRegistrations /></LazyWrapper> },
-      
+
       // Communication & Business
       { path: 'messages', element: <LazyWrapper><Messages /></LazyWrapper> },
       { path: 'bookings', element: <LazyWrapper><Bookings /></LazyWrapper> },
-      
+
       // Analytics & Reports
       { path: 'analytics', element: <LazyWrapper><Analytics /></LazyWrapper> },
-      
+
       // Account Management
       { path: 'notifications', element: <LazyWrapper><NotificationPanel /></LazyWrapper> },
       { path: 'business-profile', element: <LazyWrapper><BusinessProfile /></LazyWrapper> },
@@ -189,26 +194,37 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <LazyWrapper><AdminDashboard /></LazyWrapper> },
       { path: 'employees', element: <LazyWrapper><EmployeeManagement /></LazyWrapper> },
-      { path: 'users', element: <LazyWrapper><UserManagement /></LazyWrapper> },     
+      { path: 'users', element: <LazyWrapper><UserManagement /></LazyWrapper> },
       { path: 'analytics', element: <LazyWrapper><PlatformAnalytics /></LazyWrapper> },
       { path: 'listings', element: <LazyWrapper><ListingModeration /></LazyWrapper> },
-      
+
       // Service Management Routes
       { path: 'services', element: <LazyWrapper><ServicesDashboard /></LazyWrapper> },
       { path: 'services/inquiries', element: <LazyWrapper><ServicesDashboard /></LazyWrapper> },
       { path: 'services/inquiries/:id', element: <LazyWrapper><ServiceInquiryDetail /></LazyWrapper> },
       { path: 'services/analytics', element: <LazyWrapper><ServicesDashboard /></LazyWrapper> },
       { path: 'registrations', element: <LazyWrapper><PropertyRegistrations /></LazyWrapper> },
-      
+
       // Communication & Business
       { path: 'messages', element: <LazyWrapper><Messages /></LazyWrapper> },
       { path: 'bookings', element: <LazyWrapper><Bookings /></LazyWrapper> },
       { path: 'registrations', element: <LazyWrapper><PropertyRegistrations /></LazyWrapper> },
-      
-      
+
+
     ]
   },
-
+  {
+    path: '/employee',
+    element: (
+      <ProtectedRoute requiredRole="employee">
+        <EmployeeLayout />
+      </ProtectedRoute>
+    ),
+    children: [
+      { index: true, element: <LazyWrapper><EmployeeOverview /></LazyWrapper> },
+      { path: 'registrations', element: <LazyWrapper><PropertyRegistrations /></LazyWrapper> },
+    ]
+  },
   // Customer Routes
   {
     path: '/customer',
@@ -220,7 +236,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <LazyWrapper><CustomerDashboard /></LazyWrapper> },
       { path: 'dashboard', element: <LazyWrapper><CustomerDashboard /></LazyWrapper> },
-      
+
       // Customer Property Registrations
       { path: 'registrations', element: <LazyWrapper><CustomerRegistrations /></LazyWrapper> },
       { path: 'payments', element: <LazyWrapper><PaymentProcessing /></LazyWrapper> },
@@ -232,7 +248,7 @@ export const router = createBrowserRouter([
       { path: 'services', element: <LazyWrapper><ServiceInquiries /></LazyWrapper> },
       { path: 'services/inquiries', element: <LazyWrapper><ServiceInquiries /></LazyWrapper> },
       { path: 'services/inquiries/:id', element: <LazyWrapper><ServiceInquiryDetail /></LazyWrapper> },
-      
+
       // Profile and Settings
       { path: 'profile', element: <LazyWrapper><Profile /></LazyWrapper> },
       { path: 'settings', element: <LazyWrapper><Settings /></LazyWrapper> },
