@@ -1,4 +1,3 @@
-// components/layout/Header.jsx - Compact Tailwind/Expo Inspired Design with Products Dropdown
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';

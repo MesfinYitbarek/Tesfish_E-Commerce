@@ -1,4 +1,3 @@
-// components/home/HeroSection.jsx - Enhanced with Subtype Search
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 

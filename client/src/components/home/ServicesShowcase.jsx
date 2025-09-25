@@ -1,4 +1,3 @@
-// components/home/ServicesShowcase.jsx - Compact Design
 import { Link } from 'react-router-dom';
 import { 
   BuildingOfficeIcon, 

@@ -21,7 +21,6 @@ const RecentListings = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
   const [wishlistedItems, setWishlistedItems] = useState(new Set());
-  const [viewMode, setViewMode] = useState('grid');
 
   useEffect(() => {
     fetchRecentListings();

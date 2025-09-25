@@ -50,7 +50,7 @@ const FeaturedProperties = () => {
   const featuredProducts = useSelector(selectFeaturedProducts);
   const isLoading = useSelector(selectIsLoading);
   const wishlistIds = useSelector(selectWishlistIds);
-  const { user, isAuthenticated } = useSelector((state) => state.auth);
+  const { isAuthenticated } = useSelector((state) => state.auth);
 
   const [currentSlide, setCurrentSlide] = useState(0);
   const [autoPlay, setAutoPlay] = useState(true);

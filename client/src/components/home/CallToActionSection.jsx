@@ -1,4 +1,3 @@
-// components/home/CallToActionSection.jsx - Compact Design
 import { Link } from 'react-router-dom';
 import { 
   PlusIcon, 
