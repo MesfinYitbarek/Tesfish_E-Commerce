@@ -4,12 +4,13 @@ import { body } from 'express-validator';
 import {
   bookAppointment,
   getMyAppointments,
-  getAdminAppointments,
+  getMyAssignments,
+  getAdminOverview,
   updateAppointmentStatus,
+  reassignAppointment,
   rescheduleAppointment,
   getAppointmentStats,
-  exportAppointmentsCSV,
-  assignAppointmentToAdmin
+  exportAppointmentsCSV
 } from '../../controllers/Appointment/appointmentController.js';
 import { protect, authorize } from '../../middleware/auth/authMiddleware.js';
 import { handleValidationErrors } from '../../middleware/validation/validationMiddleware.js';
@@ -21,25 +22,88 @@ const appointmentValidation = [
   body('contactInfo.email').isEmail().withMessage('Valid email is required'),
   body('contactInfo.phone').notEmpty().withMessage('Phone number is required'),
   body('scheduledDateTime').isISO8601().withMessage('Valid date and time is required'),
+  body('appointmentType').optional().isIn([
+    'property-viewing', 
+    'consultation', 
+    'property-evaluation',
+    'contract-discussion',
+    'design-consultation',
+    'project-meeting',
+    'engineering-consultation'
+  ]).withMessage('Invalid appointment type'),
+  body('preferredDepartment').optional().isIn([
+    'real-estate',
+    'interior-design', 
+    'project-management',
+    'engineering',
+    'marketing',
+    'sales'
+  ]).withMessage('Invalid department'),
+  handleValidationErrors
+];
+
+const rescheduleValidation = [
+  body('newDateTime').isISO8601().withMessage('Valid date and time is required'),
+  body('reason').optional().isString().withMessage('Reason must be a string'),
+  handleValidationErrors
+];
+
+const statusUpdateValidation = [
+  body('status').isIn([
+    'pending', 
+    'confirmed', 
+    'cancelled', 
+    'completed', 
+    'rescheduled', 
+    'no-show'
+  ]).withMessage('Invalid status'),
+  body('notes').optional().isString().withMessage('Notes must be a string'),
+  handleValidationErrors
+];
+
+const reassignValidation = [
+  body('employeeId').isMongoId().withMessage('Valid employee ID is required'),
+  body('reason').optional().isString().withMessage('Reason must be a string'),
   handleValidationErrors
 ];
 
 // All routes require authentication
 router.use(protect);
 
-// Customer routes
-router.post('/', appointmentValidation, bookAppointment);
-router.get('/my-appointments', getMyAppointments);
-
-// Admin-only routes (appointment management)
-router.get('/admin-appointments', 
-  authorize('admin'), 
-  getAdminAppointments
+// ✅ Customer routes
+router.post('/', 
+  authorize('customer'), 
+  appointmentValidation, 
+  bookAppointment
 );
 
-router.get('/stats',
+router.get('/my-appointments', 
+  authorize('customer'), 
+  getMyAppointments
+);
+
+// ✅ Employee routes
+router.get('/my-assignments', 
+  authorize('employee'), 
+  getMyAssignments
+);
+
+router.put('/:id/status', 
+  authorize('employee', 'admin'),
+  statusUpdateValidation,
+  updateAppointmentStatus
+);
+
+// ✅ Admin routes (full oversight and management)
+router.get('/admin-overview', 
+  authorize('admin'), 
+  getAdminOverview
+);
+
+router.put('/:id/reassign',
   authorize('admin'),
-  getAppointmentStats
+  reassignValidation,
+  reassignAppointment
 );
 
 router.get('/export-csv',
@@ -47,17 +111,35 @@ router.get('/export-csv',
   exportAppointmentsCSV
 );
 
-router.put('/:id/status', 
-  authorize('admin'),
-  updateAppointmentStatus
+// ✅ Shared routes (accessible by multiple user types)
+router.get('/stats',
+  authorize('employee', 'admin'),
+  getAppointmentStats
 );
 
-router.put('/:id/assign',
-  authorize('admin'),
-  assignAppointmentToAdmin
+router.put('/:id/reschedule', 
+  authorize('customer', 'employee', 'admin'),
+  rescheduleValidation,
+  rescheduleAppointment
 );
 
-// Shared routes (customers can reschedule, admins can reschedule)
-router.put('/:id/reschedule', rescheduleAppointment);
+// ✅ Additional admin-only routes for comprehensive management
+router.get('/department/:department',
+  authorize('admin'),
+  (req, res, next) => {
+    req.query.department = req.params.department;
+    next();
+  },
+  getAdminOverview
+);
+
+router.get('/employee/:employeeId',
+  authorize('admin'),
+  (req, res, next) => {
+    req.query.assignedTo = req.params.employeeId;
+    next();
+  },
+  getAdminOverview
+);
 
 export default router;

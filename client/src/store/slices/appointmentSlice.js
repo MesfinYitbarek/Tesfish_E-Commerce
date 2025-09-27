@@ -8,12 +8,14 @@ const initialState = {
   // Appointments data
   appointments: [],
   myAppointments: [],
-  adminAppointments: [], // Renamed from sellerAppointments
+  myAssignments: [], // ✅ Employee assignments
+  adminOverview: [], // ✅ Admin overview
   currentAppointment: null,
   
-  // Admin-specific data
-  propertyOwners: [],
-  availableAdmins: [],
+  // Employee and department data
+  availableEmployees: [],
+  departmentStats: [],
+  employeeWorkload: [],
   
   // Pagination
   pagination: {
@@ -36,7 +38,8 @@ const initialState = {
     cancelledCount: 0,
     noShowCount: 0,
     statusStats: [],
-    monthlyStats: []
+    monthlyStats: [],
+    departmentStats: []
   },
   
   // Available slots
@@ -47,7 +50,7 @@ const initialState = {
   isBooking: false,
   isUpdating: false,
   isRescheduling: false,
-  isAssigning: false,
+  isReassigning: false, // ✅ Reassigning state
   isLoadingSlots: false,
   isExporting: false,
   
@@ -60,8 +63,9 @@ const initialState = {
     status: 'all',
     upcoming: false,
     date: null,
-    property: null,
-    propertyOwner: null
+    assignedTo: null, // ✅ Employee filter
+    department: null, // ✅ Department filter
+    past: false
   }
 };
 
@@ -95,12 +99,25 @@ export const getMyAppointments = createAsyncThunk(
   }
 );
 
-// Get admin appointments (renamed from getSellerAppointments)
-export const getAdminAppointments = createAsyncThunk(
-  'appointments/getAdminAppointments',
+// ✅ Get employee assignments
+export const getMyAssignments = createAsyncThunk(
+  'appointments/getMyAssignments',
   async (params, { rejectWithValue }) => {
     try {
-      const response = await appointmentService.getAdminAppointments(params);
+      const response = await appointmentService.getMyAssignments(params);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error);
+    }
+  }
+);
+
+// ✅ Get admin overview
+export const getAdminOverview = createAsyncThunk(
+  'appointments/getAdminOverview',
+  async (params, { rejectWithValue }) => {
+    try {
+      const response = await appointmentService.getAdminOverview(params);
       return response.data;
     } catch (error) {
       return rejectWithValue(error);
@@ -123,16 +140,16 @@ export const updateAppointmentStatus = createAsyncThunk(
   }
 );
 
-// Assign appointment to admin
-export const assignAppointmentToAdmin = createAsyncThunk(
-  'appointments/assignAppointmentToAdmin',
+// ✅ Reassign appointment
+export const reassignAppointment = createAsyncThunk(
+  'appointments/reassignAppointment',
   async ({ appointmentId, assignmentData }, { rejectWithValue }) => {
     try {
-      const response = await appointmentService.assignAppointmentToAdmin(appointmentId, assignmentData);
-      toast.success('Appointment assigned successfully!');
+      const response = await appointmentService.reassignAppointment(appointmentId, assignmentData);
+      toast.success('Appointment reassigned successfully!');
       return response.data;
     } catch (error) {
-      toast.error(error.message || 'Failed to assign appointment');
+      toast.error(error.message || 'Failed to reassign appointment');
       return rejectWithValue(error);
     }
   }
@@ -267,12 +284,12 @@ export const exportAppointmentsCSV = createAsyncThunk(
   }
 );
 
-// Get available admins
-export const getAvailableAdmins = createAsyncThunk(
-  'appointments/getAvailableAdmins',
+// ✅ Get available employees
+export const getAvailableEmployees = createAsyncThunk(
+  'appointments/getAvailableEmployees',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await appointmentService.getAvailableAdmins();
+      const response = await appointmentService.getAvailableEmployees();
       return response.data;
     } catch (error) {
       return rejectWithValue(error);
@@ -307,8 +324,9 @@ const appointmentSlice = createSlice({
         status: 'all',
         upcoming: false,
         date: null,
-        property: null,
-        propertyOwner: null
+        assignedTo: null,
+        department: null,
+        past: false
       };
     },
     
@@ -327,10 +345,16 @@ const appointmentSlice = createSlice({
         state.myAppointments[myIndex] = { ...state.myAppointments[myIndex], ...updates };
       }
       
-      // Update in adminAppointments
-      const adminIndex = state.adminAppointments.findIndex(apt => apt._id === appointmentId);
+      // ✅ Update in myAssignments
+      const assignmentIndex = state.myAssignments.findIndex(apt => apt._id === appointmentId);
+      if (assignmentIndex !== -1) {
+        state.myAssignments[assignmentIndex] = { ...state.myAssignments[assignmentIndex], ...updates };
+      }
+      
+      // ✅ Update in adminOverview
+      const adminIndex = state.adminOverview.findIndex(apt => apt._id === appointmentId);
       if (adminIndex !== -1) {
-        state.adminAppointments[adminIndex] = { ...state.adminAppointments[adminIndex], ...updates };
+        state.adminOverview[adminIndex] = { ...state.adminOverview[adminIndex], ...updates };
       }
       
       // Update current appointment if it matches
@@ -343,7 +367,8 @@ const appointmentSlice = createSlice({
     removeAppointmentFromList: (state, action) => {
       const appointmentId = action.payload;
       state.myAppointments = state.myAppointments.filter(apt => apt._id !== appointmentId);
-      state.adminAppointments = state.adminAppointments.filter(apt => apt._id !== appointmentId);
+      state.myAssignments = state.myAssignments.filter(apt => apt._id !== appointmentId);
+      state.adminOverview = state.adminOverview.filter(apt => apt._id !== appointmentId);
     },
 
     // Add new appointment (for real-time updates)
@@ -354,9 +379,11 @@ const appointmentSlice = createSlice({
       if (newAppointment.customer === action.meta?.userId) {
         state.myAppointments.unshift(newAppointment);
       }
-      if (newAppointment.seller === action.meta?.userId) {
-        state.adminAppointments.unshift(newAppointment);
+      if (newAppointment.assignedTo === action.meta?.userId) {
+        state.myAssignments.unshift(newAppointment);
       }
+      // Admin always sees in overview
+      state.adminOverview.unshift(newAppointment);
     }
   },
   extraReducers: (builder) => {
@@ -387,7 +414,6 @@ const appointmentSlice = createSlice({
         state.myAppointments = action.payload.appointments || [];
         state.pagination = action.payload.pagination || state.pagination;
         
-        // Update stats if provided
         if (action.payload.stats) {
           const statsMap = {};
           action.payload.stats.forEach(stat => {
@@ -401,22 +427,38 @@ const appointmentSlice = createSlice({
         state.error = action.payload?.message || 'Failed to fetch appointments';
       })
       
-      // Get admin appointments
-      .addCase(getAdminAppointments.pending, (state) => {
+      // ✅ Get my assignments (employee)
+      .addCase(getMyAssignments.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(getAdminAppointments.fulfilled, (state, action) => {
+      .addCase(getMyAssignments.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.adminAppointments = action.payload.appointments || [];
+        state.myAssignments = action.payload.appointments || [];
         state.pagination = action.payload.pagination || state.pagination;
         state.stats.todayCount = action.payload.todayCount || 0;
         state.stats.upcomingCount = action.payload.upcomingCount || 0;
-        state.propertyOwners = action.payload.propertyOwners || [];
       })
-      .addCase(getAdminAppointments.rejected, (state, action) => {
+      .addCase(getMyAssignments.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.payload?.message || 'Failed to fetch appointments';
+        state.error = action.payload?.message || 'Failed to fetch assignments';
+      })
+      
+      // ✅ Get admin overview
+      .addCase(getAdminOverview.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(getAdminOverview.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.adminOverview = action.payload.appointments || [];
+        state.pagination = action.payload.pagination || state.pagination;
+        state.departmentStats = action.payload.departmentStats || [];
+        state.employeeWorkload = action.payload.employeeWorkload || [];
+      })
+      .addCase(getAdminOverview.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload?.message || 'Failed to fetch admin overview';
       })
       
       // Update appointment status
@@ -429,16 +471,17 @@ const appointmentSlice = createSlice({
         const updatedAppointment = action.payload.appointment;
         
         if (updatedAppointment) {
-          // Update in both lists
-          const myIndex = state.myAppointments.findIndex(apt => apt._id === updatedAppointment._id);
-          if (myIndex !== -1) {
-            state.myAppointments[myIndex] = updatedAppointment;
-          }
+          // Update in all lists
+          const updateInList = (list) => {
+            const index = list.findIndex(apt => apt._id === updatedAppointment._id);
+            if (index !== -1) {
+              list[index] = updatedAppointment;
+            }
+          };
           
-          const adminIndex = state.adminAppointments.findIndex(apt => apt._id === updatedAppointment._id);
-          if (adminIndex !== -1) {
-            state.adminAppointments[adminIndex] = updatedAppointment;
-          }
+          updateInList(state.myAppointments);
+          updateInList(state.myAssignments);
+          updateInList(state.adminOverview);
           
           if (state.currentAppointment?._id === updatedAppointment._id) {
             state.currentAppointment = updatedAppointment;
@@ -450,19 +493,20 @@ const appointmentSlice = createSlice({
         state.error = action.payload?.message || 'Failed to update appointment';
       })
 
-      // Assign appointment to admin
-      .addCase(assignAppointmentToAdmin.pending, (state) => {
-        state.isAssigning = true;
+      // ✅ Reassign appointment
+      .addCase(reassignAppointment.pending, (state) => {
+        state.isReassigning = true;
         state.error = null;
       })
-      .addCase(assignAppointmentToAdmin.fulfilled, (state, action) => {
-        state.isAssigning = false;
+      .addCase(reassignAppointment.fulfilled, (state, action) => {
+        state.isReassigning = false;
         const updatedAppointment = action.payload.appointment;
         
         if (updatedAppointment) {
-          const adminIndex = state.adminAppointments.findIndex(apt => apt._id === updatedAppointment._id);
+          // Update in admin overview
+          const adminIndex = state.adminOverview.findIndex(apt => apt._id === updatedAppointment._id);
           if (adminIndex !== -1) {
-            state.adminAppointments[adminIndex] = updatedAppointment;
+            state.adminOverview[adminIndex] = updatedAppointment;
           }
           
           if (state.currentAppointment?._id === updatedAppointment._id) {
@@ -470,9 +514,9 @@ const appointmentSlice = createSlice({
           }
         }
       })
-      .addCase(assignAppointmentToAdmin.rejected, (state, action) => {
-        state.isAssigning = false;
-        state.error = action.payload?.message || 'Failed to assign appointment';
+      .addCase(reassignAppointment.rejected, (state, action) => {
+        state.isReassigning = false;
+        state.error = action.payload?.message || 'Failed to reassign appointment';
       })
       
       // Reschedule appointment
@@ -485,16 +529,17 @@ const appointmentSlice = createSlice({
         const rescheduledAppointment = action.payload.appointment;
         
         if (rescheduledAppointment) {
-          // Update in both lists
-          const myIndex = state.myAppointments.findIndex(apt => apt._id === rescheduledAppointment._id);
-          if (myIndex !== -1) {
-            state.myAppointments[myIndex] = rescheduledAppointment;
-          }
+          // Update in all lists
+          const updateInList = (list) => {
+            const index = list.findIndex(apt => apt._id === rescheduledAppointment._id);
+            if (index !== -1) {
+              list[index] = rescheduledAppointment;
+            }
+          };
           
-          const adminIndex = state.adminAppointments.findIndex(apt => apt._id === rescheduledAppointment._id);
-          if (adminIndex !== -1) {
-            state.adminAppointments[adminIndex] = rescheduledAppointment;
-          }
+          updateInList(state.myAppointments);
+          updateInList(state.myAssignments);
+          updateInList(state.adminOverview);
           
           if (state.currentAppointment?._id === rescheduledAppointment._id) {
             state.currentAppointment = rescheduledAppointment;
@@ -568,6 +613,9 @@ const appointmentSlice = createSlice({
         if (action.payload.monthlyStats) {
           state.stats.monthlyStats = action.payload.monthlyStats;
         }
+        if (action.payload.departmentStats) {
+          state.stats.departmentStats = action.payload.departmentStats;
+        }
       })
 
       // Export appointments CSV
@@ -583,9 +631,9 @@ const appointmentSlice = createSlice({
         state.error = action.payload?.message || 'Failed to export appointments';
       })
 
-      // Get available admins
-      .addCase(getAvailableAdmins.fulfilled, (state, action) => {
-        state.availableAdmins = action.payload.admins || [];
+      // ✅ Get available employees
+      .addCase(getAvailableEmployees.fulfilled, (state, action) => {
+        state.availableEmployees = action.payload.employees || [];
       });
   }
 });
@@ -605,26 +653,31 @@ export const {
 // Selectors
 export const selectAppointments = (state) => state.appointments;
 export const selectMyAppointments = (state) => state.appointments.myAppointments;
-export const selectAdminAppointments = (state) => state.appointments.adminAppointments; // Renamed
+export const selectMyAssignments = (state) => state.appointments.myAssignments; // ✅ Employee assignments
+export const selectAdminOverview = (state) => state.appointments.adminOverview; // ✅ Admin overview
 export const selectCurrentAppointment = (state) => state.appointments.currentAppointment;
 export const selectAppointmentStats = (state) => state.appointments.stats;
 export const selectAvailableSlots = (state) => state.appointments.availableSlots;
 export const selectAppointmentFilters = (state) => state.appointments.filters;
 export const selectAppointmentPagination = (state) => state.appointments.pagination;
-export const selectPropertyOwners = (state) => state.appointments.propertyOwners;
-export const selectAvailableAdmins = (state) => state.appointments.availableAdmins;
+export const selectAvailableEmployees = (state) => state.appointments.availableEmployees; // ✅ Employees
+export const selectDepartmentStats = (state) => state.appointments.departmentStats; // ✅ Department stats
+export const selectEmployeeWorkload = (state) => state.appointments.employeeWorkload; // ✅ Employee workload
 
 // Loading selectors
 export const selectIsBookingAppointment = (state) => state.appointments.isBooking;
 export const selectIsLoadingAppointments = (state) => state.appointments.isLoading;
 export const selectIsUpdatingAppointment = (state) => state.appointments.isUpdating;
 export const selectIsReschedulingAppointment = (state) => state.appointments.isRescheduling;
-export const selectIsAssigningAppointment = (state) => state.appointments.isAssigning;
+export const selectIsReassigningAppointment = (state) => state.appointments.isReassigning; // ✅ Reassigning
 export const selectIsLoadingSlots = (state) => state.appointments.isLoadingSlots;
 export const selectIsExportingAppointments = (state) => state.appointments.isExporting;
 
 // Error selectors
 export const selectAppointmentError = (state) => state.appointments.error;
 export const selectBookingError = (state) => state.appointments.bookingError;
+
+// Legacy selectors for backward compatibility
+export const selectAdminAppointments = selectAdminOverview; // For backward compatibility
 
 export default appointmentSlice.reducer;

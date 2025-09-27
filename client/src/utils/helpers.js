@@ -43,7 +43,22 @@ export const formatDate = (date, options = {}) => {
     return 'Date not available';
   }
 };
+// Format time (HH:mm or 12-hour)
+export const formatTime = (date, options = {}) => {
+  if (!date || isNaN(new Date(date))) return 'Time not available';
 
+  const defaultOptions = {
+    hour: '2-digit',
+    minute: '2-digit',
+  };
+
+  try {
+    return new Intl.DateTimeFormat('en-ET', { ...defaultOptions, ...options }).format(new Date(date));
+  } catch (error) {
+    console.error('Time formatting error:', error);
+    return 'Time not available';
+  }
+};
 // formatRelativeTime with validation
 export const formatRelativeTime = (date) => {
   if (!date || isNaN(new Date(date))) return 'some time ago';

@@ -14,7 +14,9 @@ import {
   HomeIcon,
   BuildingOfficeIcon,
   MapPinIcon,
-  TagIcon
+  TagIcon,
+  CogIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import { Menu, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
@@ -96,6 +98,99 @@ const Header = () => {
     setMobileMenuOpen(false);
     setProductsDropdownOpen(false);
   }, [location.pathname]);
+
+  // ✅ Role-based dashboard navigation
+  const getDashboardLink = () => {
+    if (!user) return '/dashboard';
+    
+    switch (user.userType) {
+      case 'admin':
+        return '/admin';
+      case 'employee':
+        return '/employee';
+      case 'customer':
+        return '/customer';
+      case 'company':
+      case 'individual':
+      default:
+        return '/dashboard';
+    }
+  };
+
+  const getDashboardLabel = () => {
+    if (!user) return 'Dashboard';
+    
+    switch (user.userType) {
+      case 'admin':
+        return 'Admin Dashboard';
+      case 'employee':
+        return 'Employee Dashboard';
+      case 'customer':
+        return 'My Dashboard';
+      case 'company':
+      case 'individual':
+      default:
+        return 'Dashboard';
+    }
+  };
+
+  const getDashboardIcon = () => {
+    if (!user) return <UserIcon className="h-4 w-4" />;
+    
+    switch (user.userType) {
+      case 'admin':
+        return <ShieldCheckIcon className="h-4 w-4" />;
+      case 'employee':
+        return <UserIcon className="h-4 w-4" />;
+      case 'customer':
+        return <HomeIcon className="h-4 w-4" />;
+      case 'company':
+      case 'individual':
+      default:
+        return <BuildingOfficeIcon className="h-4 w-4" />;
+    }
+  };
+
+  const getUserDisplayName = () => {
+    if (!user) return 'User';
+    
+    // For employees, try to get name from employeeProfile
+    if (user.userType === 'employee' && user.employeeProfile) {
+      return user.employeeProfile.firstName || user.fullName?.split(' ')[0] || 'Employee';
+    }
+    
+    // For customers, try to get name from customerProfile
+    if (user.userType === 'customer' && user.customerProfile) {
+      return user.customerProfile.firstName || user.fullName?.split(' ')[0] || 'Customer';
+    }
+    
+    // For companies, try to get company name
+    if (user.userType === 'company' && user.companyProfile) {
+      return user.companyProfile.companyName || user.fullName?.split(' ')[0] || 'Company';
+    }
+    
+    // Fallback to fullName or generic
+    return user.fullName?.split(' ')[0] || 'User';
+  };
+
+  const getUserRole = () => {
+    if (!user) return 'Member';
+    
+    switch (user.userType) {
+      case 'admin':
+        return 'Administrator';
+      case 'employee':
+        return user.employeeProfile?.position || 'Employee';
+      case 'customer':
+        return 'Customer';
+      case 'company':
+        return 'Company';
+      case 'individual':
+        return 'Individual Seller';
+      default:
+        return 'Member';
+    }
+  };
 
   const handleLogout = () => {
     dispatch(logout());
@@ -359,15 +454,15 @@ const Header = () => {
                   <Menu.Button className="flex items-center space-x-2 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 group">
                     <div className="w-7 h-7 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md group-hover:scale-105 transition-all duration-200">
                       <span className="text-white text-xs font-semibold">
-                        {user?.fullName?.charAt(0)?.toUpperCase() || 'U'}
+                        {getUserDisplayName().charAt(0)?.toUpperCase() || 'U'}
                       </span>
                     </div>
                     <div className="hidden sm:block text-left">
                       <div className="text-xs font-medium text-slate-900 dark:text-slate-100">
-                        {user?.fullName?.split(' ')[0] || 'User'}
+                        {getUserDisplayName()}
                       </div>
                       <div className="text-xs text-slate-500 dark:text-slate-400">
-                        {user?.userType || 'Member'}
+                        {getUserRole()}
                       </div>
                     </div>
                   </Menu.Button>
@@ -386,15 +481,18 @@ const Header = () => {
                         <div className="flex items-center space-x-2">
                           <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-md flex items-center justify-center">
                             <span className="text-white text-sm font-semibold">
-                              {user?.fullName?.charAt(0)?.toUpperCase() || 'U'}
+                              {getUserDisplayName().charAt(0)?.toUpperCase() || 'U'}
                             </span>
                           </div>
                           <div>
                             <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                              {user?.fullName || 'User'}
+                              {user?.fullName || getUserDisplayName()}
                             </div>
                             <div className="text-xs text-slate-500 dark:text-slate-400">
                               {user?.email}
+                            </div>
+                            <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                              {getUserRole()}
                             </div>
                           </div>
                         </div>
@@ -403,7 +501,23 @@ const Header = () => {
                         <Menu.Item>
                           {({ active }) => (
                             <Link
-                              to="/dashboard"
+                              to={getDashboardLink()}
+                              className={cn(
+                                'flex items-center px-2 py-2 text-sm rounded-md transition-colors',
+                                active ? 'bg-slate-100 dark:bg-slate-700' : '',
+                                'text-slate-700 dark:text-slate-300'
+                              )}
+                            >
+                              {getDashboardIcon()}
+                              <span className="ml-2">{getDashboardLabel()}</span>
+                            </Link>
+                          )}
+                        </Menu.Item>
+                        
+                        <Menu.Item>
+                          {({ active }) => (
+                            <Link
+                              to="/profile"
                               className={cn(
                                 'flex items-center px-2 py-2 text-sm rounded-md transition-colors',
                                 active ? 'bg-slate-100 dark:bg-slate-700' : '',
@@ -411,11 +525,29 @@ const Header = () => {
                               )}
                             >
                               <UserIcon className="h-4 w-4 mr-2" />
-                              Dashboard
+                              Profile
                             </Link>
                           )}
                         </Menu.Item>
+
+                        <Menu.Item>
+                          {({ active }) => (
+                            <Link
+                              to={`${getDashboardLink()}/settings`}
+                              className={cn(
+                                'flex items-center px-2 py-2 text-sm rounded-md transition-colors',
+                                active ? 'bg-slate-100 dark:bg-slate-700' : '',
+                                'text-slate-700 dark:text-slate-300'
+                              )}
+                            >
+                              <CogIcon className="h-4 w-4 mr-2" />
+                              Settings
+                            </Link>
+                          )}
+                        </Menu.Item>
+
                         <div className="my-1 border-t border-slate-100 dark:border-slate-700"></div>
+                        
                         <Menu.Item>
                           {({ active }) => (
                             <button
@@ -551,6 +683,18 @@ const Header = () => {
                     </div>
                   )}
                 </div>
+
+                {/* Mobile Dashboard Link for Authenticated Users */}
+                {isAuthenticated && (
+                  <Link
+                    to={getDashboardLink()}
+                    className="flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800/50"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    {getDashboardIcon()}
+                    <span className="ml-2">{getDashboardLabel()}</span>
+                  </Link>
+                )}
               </nav>
 
               {/* Mobile Auth */}

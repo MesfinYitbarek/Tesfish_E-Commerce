@@ -1,3 +1,4 @@
+// components/layout/EmployeeLayout.jsx - Remove automatic redirects
 import { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
@@ -12,40 +13,32 @@ import {
   BellIcon,
   MagnifyingGlassIcon,
   SunIcon,
-  MoonIcon
+  MoonIcon,
+  CogIcon
 } from '@heroicons/react/24/outline';
 import { logout } from '../../store/slices/authSlice';
+import { toggleDarkMode } from '../../store/slices/uiSlice';
 import NotificationPanel from '../../pages/dashboard/NotificationPanel';
-
 
 const EmployeeLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
+  const { darkMode } = useSelector((state) => state.ui);
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
 
-
-  useEffect(() => {
-    // Check for dark mode preference
-    setDarkMode(document.documentElement.classList.contains('dark'));
-  }, []);
-
-  const toggleDarkMode = () => {
-    if (darkMode) {
-      document.documentElement.classList.remove('dark');
-    } else {
-      document.documentElement.classList.add('dark');
-    }
-    setDarkMode(!darkMode);
-  };
+  // ✅ Removed automatic redirects - let React Router handle navigation naturally
 
   const handleLogout = () => {
     dispatch(logout());
     navigate('/auth/login');
+  };
+
+  const handleDarkModeToggle = () => {
+    dispatch(toggleDarkMode());
   };
 
   const NavItem = ({ to, icon, label, badge, end = false }) => {
@@ -91,8 +84,11 @@ const EmployeeLayout = () => {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <Link to="/" className="text-xl font-bold text-primary-600 dark:text-primary-400">
-              CitiLights
+            <Link to="/" className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">T</span>
+              </div>
+              <span className="text-xl font-bold text-gray-900 dark:text-white">TesGold</span>
             </Link>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -102,54 +98,89 @@ const EmployeeLayout = () => {
             </button>
           </div>
 
+          {/* User Info */}
+          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
+                <span className="text-white font-semibold text-sm">
+                  {user?.employeeProfile?.firstName?.charAt(0) || user?.fullName?.charAt(0) || 'E'}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                  {user?.employeeProfile?.firstName || user?.fullName?.split(' ')[0] || 'Employee'}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  {user?.employeeProfile?.position || 'Employee'}
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Navigation */}
           <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-            <NavItem 
-              to="/employee" 
-              icon={<HomeIcon className="h-5 w-5" />}
-              label="Overview"
-              end 
-            />
-            <NavItem
-              to="/employee/registrations"
-              icon={<CalendarIcon className="h-5 w-5" />}
-              label="Property Registrations"
-            />
-            {/* <NavItem 
-              to="/employee/analytics" 
-              icon={<ChartBarIcon className="h-5 w-5" />}
-              label="Analytics"
-            /> */}
+            <div className="space-y-1">
+              <NavItem 
+                to="/employee" 
+                icon={<HomeIcon className="h-5 w-5" />}
+                label="Dashboard"
+                end 
+              />
+              <NavItem
+                to="/employee/appointments"
+                icon={<CalendarIcon className="h-5 w-5" />}
+                label="All Appointments"
+              />
+              <NavItem
+                to="/employee/registrations"
+                icon={<BuildingOfficeIcon className="h-5 w-5" />}
+                label="Property Registrations"
+              />
+              <NavItem 
+                to="/employee/analytics" 
+                icon={<ChartBarIcon className="h-5 w-5" />}
+                label="Analytics"
+              />
+            </div>
             
-            {/* <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="pt-4 mt-4 border-t border-gray-200 dark:border-gray-700">
               <p className="px-3 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">
                 Account
               </p>
               <NavItem 
-                to="/dashboard/profile" 
+                to="/employee/profile" 
                 icon={<UserIcon className="h-5 w-5" />}
                 label="Profile"
               />
-            </div> */}
+              <NavItem 
+                to="/employee/settings" 
+                icon={<CogIcon className="h-5 w-5" />}
+                label="Settings"
+              />
+            </div>
           </nav>
 
           {/* User Profile */}
           <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center">
-              <div className="w-10 h-10 bg-primary-500 rounded-full flex items-center justify-center text-white font-semibold">
-                {user?.firstName?.charAt(0) || 'U'}
-              </div>
-              <div className="ml-3 flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                  {user?.firstName} {user?.lastName}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                  {user?.email}
-                </p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3 flex-1 min-w-0">
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
+                  <span className="text-white font-semibold text-xs">
+                    {user?.employeeProfile?.firstName?.charAt(0) || user?.fullName?.charAt(0) || 'E'}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate">
+                    {user?.employeeProfile?.firstName || user?.fullName?.split(' ')[0] || 'Employee'}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    Employee
+                  </p>
+                </div>
               </div>
               <button
                 onClick={handleLogout}
-                className="ml-2 p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors rounded-lg"
                 title="Logout"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -174,26 +205,34 @@ const EmployeeLayout = () => {
                 <Bars3Icon className="h-6 w-6" />
               </button>
               
-              {/* Search */}
+              {/* Breadcrumb */}
               <div className="hidden md:block ml-4 lg:ml-0">
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                  />
-                </div>
+                <nav className="flex" aria-label="Breadcrumb">
+                  <ol className="flex items-center space-x-2">
+                    <li>
+                      <Link to="/employee" className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">
+                        Employee
+                      </Link>
+                    </li>
+                    {location.pathname !== '/employee' && (
+                      <>
+                        <span className="text-gray-500 dark:text-gray-400">/</span>
+                        <li className="text-gray-900 dark:text-gray-100 font-medium">
+                          {location.pathname.split('/').pop().replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </li>
+                      </>
+                    )}
+                  </ol>
+                </nav>
               </div>
             </div>
 
             <div className="flex items-center space-x-4">
               {/* Dark mode toggle */}
               <button
-                onClick={toggleDarkMode}
-                className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
+                onClick={handleDarkModeToggle}
+                className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors rounded-lg"
+                title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
               >
                 {darkMode ? (
                   <SunIcon className="h-5 w-5" />
@@ -205,22 +244,28 @@ const EmployeeLayout = () => {
               {/* Notifications */}
               <button
                 onClick={() => setNotificationsOpen(true)}
-                className="relative p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
+                className="relative p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors rounded-lg"
+                title="Notifications"
               >
                 <BellIcon className="h-5 w-5" />
                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
               </button>
 
-              {/* Profile dropdown */}
-              <div className="relative">
-                <button className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100">
-                  <div className="w-8 h-8 bg-primary-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                    {user?.firstName?.charAt(0) || 'U'}
-                  </div>
-                  <span className="hidden lg:block font-medium">
-                    {user?.firstName} {user?.lastName}
+              {/* Profile info */}
+              <div className="hidden sm:flex items-center space-x-2">
+                <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center">
+                  <span className="text-white font-semibold text-sm">
+                    {user?.employeeProfile?.firstName?.charAt(0) || user?.fullName?.charAt(0) || 'E'}
                   </span>
-                </button>
+                </div>
+                <div className="text-sm">
+                  <p className="font-medium text-gray-900 dark:text-gray-100">
+                    {user?.employeeProfile?.firstName || user?.fullName?.split(' ')[0] || 'Employee'}
+                  </p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    {user?.employeeProfile?.department || 'Employee'}
+                  </p>
+                </div>
               </div>
             </div>
           </div>

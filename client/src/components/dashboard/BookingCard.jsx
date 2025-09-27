@@ -1,3 +1,4 @@
+// components/dashboard/BookingCard.jsx
 import { useState, useMemo } from 'react';
 import { 
   CalendarIcon,
@@ -11,13 +12,15 @@ import {
   ChatBubbleLeftRightIcon,
   PhoneIcon,
   EnvelopeIcon,
-  PhotoIcon
+  PhotoIcon,
+  ArrowPathIcon,
+  BuildingOfficeIcon
 } from '@heroicons/react/24/outline';
 import { formatDate, formatRelativeTime } from '../../utils/helpers';
 import Button from '../ui/Button';
 import ConfirmDialog from '../ui/ConfirmDialog';
 
-const BookingCard = ({ booking, onStatusChange, onViewDetails, isSeller = true }) => {
+const BookingCard = ({ booking, onStatusChange, onViewDetails, onReassign, userType }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [confirmAction, setConfirmAction] = useState({ show: false, type: '', title: '', message: '' });
   const [imageError, setImageError] = useState(false);
@@ -37,13 +40,22 @@ const BookingCard = ({ booking, onStatusChange, onViewDetails, isSeller = true }
       phone: appointmentData.contactInfo?.phone || appointmentData.customer?.phone,
       avatar: appointmentData.customer?.avatar
     },
+    // ✅ Assigned employee info
+    assignedEmployee: appointmentData.assignedTo ? {
+      id: appointmentData.assignedTo._id,
+      name: `${appointmentData.assignedTo.employeeProfile?.firstName || ''} ${appointmentData.assignedTo.employeeProfile?.lastName || ''}`.trim(),
+      email: appointmentData.assignedTo.email,
+      department: appointmentData.assignedTo.employeeProfile?.department,
+      position: appointmentData.assignedTo.employeeProfile?.position
+    } : null,
     scheduledDateTime: appointmentData.scheduledDateTime,
     duration: appointmentData.duration || 60,
     status: appointmentData.status,
     appointmentType: appointmentData.appointmentType,
+    assignedDepartment: appointmentData.assignedDepartment,
     meetingDetails: appointmentData.meetingDetails,
     customerNotes: appointmentData.customerNotes,
-    sellerNotes: appointmentData.sellerNotes,
+    employeeNotes: appointmentData.employeeNotes, // ✅ Changed from sellerNotes
     createdAt: appointmentData.createdAt,
     requirements: appointmentData.requirements || []
   }), [appointmentData]);
@@ -118,10 +130,13 @@ const BookingCard = ({ booking, onStatusChange, onViewDetails, isSeller = true }
     return `In ${Math.ceil(diffDays / 7)} weeks`;
   };
 
-  const canConfirm = bookingData.status === 'pending' && isSeller;
-  const canComplete = bookingData.status === 'confirmed' && isSeller && new Date(bookingData.scheduledDateTime) <= new Date();
+  // ✅ Updated permission checks based on user type
+  const canManage = userType === 'admin' || userType === 'employee';
+  const canConfirm = bookingData.status === 'pending' && canManage;
+  const canComplete = bookingData.status === 'confirmed' && canManage && new Date(bookingData.scheduledDateTime) <= new Date();
   const canCancel = ['pending', 'confirmed'].includes(bookingData.status);
-  const canMarkNoShow = bookingData.status === 'confirmed' && isSeller && new Date(bookingData.scheduledDateTime) < new Date();
+  const canMarkNoShow = bookingData.status === 'confirmed' && canManage && new Date(bookingData.scheduledDateTime) < new Date();
+  const canReassign = userType === 'admin' && onReassign && ['pending', 'confirmed'].includes(bookingData.status);
 
   // Memoize image URL to prevent recalculation
   const propertyImage = useMemo(() => {
@@ -224,6 +239,16 @@ const BookingCard = ({ booking, onStatusChange, onViewDetails, isSeller = true }
                         {bookingData.appointmentType.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
                       </span>
                     )}
+
+                    {/* ✅ Show assigned employee for admin/customer */}
+                    {(userType === 'admin' || userType === 'customer') && bookingData.assignedEmployee && (
+                      <div className="flex items-center text-gray-600 dark:text-gray-400">
+                        <BuildingOfficeIcon className="h-4 w-4 mr-1" />
+                        <span className="text-xs">
+                          {bookingData.assignedEmployee.name} ({bookingData.assignedEmployee.department})
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -262,8 +287,20 @@ const BookingCard = ({ booking, onStatusChange, onViewDetails, isSeller = true }
                       </Button>
                     )}
 
+                    {/* ✅ Reassign button for admin */}
+                    {canReassign && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onReassign()}
+                        leftIcon={<ArrowPathIcon className="h-4 w-4" />}
+                      >
+                        Reassign
+                      </Button>
+                    )}
+
                     {/* Contact Actions */}
-                    {isSeller && bookingData.customer.phone && (
+                    {canManage && bookingData.customer.phone && (
                       <button
                         onClick={() => window.open(`tel:${bookingData.customer.phone}`)}
                         className="p-2 text-gray-400 hover:text-green-500 transition-colors"
@@ -273,7 +310,7 @@ const BookingCard = ({ booking, onStatusChange, onViewDetails, isSeller = true }
                       </button>
                     )}
 
-                    {isSeller && bookingData.customer.email && (
+                    {canManage && bookingData.customer.email && (
                       <button
                         onClick={() => window.open(`mailto:${bookingData.customer.email}`)}
                         className="p-2 text-gray-400 hover:text-blue-500 transition-colors"
@@ -292,7 +329,7 @@ const BookingCard = ({ booking, onStatusChange, onViewDetails, isSeller = true }
                     </button>
 
                     {/* More Actions Menu */}
-                    {isSeller && (
+                    {canManage && (
                       <div className="relative">
                         <button
                           onClick={() => setShowMenu(!showMenu)}
@@ -333,6 +370,19 @@ const BookingCard = ({ booking, onStatusChange, onViewDetails, isSeller = true }
                               </button>
                             )}
 
+                            {canReassign && (
+                              <button
+                                onClick={() => {
+                                  setShowMenu(false);
+                                  onReassign();
+                                }}
+                                className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                              >
+                                <ArrowPathIcon className="h-4 w-4 mr-2" />
+                                Reassign
+                              </button>
+                            )}
+
                             {canCancel && (
                               <button
                                 onClick={() => handleStatusAction('cancel')}
@@ -354,11 +404,11 @@ const BookingCard = ({ booking, onStatusChange, onViewDetails, isSeller = true }
         </div>
 
         {/* Notes */}
-        {(bookingData.customerNotes || bookingData.sellerNotes) && (
+        {(bookingData.customerNotes || bookingData.employeeNotes) && (
           <div className="mt-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
             <p className="text-sm text-gray-700 dark:text-gray-300">
               <span className="font-medium">Notes: </span>
-              {bookingData.customerNotes || bookingData.sellerNotes}
+              {bookingData.customerNotes || bookingData.employeeNotes}
             </p>
           </div>
         )}
@@ -382,9 +432,16 @@ const BookingCard = ({ booking, onStatusChange, onViewDetails, isSeller = true }
         {/* Footer Info */}
         <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
           <span>Booked {formatRelativeTime(bookingData.createdAt)}</span>
-          {bookingData.appointmentNumber && (
-            <span>#{bookingData.appointmentNumber}</span>
-          )}
+          <div className="flex items-center space-x-3">
+            {bookingData.assignedDepartment && (
+              <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 text-xs rounded-full capitalize">
+                {bookingData.assignedDepartment.replace('-', ' ')}
+              </span>
+            )}
+            {bookingData.appointmentNumber && (
+              <span>#{bookingData.appointmentNumber}</span>
+            )}
+          </div>
         </div>
       </div>
 

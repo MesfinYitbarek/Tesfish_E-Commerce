@@ -12,24 +12,32 @@ import {
   XMarkIcon,
   EyeIcon,
   ArrowDownTrayIcon,
-  UserPlusIcon
+  UserPlusIcon,
+  BuildingOfficeIcon,
+  UsersIcon
 } from '@heroicons/react/24/outline';
 import {
-  getAdminAppointments, // Updated from getSellerAppointments
   getMyAppointments,
+  getMyAssignments, // ✅ Employee assignments
+  getAdminOverview, // ✅ Admin overview
   updateAppointmentStatus,
+  reassignAppointment, // ✅ Reassignment
   exportAppointmentsCSV,
-  selectAdminAppointments, // Updated from selectSellerAppointments
+  getAvailableEmployees, // ✅ Get employees
   selectMyAppointments,
+  selectMyAssignments, // ✅ Employee assignments
+  selectAdminOverview, // ✅ Admin overview
   selectIsLoadingAppointments,
   selectAppointmentError,
-  selectPropertyOwners,
+  selectAvailableEmployees, // ✅ Available employees
+  selectDepartmentStats, // ✅ Department stats
   updateFilters,
   selectAppointmentFilters
 } from '../../store/slices/appointmentSlice';
 import BookingCard from '../../components/dashboard/BookingCard';
 import BookingCalendar from '../../components/dashboard/BookingCalendar';
 import BookingDetailsModal from '../../components/dashboard/BookingDetailsModal';
+import ReassignModal from '../../components/dashboard/ReassignModal'; // ✅ New modal
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
@@ -40,35 +48,66 @@ const Bookings = () => {
   const dispatch = useDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useSelector((state) => state.auth);
-  const adminAppointments = useSelector(selectAdminAppointments); // Updated
+  
+  // ✅ Updated selectors based on user type
   const customerAppointments = useSelector(selectMyAppointments);
-  const propertyOwners = useSelector(selectPropertyOwners);
+  const employeeAssignments = useSelector(selectMyAssignments);
+  const adminOverview = useSelector(selectAdminOverview);
+  const availableEmployees = useSelector(selectAvailableEmployees);
+  const departmentStats = useSelector(selectDepartmentStats);
+  
   const isLoading = useSelector(selectIsLoadingAppointments);
   const error = useSelector(selectAppointmentError);
   const filters = useSelector(selectAppointmentFilters);
 
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [showReassignModal, setShowReassignModal] = useState(false); // ✅ Reassign modal
   const [viewMode, setViewMode] = useState('list'); // list, calendar
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Only admins can manage appointments now
+  // ✅ Determine user type and appropriate data
   const isAdmin = user?.userType === 'admin';
+  const isEmployee = user?.userType === 'employee';
   const isCustomer = user?.userType === 'customer';
-  const appointments = isAdmin ? adminAppointments : customerAppointments;
+  
+  // ✅ Get appropriate appointments based on user type
+  const appointments = isAdmin ? adminOverview : 
+                      isEmployee ? employeeAssignments : 
+                      isCustomer ? customerAppointments : [];
 
   console.log('User:', user);
   console.log('Is Admin:', isAdmin);
+  console.log('Is Employee:', isEmployee);
+  console.log('Is Customer:', isCustomer);
   console.log('Appointments:', appointments);
+
+  // ✅ Department options
+  const departments = [
+    { value: 'real-estate', label: 'Real Estate' },
+    { value: 'interior-design', label: 'Interior Design' },
+    { value: 'project-management', label: 'Project Management' },
+    { value: 'engineering', label: 'Engineering' },
+    { value: 'marketing', label: 'Marketing' },
+    { value: 'sales', label: 'Sales' }
+  ];
 
   useEffect(() => {
     if (user) {
-      // Load appointments based on user type
+      // ✅ Load appointments based on user type
       if (isAdmin) {
-        dispatch(getAdminAppointments({ // Updated from getSellerAppointments
+        dispatch(getAdminOverview({
+          status: filters.status === 'all' ? undefined : filters.status,
+          assignedTo: filters.assignedTo,
+          department: filters.department,
+          date: filters.date,
+          upcoming: filters.upcoming
+        }));
+        // Load employees for assignment
+        dispatch(getAvailableEmployees());
+      } else if (isEmployee) {
+        dispatch(getMyAssignments({
           status: filters.status === 'all' ? undefined : filters.status,
           date: filters.date,
-          property: filters.property,
-          propertyOwner: filters.propertyOwner,
           upcoming: filters.upcoming
         }));
       } else if (isCustomer) {
@@ -79,7 +118,7 @@ const Bookings = () => {
         }));
       }
     }
-  }, [dispatch, user, isAdmin, isCustomer, filters]);
+  }, [dispatch, user, isAdmin, isEmployee, isCustomer, filters]);
 
   const handleStatusChange = async (appointmentId, newStatus, additionalData = {}) => {
     try {
@@ -91,15 +130,42 @@ const Bookings = () => {
         }
       })).unwrap();
       
-      // Reload appointments
+      // Reload appointments based on user type
       if (isAdmin) {
-        dispatch(getAdminAppointments({
+        dispatch(getAdminOverview({
           status: filters.status === 'all' ? undefined : filters.status,
-          propertyOwner: filters.propertyOwner
+          assignedTo: filters.assignedTo,
+          department: filters.department
+        }));
+      } else if (isEmployee) {
+        dispatch(getMyAssignments({
+          status: filters.status === 'all' ? undefined : filters.status
         }));
       }
     } catch (error) {
       console.error('Error updating appointment status:', error);
+    }
+  };
+
+  // ✅ Handle reassignment (admin only)
+  const handleReassign = async (appointmentId, employeeId, reason) => {
+    try {
+      await dispatch(reassignAppointment({
+        appointmentId,
+        assignmentData: { employeeId, reason }
+      })).unwrap();
+      
+      // Reload admin overview
+      dispatch(getAdminOverview({
+        status: filters.status === 'all' ? undefined : filters.status,
+        assignedTo: filters.assignedTo,
+        department: filters.department
+      }));
+      
+      setShowReassignModal(false);
+      setSelectedBooking(null);
+    } catch (error) {
+      console.error('Error reassigning appointment:', error);
     }
   };
 
@@ -125,10 +191,17 @@ const Bookings = () => {
       const location = appointment.property?.propertyDetails?.location?.street?.toLowerCase() || '';
       const appointmentNumber = appointment.appointmentNumber?.toLowerCase() || '';
       
+      // ✅ For admin/employee, also search by assigned employee
+      let employeeName = '';
+      if (isAdmin || isEmployee) {
+        employeeName = `${appointment.assignedTo?.employeeProfile?.firstName || ''} ${appointment.assignedTo?.employeeProfile?.lastName || ''}`.toLowerCase();
+      }
+      
       if (!customerName.includes(searchLower) && 
           !propertyTitle.includes(searchLower) && 
           !location.includes(searchLower) &&
-          !appointmentNumber.includes(searchLower)) {
+          !appointmentNumber.includes(searchLower) &&
+          !employeeName.includes(searchLower)) {
         return false;
       }
     }
@@ -160,8 +233,8 @@ const Bookings = () => {
     { key: 'no-show', label: 'No Show', count: statusCounts['no-show'] }
   ];
 
-  // Show different content based on user type
-  if (!isAdmin && !isCustomer) {
+  // ✅ Show different content based on user type
+  if (!isAdmin && !isEmployee && !isCustomer) {
     return (
       <div className="flex items-center justify-center min-h-64">
         <div className="text-center">
@@ -170,10 +243,7 @@ const Bookings = () => {
             Access Restricted
           </h3>
           <p className="text-gray-600 dark:text-gray-400 mb-4">
-            Appointment management is available for admins and customers only.
-          </p>
-          <p className="text-sm text-gray-500 dark:text-gray-500">
-            Property owners will be notified about appointments but management is handled by our admin team.
+            Appointment management is available for admins, employees, and customers only.
           </p>
         </div>
       </div>
@@ -203,11 +273,15 @@ const Bookings = () => {
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            {isAdmin ? 'Appointment Management' : 'My Appointments'}
+            {isAdmin ? 'Appointment Overview' : 
+             isEmployee ? 'My Assignments' : 
+             'My Appointments'}
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
             {isAdmin 
-              ? 'Manage property viewing appointments from customers'
+              ? 'Manage all property viewing appointments and employee assignments'
+              : isEmployee
+              ? 'Track and manage your assigned appointments'
               : 'Track your property viewing appointments'
             }
           </p>
@@ -254,6 +328,69 @@ const Bookings = () => {
         </div>
       </div>
 
+      {/* ✅ Stats Cards (Admin/Employee) */}
+      {(isAdmin || isEmployee) && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Today</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  {appointments.filter(a => {
+                    const appointmentDate = new Date(a.scheduledDateTime).toDateString();
+                    const today = new Date().toDateString();
+                    return appointmentDate === today && ['pending', 'confirmed'].includes(a.status);
+                  }).length}
+                </p>
+              </div>
+              <CalendarIcon className="h-8 w-8 text-blue-500" />
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Pending</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  {statusCounts.pending}
+                </p>
+              </div>
+              <ClockIcon className="h-8 w-8 text-yellow-500" />
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Confirmed</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  {statusCounts.confirmed}
+                </p>
+              </div>
+              <CheckIcon className="h-8 w-8 text-green-500" />
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {isAdmin ? 'Departments' : 'Completed'}
+                </p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                  {isAdmin ? departmentStats.length : statusCounts.completed}
+                </p>
+              </div>
+              {isAdmin ? (
+                <BuildingOfficeIcon className="h-8 w-8 text-purple-500" />
+              ) : (
+                <CheckIcon className="h-8 w-8 text-blue-500" />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-800 p-6">
         {/* Status Tabs */}
@@ -281,7 +418,9 @@ const Bookings = () => {
           <div className="lg:col-span-2">
             <Input
               placeholder={isAdmin 
-                ? "Search by customer, property, appointment #..." 
+                ? "Search by customer, property, employee, appointment #..." 
+                : isEmployee
+                ? "Search by customer, property, appointment #..."
                 : "Search by property or location..."
               }
               value={searchQuery}
@@ -290,39 +429,39 @@ const Bookings = () => {
             />
           </div>
 
-          {/* Admin Filters */}
+          {/* ✅ Admin Filters */}
           {isAdmin && (
             <>
               <select
-                value={filters.propertyOwner || ''}
-                onChange={(e) => handleFilterChange({ propertyOwner: e.target.value || null })}
+                value={filters.assignedTo || ''}
+                onChange={(e) => handleFilterChange({ assignedTo: e.target.value || null })}
                 className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               >
-                <option value="">All Property Owners</option>
-                {propertyOwners.map(owner => (
-                  <option key={owner._id} value={owner._id}>
-                    {owner.ownerDetails?.companyProfile?.companyName || 
-                     `${owner.ownerDetails?.individualProfile?.firstName} ${owner.ownerDetails?.individualProfile?.lastName}`}
-                    ({owner.appointmentCount} appointments)
+                <option value="">All Employees</option>
+                {availableEmployees.map(employee => (
+                  <option key={employee._id} value={employee._id}>
+                    {employee.employeeProfile?.firstName} {employee.employeeProfile?.lastName} - {employee.employeeProfile?.department}
                   </option>
                 ))}
               </select>
 
               <select
-                value={filters.date || ''}
-                onChange={(e) => handleFilterChange({ date: e.target.value || null })}
+                value={filters.department || ''}
+                onChange={(e) => handleFilterChange({ department: e.target.value || null })}
                 className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               >
-                <option value="">All Dates</option>
-                <option value={new Date().toISOString().split('T')[0]}>Today</option>
-                <option value={new Date(Date.now() + 86400000).toISOString().split('T')[0]}>Tomorrow</option>
-                <option value="upcoming">Upcoming Only</option>
+                <option value="">All Departments</option>
+                {departments.map(dept => (
+                  <option key={dept.value} value={dept.value}>
+                    {dept.label}
+                  </option>
+                ))}
               </select>
             </>
           )}
 
-          {/* Customer Filters */}
-          {isCustomer && (
+          {/* ✅ Employee/Customer Time Filters */}
+          {(isEmployee || isCustomer) && (
             <div className="flex items-center space-x-4">
               <label className="flex items-center space-x-2">
                 <input
@@ -339,20 +478,22 @@ const Bookings = () => {
                 </span>
               </label>
               
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={filters.past}
-                  onChange={(e) => handleFilterChange({ 
-                    past: e.target.checked,
-                    upcoming: false // Reset upcoming filter when past is selected
-                  })}
-                  className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="text-sm text-gray-700 dark:text-gray-300">
-                  Past appointments
-                </span>
-              </label>
+              {isCustomer && (
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={filters.past}
+                    onChange={(e) => handleFilterChange({ 
+                      past: e.target.checked,
+                      upcoming: false // Reset upcoming filter when past is selected
+                    })}
+                    className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    Past appointments
+                  </span>
+                </label>
+              )}
             </div>
           )}
         </div>
@@ -388,17 +529,12 @@ const Bookings = () => {
                         phone: appointment.contactInfo?.phone || appointment.customer?.phone,
                         avatar: appointment.customer?.avatar
                       },
-                      propertyOwner: isAdmin ? {
-                        id: appointment.property?.seller?._id,
-                        name: appointment.property?.seller?.companyProfile?.companyName ||
-                              `${appointment.property?.seller?.individualProfile?.firstName || ''} ${appointment.property?.seller?.individualProfile?.lastName || ''}`.trim(),
-                        email: appointment.property?.seller?.email
-                      } : null,
-                      assignedAdmin: isCustomer ? {
-                        id: appointment.seller?._id,
-                        name: appointment.seller?.companyProfile?.companyName ||
-                              `${appointment.seller?.individualProfile?.firstName || ''} ${appointment.seller?.individualProfile?.lastName || ''}`.trim(),
-                        email: appointment.seller?.email
+                      // ✅ Updated for employee assignment
+                      assignedEmployee: (isAdmin || isCustomer) ? {
+                        id: appointment.assignedTo?._id,
+                        name: `${appointment.assignedTo?.employeeProfile?.firstName || ''} ${appointment.assignedTo?.employeeProfile?.lastName || ''}`.trim(),
+                        email: appointment.assignedTo?.email,
+                        department: appointment.assignedTo?.employeeProfile?.department
                       } : null,
                       date: new Date(appointment.scheduledDateTime),
                       time: new Date(appointment.scheduledDateTime).toLocaleTimeString('en-US', { 
@@ -409,17 +545,23 @@ const Bookings = () => {
                       status: appointment.status,
                       amount: 0, // Appointments don't have amounts
                       paymentStatus: 'not-applicable',
-                      notes: appointment.customerNotes || appointment.sellerNotes,
+                      notes: appointment.customerNotes || appointment.employeeNotes,
                       location: appointment.meetingDetails?.address || 
                                appointment.property?.propertyDetails?.location?.street || 
                                'Property location',
                       createdAt: new Date(appointment.createdAt),
                       requirements: appointment.requirements || [],
-                      appointmentNumber: appointment.appointmentNumber
+                      appointmentNumber: appointment.appointmentNumber,
+                      appointmentType: appointment.appointmentType,
+                      assignedDepartment: appointment.assignedDepartment
                     }}
                     onStatusChange={handleStatusChange}
                     onViewDetails={setSelectedBooking}
-                    isAdmin={isAdmin}
+                    onReassign={isAdmin ? () => {
+                      setSelectedBooking(appointment);
+                      setShowReassignModal(true);
+                    } : null}
+                    userType={user?.userType} // ✅ Pass user type
                   />
                 ))}
               </div>
@@ -432,7 +574,9 @@ const Bookings = () => {
                 <p className="text-gray-600 dark:text-gray-400">
                   {filters.status === 'all' 
                     ? isAdmin
-                      ? 'No appointments assigned yet. Customers will book appointments and they will be assigned to available admins.'
+                      ? 'No appointments have been booked yet.'
+                      : isEmployee
+                      ? 'No appointments have been assigned to you yet.'
                       : 'You haven\'t booked any appointments yet. Browse properties and schedule viewings.'
                     : `No ${filters.status} appointments found. Try adjusting your filters.`
                   }
@@ -460,6 +604,11 @@ const Bookings = () => {
                 name: appointment.contactInfo?.name || 
                       `${appointment.customer?.customerProfile?.firstName || ''} ${appointment.customer?.customerProfile?.lastName || ''}`.trim()
               },
+              // ✅ Add assigned employee for admin/customer view
+              assignedEmployee: (isAdmin || isCustomer) ? {
+                name: `${appointment.assignedTo?.employeeProfile?.firstName || ''} ${appointment.assignedTo?.employeeProfile?.lastName || ''}`.trim(),
+                department: appointment.assignedTo?.employeeProfile?.department
+              } : null,
               date: new Date(appointment.scheduledDateTime),
               time: new Date(appointment.scheduledDateTime).toLocaleTimeString('en-US', { 
                 hour: '2-digit', 
@@ -473,21 +622,23 @@ const Bookings = () => {
               appointmentType: appointment.appointmentType,
               meetingDetails: appointment.meetingDetails,
               customerNotes: appointment.customerNotes,
-              sellerNotes: appointment.sellerNotes,
+              employeeNotes: appointment.employeeNotes,
               requirements: appointment.requirements,
               createdAt: appointment.createdAt,
-              appointmentNumber: appointment.appointmentNumber
+              appointmentNumber: appointment.appointmentNumber,
+              assignedDepartment: appointment.assignedDepartment
             }))}
             onBookingSelect={(booking) => {
               const appointment = filteredAppointments.find(a => a._id === booking.id);
               setSelectedBooking(appointment);
             }}
             isLoading={isLoading}
+            userType={user?.userType} // ✅ Pass user type
           />
         )}
       </div>
 
-      {/* Booking Details Modal */}
+      {/* ✅ Booking Details Modal */}
       {selectedBooking && (
         <BookingDetailsModal
           booking={{
@@ -507,7 +658,7 @@ const Bookings = () => {
               phone: selectedBooking.contactInfo?.phone || selectedBooking.customer?.phone,
               avatar: selectedBooking.customer?.avatar
             },
-            seller: selectedBooking.seller,
+            assignedEmployee: selectedBooking.assignedTo,
             propertyOwner: selectedBooking.property?.seller,
             date: new Date(selectedBooking.scheduledDateTime),
             time: new Date(selectedBooking.scheduledDateTime).toLocaleTimeString('en-US', { 
@@ -518,7 +669,7 @@ const Bookings = () => {
             status: selectedBooking.status,
             amount: 0,
             paymentStatus: 'not-applicable',
-            notes: selectedBooking.customerNotes || selectedBooking.sellerNotes,
+            notes: selectedBooking.customerNotes || selectedBooking.employeeNotes,
             location: selectedBooking.meetingDetails?.address || 
                      selectedBooking.property?.propertyDetails?.location?.street || 
                      'Property location',
@@ -528,17 +679,32 @@ const Bookings = () => {
             appointmentType: selectedBooking.appointmentType,
             meetingDetails: selectedBooking.meetingDetails,
             customerNotes: selectedBooking.customerNotes,
-            sellerNotes: selectedBooking.sellerNotes,
+            employeeNotes: selectedBooking.employeeNotes,
             adminNotes: selectedBooking.adminNotes,
             outcome: selectedBooking.outcome,
             reschedulingHistory: selectedBooking.reschedulingHistory,
             confirmedAt: selectedBooking.confirmedAt,
             completedAt: selectedBooking.completedAt,
-            cancelledAt: selectedBooking.cancelledAt
+            cancelledAt: selectedBooking.cancelledAt,
+            assignedDepartment: selectedBooking.assignedDepartment
           }}
           onClose={() => setSelectedBooking(null)}
           onStatusChange={handleStatusChange}
-          isAdmin={isAdmin}
+          onReassign={isAdmin ? () => setShowReassignModal(true) : null}
+          userType={user?.userType}
+        />
+      )}
+
+      {/* ✅ Reassign Modal (Admin only) */}
+      {isAdmin && showReassignModal && selectedBooking && (
+        <ReassignModal
+          appointment={selectedBooking}
+          employees={availableEmployees}
+          onClose={() => {
+            setShowReassignModal(false);
+            setSelectedBooking(null);
+          }}
+          onReassign={handleReassign}
         />
       )}
     </div>

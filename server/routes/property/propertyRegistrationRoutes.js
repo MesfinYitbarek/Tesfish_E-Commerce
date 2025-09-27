@@ -76,22 +76,22 @@ router.get('/my-registrations', getMyRegistrations);
 
 // Admin routes (updated authorization)
 router.get('/admin-registrations', 
-  authorize('admin'), // Changed from 'company', 'individual'
+  authorize('admin','employee'), // Changed from 'company', 'individual'
   getAdminRegistrations
 );
 
 router.get('/stats',
-  authorize('admin'),
+  authorize('admin','employee'),
   getRegistrationStats
 );
 
 router.get('/export-csv', 
-  authorize('admin'), // Changed from 'company', 'individual'
+  authorize('admin','employee'), // Changed from 'company', 'individual'
   exportRegistrationsCSV
 );
 
 router.put('/:id/status', 
-  authorize('admin'), // Changed from 'company', 'individual', 'admin'
+  authorize('admin','employee'), // Changed from 'company', 'individual', 'admin'
   updateRegistrationStatus
 );
 

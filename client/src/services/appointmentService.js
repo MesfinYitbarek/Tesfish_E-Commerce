@@ -30,8 +30,8 @@ const appointmentService = {
     }
   },
 
-  // Get admin's appointments (renamed from getSellerAppointments)
-  getAdminAppointments: async (params = {}) => {
+  // ✅ Get employee's assigned appointments
+  getMyAssignments: async (params = {}) => {
     try {
       const queryParams = new URLSearchParams();
       
@@ -39,18 +39,36 @@ const appointmentService = {
       if (params.limit) queryParams.append('limit', params.limit);
       if (params.status) queryParams.append('status', params.status);
       if (params.date) queryParams.append('date', params.date);
-      if (params.property) queryParams.append('property', params.property);
       if (params.upcoming) queryParams.append('upcoming', params.upcoming);
-      if (params.propertyOwner) queryParams.append('propertyOwner', params.propertyOwner);
 
-      const response = await api.get(`/appointments/admin-appointments?${queryParams}`);
+      const response = await api.get(`/appointments/my-assignments?${queryParams}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
     }
   },
 
-  // Update appointment status (admin only)
+  // ✅ Get admin overview of all appointments
+  getAdminOverview: async (params = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      
+      if (params.page) queryParams.append('page', params.page);
+      if (params.limit) queryParams.append('limit', params.limit);
+      if (params.status) queryParams.append('status', params.status);
+      if (params.assignedTo) queryParams.append('assignedTo', params.assignedTo);
+      if (params.department) queryParams.append('department', params.department);
+      if (params.date) queryParams.append('date', params.date);
+      if (params.upcoming) queryParams.append('upcoming', params.upcoming);
+
+      const response = await api.get(`/appointments/admin-overview?${queryParams}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // ✅ Update appointment status (employee/admin)
   updateAppointmentStatus: async (appointmentId, statusData) => {
     try {
       const response = await api.put(`/appointments/${appointmentId}/status`, statusData);
@@ -60,10 +78,10 @@ const appointmentService = {
     }
   },
 
-  // Assign appointment to different admin
-  assignAppointmentToAdmin: async (appointmentId, assignmentData) => {
+  // ✅ Reassign appointment to different employee (admin only)
+  reassignAppointment: async (appointmentId, assignmentData) => {
     try {
-      const response = await api.put(`/appointments/${appointmentId}/assign`, assignmentData);
+      const response = await api.put(`/appointments/${appointmentId}/reassign`, assignmentData);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;
@@ -90,12 +108,12 @@ const appointmentService = {
     }
   },
 
-  // Cancel appointment (wrapper for status update)
+  // ✅ Cancel appointment (wrapper for status update)
   cancelAppointment: async (appointmentId, reason) => {
     try {
       const response = await api.put(`/appointments/${appointmentId}/status`, {
         status: 'cancelled',
-        sellerNotes: reason
+        notes: reason
       });
       return response.data;
     } catch (error) {
@@ -103,12 +121,12 @@ const appointmentService = {
     }
   },
 
-  // Confirm appointment (wrapper for status update)
+  // ✅ Confirm appointment (wrapper for status update)
   confirmAppointment: async (appointmentId, notes = '') => {
     try {
       const response = await api.put(`/appointments/${appointmentId}/status`, {
         status: 'confirmed',
-        sellerNotes: notes
+        notes: notes
       });
       return response.data;
     } catch (error) {
@@ -116,12 +134,12 @@ const appointmentService = {
     }
   },
 
-  // Complete appointment with outcome
+  // ✅ Complete appointment with outcome
   completeAppointment: async (appointmentId, completionData) => {
     try {
       const response = await api.put(`/appointments/${appointmentId}/status`, {
         status: 'completed',
-        sellerNotes: completionData.notes,
+        notes: completionData.notes,
         outcome: completionData.outcome
       });
       return response.data;
@@ -130,12 +148,12 @@ const appointmentService = {
     }
   },
 
-  // Mark as no-show
+  // ✅ Mark as no-show
   markNoShow: async (appointmentId, reason) => {
     try {
       const response = await api.put(`/appointments/${appointmentId}/status`, {
         status: 'no-show',
-        sellerNotes: reason
+        notes: reason
       });
       return response.data;
     } catch (error) {
@@ -143,7 +161,7 @@ const appointmentService = {
     }
   },
 
-  // Get appointment statistics for admin dashboard
+  // Get appointment statistics
   getAppointmentStats: async (period = '30d') => {
     try {
       const response = await api.get(`/appointments/stats?period=${period}`);
@@ -153,7 +171,7 @@ const appointmentService = {
     }
   },
 
-  // Export appointments to CSV
+  // Export appointments to CSV (admin only)
   exportAppointmentsCSV: async () => {
     try {
       const response = await api.get('/appointments/export-csv', {
@@ -187,10 +205,44 @@ const appointmentService = {
     }
   },
 
-  // Get all admins for assignment
-  getAvailableAdmins: async () => {
+  // ✅ Get all employees for assignment
+  getAvailableEmployees: async () => {
     try {
-      const response = await api.get('/users/admins');
+      const response = await api.get('/employees');
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // ✅ Get appointments by department
+  getAppointmentsByDepartment: async (department, params = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      
+      if (params.page) queryParams.append('page', params.page);
+      if (params.limit) queryParams.append('limit', params.limit);
+      if (params.status) queryParams.append('status', params.status);
+      if (params.date) queryParams.append('date', params.date);
+
+      const response = await api.get(`/appointments/department/${department}?${queryParams}`);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || error.message;
+    }
+  },
+
+  // ✅ Get appointments for specific employee
+  getEmployeeAppointments: async (employeeId, params = {}) => {
+    try {
+      const queryParams = new URLSearchParams();
+      
+      if (params.page) queryParams.append('page', params.page);
+      if (params.limit) queryParams.append('limit', params.limit);
+      if (params.status) queryParams.append('status', params.status);
+      if (params.date) queryParams.append('date', params.date);
+
+      const response = await api.get(`/appointments/employee/${employeeId}?${queryParams}`);
       return response.data;
     } catch (error) {
       throw error.response?.data || error.message;

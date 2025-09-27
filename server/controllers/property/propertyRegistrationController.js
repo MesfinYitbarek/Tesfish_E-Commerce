@@ -7,27 +7,6 @@ import { uploadToCloudinary } from '../../utils/upload/cloudinaryService.js';
 import { initiatePayment, verifyPayment } from '../../Services/paymentService.js';
 import { generatePDF } from '../../utils/pdfGenerator.js';
 import { generateTxRef } from '../../Services/chapaService.js';
-
-// Helper function to generate registration number
-// const generateRegistrationNumber = async () => {
-//   try {
-//     const count = await PropertyRegistration.countDocuments();
-//     const year = new Date().getFullYear();
-//     const sequence = String(count + 1).padStart(6, '0');
-//     return `REG${year}${sequence}`;
-//   } catch (error) {
-//     // Fallback with timestamp if count fails
-//     const timestamp = Date.now().toString().slice(-6);
-//     const year = new Date().getFullYear();
-//     return `REG${year}${timestamp}`;
-//   }
-// };
-
-// @desc    Submit property registration
-// @route   POST /api/property-registrations
-// @access  Private (Customer)
-// backend/controllers/propertyRegistrationController.js
-
 import Payment from '../../models/Payment.js';
 import { initiateChapa, verifyChapa } from '../../Services/chapaService.js';
 
