@@ -1,4 +1,6 @@
+// pages/projects/ProjectsPage.jsx
 import { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BuildingOfficeIcon,
@@ -22,237 +24,305 @@ import {
   XMarkIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-  TrophyIcon
+  TrophyIcon,
+  BanknotesIcon,
+  ExclamationTriangleIcon,
+  PauseCircleIcon,
+  StopCircleIcon
 } from '@heroicons/react/24/outline';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import Badge from '../../components/ui/Badge';
+import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import { 
+  fetchPublicProjects, 
+  setFilter,
+  resetFilters,
+  setPage,
+  incrementProjectViews,
+  selectProjects,
+  selectIsProjectsLoading,
+  selectProjectsError,
+  selectProjectsPagination,
+  selectProjectsFilters,
+} from '../../store/slices/projectSlice';
+
+// Helper functions
+const formatCurrency = (amount, currency = 'ETB') => {
+  if (!amount || isNaN(amount)) return `${currency} 0`;
+  
+  const formatter = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: currency === 'ETB' ? 'USD' : currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+  
+  let formatted = formatter.format(amount);
+  if (currency === 'ETB') {
+    formatted = formatted.replace('$', 'ETB ');
+  }
+  
+  // Convert to abbreviated form for large numbers
+  if (amount >= 1000000000) {
+    return `${currency} ${(amount / 1000000000).toFixed(1)}B`;
+  } else if (amount >= 1000000) {
+    return `${currency} ${(amount / 1000000).toFixed(1)}M`;
+  } else if (amount >= 1000) {
+    return `${currency} ${(amount / 1000).toFixed(1)}K`;
+  }
+  
+  return formatted;
+};
+
+const formatDate = (date) => {
+  if (!date) return 'Not available';
+  return new Date(date).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+};
+
+
 
 const ProjectsPage = () => {
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
+  const dispatch = useDispatch();
+  
+  // Redux state
+  const projects = useSelector(selectProjects);
+  const isLoading = useSelector(selectIsProjectsLoading);
+  const error = useSelector(selectProjectsError);
+  const pagination = useSelector(selectProjectsPagination);
+  const filters = useSelector(selectProjectsFilters);
+
+
+  // Component state
   const [selectedProject, setSelectedProject] = useState(null);
   const [showProjectModal, setShowProjectModal] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [filteredProjects, setFilteredProjects] = useState([]);
+  const [searchTerm, setSearchTerm] = useState(filters.search || '');
+  const [showFilters, setShowFilters] = useState(false);
 
+  // Categories configuration
   const categories = [
-    { id: 'all', label: 'All Projects', icon: BuildingOfficeIcon, color: 'blue' },
-    { id: 'project-management', label: 'Project Management', icon: ChartBarIcon, color: 'emerald' },
-    { id: 'engineering', label: 'Engineering Design', icon: CogIcon, color: 'purple' },
-    { id: 'interior', label: 'Interior Design', icon: HomeIcon, color: 'pink' },
-    { id: 'real-estate', label: 'Real Estate', icon: BuildingOfficeIcon, color: 'orange' },
-    { id: 'mineral', label: 'Mineral Services', icon: CubeIcon, color: 'amber' }
+    { 
+      id: 'all', 
+      label: 'All Projects', 
+      icon: BuildingOfficeIcon, 
+      color: 'blue',
+      description: 'View all our projects'
+    },
+    { 
+      id: 'project-management', 
+      label: 'Project Management', 
+      icon: ChartBarIcon, 
+      color: 'emerald',
+      description: 'Comprehensive project management services'
+    },
+    { 
+      id: 'engineering', 
+      label: 'Engineering Design', 
+      icon: CogIcon, 
+      color: 'purple',
+      description: 'Civil and structural engineering solutions'
+    },
+    { 
+      id: 'interior', 
+      label: 'Interior Design', 
+      icon: HomeIcon, 
+      color: 'pink',
+      description: 'Professional interior design services'
+    },
+    { 
+      id: 'real-estate', 
+      label: 'Real Estate', 
+      icon: BuildingOfficeIcon, 
+      color: 'orange',
+      description: 'Real estate development and consulting'
+    },
+    { 
+      id: 'mineral', 
+      label: 'Mineral Services', 
+      icon: CubeIcon, 
+      color: 'amber',
+      description: 'Mining and mineral exploration services'
+    },
+    {
+      id: 'construction',
+      label: 'Construction',
+      icon: BuildingOfficeIcon,
+      color: 'slate',
+      description: 'Construction and building services'
+    }
   ];
 
   const statuses = [
-    { id: 'all', label: 'All Status', color: 'gray' },
-    { id: 'completed', label: 'Completed', color: 'green' },
-    { id: 'ongoing', label: 'Ongoing', color: 'blue' },
-    { id: 'planning', label: 'Planning', color: 'yellow' }
-  ];
-
-  const projects = [
-    {
-      id: 1,
-      title: 'Addis Ababa Commercial Complex',
-      category: 'project-management',
-      status: 'completed',
-      description: 'Complete project management for a 15-story commercial complex in the heart of Addis Ababa.',
-      longDescription: 'This landmark project involved comprehensive project management services for a state-of-the-art commercial complex. Our team managed every aspect from initial planning to final delivery, ensuring quality, timeline adherence, and budget optimization.',
-      client: 'Ethiopian Investment Holdings',
-      location: 'Addis Ababa, Ethiopia',
-      duration: '24 months',
-      budget: 'ETB 250 Million',
-      completedDate: '2024-01-15',
-      startDate: '2022-01-15',
-      images: [
-        'https://pfst.cf2.poecdn.net/base/image/a7ebd329058e60fd4be32d41d5d4e682c2d7024ac312200dc7bd68880ef70d2d?w=600&h=400',
-        'https://pfst.cf2.poecdn.net/base/image/ac20eb9645b34914dcd9f201c3a2791d7c99a05481240775a24a9e2111e20b92?w=600&h=400',
-        'https://pfst.cf2.poecdn.net/base/image/c320d548c8b2c1aa59e22626f1db5c3435ba3843fe2360185212e2dbcb744aa3?w=600&h=400'
-      ],
-      features: ['Project Planning', 'Budget Management', 'Quality Control', 'Stakeholder Management'],
-      gradient: 'from-blue-500 to-cyan-500',
-      testimonial: {
-        text: 'TesGold delivered exceptional project management services. The project was completed on time and within budget.',
-        author: 'Alemayehu Tadesse',
-        position: 'Project Director, Ethiopian Investment Holdings'
-      }
+    { 
+      id: 'all', 
+      label: 'All Status', 
+      color: 'gray',
+      icon: CheckCircleIcon
+    },
+    { 
+      id: 'completed', 
+      label: 'Completed', 
+      color: 'green',
+      icon: CheckCircleIcon
+    },
+    { 
+      id: 'ongoing', 
+      label: 'Ongoing', 
+      color: 'blue',
+      icon: ClockIcon
+    },
+    { 
+      id: 'planning', 
+      label: 'Planning', 
+      color: 'yellow',
+      icon: ExclamationTriangleIcon
     },
     {
-      id: 2,
-      title: 'Bahir Dar Bridge Engineering',
-      category: 'engineering',
-      status: 'completed',
-      description: 'Structural engineering design for a major bridge connecting Bahir Dar city districts.',
-      longDescription: 'A complex engineering project involving the design of a 800-meter bridge with advanced structural engineering solutions. Our team provided complete civil and structural engineering services.',
-      client: 'Bahir Dar City Administration',
-      location: 'Bahir Dar, Ethiopia',
-      duration: '18 months',
-      budget: 'ETB 180 Million',
-      completedDate: '2023-11-20',
-      startDate: '2022-05-20',
-      images: [
-        'https://pfst.cf2.poecdn.net/base/image/763e0062cb793025f0fefe65ca4c668155d726aec37b25070895ecc3b6bf0057?w=600&h=400',
-        'https://pfst.cf2.poecdn.net/base/image/fea195a2949fde522245bbd28148c6b90167d3963b24140a7e073a3b43e67196?w=600&h=400'
-      ],
-      features: ['Structural Design', 'Load Analysis', 'Environmental Assessment', 'Safety Engineering'],
-      gradient: 'from-emerald-500 to-teal-500',
-      testimonial: {
-        text: 'Outstanding engineering expertise. The bridge design exceeded our expectations and community needs.',
-        author: 'Dr. Mulugeta Alemu',
-        position: 'Chief Engineer, Bahir Dar City'
-      }
-    },
-    {
-      id: 3,
-      title: 'Luxury Hotel Interior Design',
-      category: 'interior',
-      status: 'completed',
-      description: 'Complete interior design and build for a 5-star luxury hotel in Addis Ababa.',
-      longDescription: 'An elegant interior design project for a luxury hotel featuring 120 rooms, restaurants, conference facilities, and spa. Our design team created a modern Ethiopian aesthetic with international standards.',
-      client: 'Skylight Hotels Group',
-      location: 'Bole, Addis Ababa',
-      duration: '12 months',
-      budget: 'ETB 85 Million',
-      completedDate: '2024-03-10',
-      startDate: '2023-03-10',
-      images: [
-        'https://pfst.cf2.poecdn.net/base/image/a7ebd329058e60fd4be32d41d5d4e682c2d7024ac312200dc7bd68880ef70d2d?w=600&h=400',
-        'https://pfst.cf2.poecdn.net/base/image/c320d548c8b2c1aa59e22626f1db5c3435ba3843fe2360185212e2dbcb744aa3?w=600&h=400'
-      ],
-      features: ['Space Planning', 'Custom Furniture', 'Lighting Design', 'Art Curation'],
-      gradient: 'from-purple-500 to-indigo-500',
-      testimonial: {
-        text: 'The interior design transformed our vision into reality. Guest satisfaction has increased significantly.',
-        author: 'Sarah Johnson',
-        position: 'General Manager, Skylight Hotels'
-      }
-    },
-    {
-      id: 4,
-      title: 'Residential Estate Development',
-      category: 'real-estate',
-      status: 'ongoing',
-      description: 'Comprehensive real estate development project for 200 residential units.',
-      longDescription: 'A large-scale residential development project featuring modern townhouses and apartments. Our team provides complete real estate consultancy and development management services.',
-      client: 'Green Valley Developers',
-      location: 'Lebu, Addis Ababa',
-      duration: '30 months',
-      budget: 'ETB 400 Million',
-      startDate: '2023-08-01',
-      expectedCompletion: '2026-02-01',
-      images: [
-        'https://pfst.cf2.poecdn.net/base/image/ac20eb9645b34914dcd9f201c3a2791d7c99a05481240775a24a9e2111e20b92?w=600&h=400',
-        'https://pfst.cf2.poecdn.net/base/image/fea195a2949fde522245bbd28148c6b90167d3963b24140a7e073a3b43e67196?w=600&h=400'
-      ],
-      features: ['Market Analysis', 'Development Planning', 'Investment Consultation', 'Sales Strategy'],
-      gradient: 'from-orange-500 to-red-500',
-      progress: 65
-    },
-    {
-      id: 5,
-      title: 'Gold Mine Development',
-      category: 'mineral',
-      status: 'ongoing',
-      description: 'Comprehensive mineral exploration and mine development consultation.',
-      longDescription: 'A complex mineral development project involving geological surveys, environmental assessments, and sustainable mining consultation for a gold mining operation.',
-      client: 'Ethiopian Mineral Development Corp',
-      location: 'Oromia Region, Ethiopia',
-      duration: '36 months',
-      budget: 'ETB 320 Million',
-      startDate: '2023-01-15',
-      expectedCompletion: '2026-01-15',
-      images: [
-        'https://pfst.cf2.poecdn.net/base/image/763e0062cb793025f0fefe65ca4c668155d726aec37b25070895ecc3b6bf0057?w=600&h=400'
-      ],
-      features: ['Geological Survey', 'Environmental Assessment', 'Mining Planning', 'Sustainability Consulting'],
-      gradient: 'from-amber-500 to-yellow-500',
-      progress: 45
-    },
-    {
-      id: 6,
-      title: 'Modern Office Complex',
-      category: 'engineering',
-      status: 'planning',
-      description: 'Architectural and engineering design for a sustainable office complex.',
-      longDescription: 'An innovative office complex design featuring sustainable architecture, energy-efficient systems, and modern workplace solutions. Currently in the detailed planning phase.',
-      client: 'Tech Park Ethiopia',
-      location: 'CMC, Addis Ababa',
-      duration: '20 months',
-      budget: 'ETB 150 Million',
-      startDate: '2024-06-01',
-      expectedCompletion: '2026-02-01',
-      images: [
-        'https://pfst.cf2.poecdn.net/base/image/c320d548c8b2c1aa59e22626f1db5c3435ba3843fe2360185212e2dbcb744aa3?w=600&h=400'
-      ],
-      features: ['Sustainable Design', 'MEP Systems', 'Smart Building Integration', 'Energy Efficiency'],
-      gradient: 'from-emerald-500 to-teal-500'
+      id: 'paused',
+      label: 'Paused',
+      color: 'orange',
+      icon: PauseCircleIcon
     }
   ];
 
-  const stats = [
-    { label: 'Completed Projects', value: '150+', icon: CheckCircleIcon, gradient: 'from-emerald-500 to-teal-500' },
-    { label: 'Ongoing Projects', value: '25+', icon: ClockIcon, gradient: 'from-blue-500 to-cyan-500' },
-    { label: 'Happy Clients', value: '200+', icon: UsersIcon, gradient: 'from-purple-500 to-indigo-500' },
-    { label: 'Total Investment', value: 'ETB 2B+', icon: TrophyIcon, gradient: 'from-amber-500 to-orange-500' }
-  ];
-
-  // Filter projects
+  // Fetch projects when filters change
   useEffect(() => {
-    let filtered = projects;
+    const queryParams = {
+      page: pagination.currentPage,
+      limit: 12,
+      ...filters,
+      search: searchTerm
+    };
+    
+    // Remove empty or 'all' values
+    Object.keys(queryParams).forEach(key => {
+      if (queryParams[key] === '' || queryParams[key] === 'all' || queryParams[key] === null) {
+        delete queryParams[key];
+      }
+    });
 
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(project => project.category === selectedCategory);
-    }
+    dispatch(fetchPublicProjects(queryParams));
+  }, [dispatch, filters, pagination.currentPage, searchTerm]);
 
-    if (selectedStatus !== 'all') {
-      filtered = filtered.filter(project => project.status === selectedStatus);
-    }
+  // Debounced search
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (searchTerm !== filters.search) {
+        dispatch(setFilter({ key: 'search', value: searchTerm }));
+        dispatch(setPage(1)); // Reset to first page
+      }
+    }, 500);
 
-    if (searchTerm) {
-      filtered = filtered.filter(project =>
-        project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        project.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        project.location.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, filters.search, dispatch]);
 
-    setFilteredProjects(filtered);
-  }, [selectedCategory, selectedStatus, searchTerm]);
+  const handleCategoryChange = (categoryId) => {
+    dispatch(setFilter({ key: 'category', value: categoryId }));
+    dispatch(setPage(1));
+  };
 
-  const handleViewProject = (project) => {
+  const handleStatusChange = (statusId) => {
+    dispatch(setFilter({ key: 'status', value: statusId }));
+    dispatch(setPage(1));
+  };
+
+  const handleSortChange = (sortValue) => {
+    dispatch(setFilter({ key: 'sort', value: sortValue }));
+    dispatch(setPage(1));
+  };
+
+  const handleSearch = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const handlePageChange = (page) => {
+    dispatch(setPage(page));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    dispatch(resetFilters());
+  };
+
+  const handleViewProject = async (project) => {
     setSelectedProject(project);
     setCurrentImageIndex(0);
     setShowProjectModal(true);
+    
+    // Record view
+    try {
+      await dispatch(incrementProjectViews(project.slug)).unwrap();
+    } catch (error) {
+      console.error('Failed to record view:', error);
+    }
   };
 
   const nextImage = () => {
-    if (selectedProject && selectedProject.images.length > 1) {
+    if (selectedProject && selectedProject.media?.images?.length > 1) {
       setCurrentImageIndex((prev) => 
-        prev === selectedProject.images.length - 1 ? 0 : prev + 1
+        prev === selectedProject.media.images.length - 1 ? 0 : prev + 1
       );
     }
   };
 
   const prevImage = () => {
-    if (selectedProject && selectedProject.images.length > 1) {
+    if (selectedProject && selectedProject.media?.images?.length > 1) {
       setCurrentImageIndex((prev) => 
-        prev === 0 ? selectedProject.images.length - 1 : prev - 1
+        prev === 0 ? selectedProject.media.images.length - 1 : prev - 1
       );
     }
   };
 
   const getStatusBadge = (status) => {
     const statusConfig = {
-      completed: { label: 'Completed', color: 'green' },
-      ongoing: { label: 'Ongoing', color: 'blue' },
-      planning: { label: 'Planning', color: 'yellow' }
+      completed: { label: 'Completed', color: 'green', icon: CheckCircleIcon },
+      ongoing: { label: 'Ongoing', color: 'blue', icon: ClockIcon },
+      planning: { label: 'Planning', color: 'yellow', icon: ExclamationTriangleIcon },
+      paused: { label: 'Paused', color: 'orange', icon: PauseCircleIcon },
+      cancelled: { label: 'Cancelled', color: 'red', icon: StopCircleIcon }
     };
-    const config = statusConfig[status] || statusConfig.completed;
-    return <Badge variant={config.color} size="sm">{config.label}</Badge>;
+    
+    const config = statusConfig[status] || statusConfig.planning;
+    return (
+      <Badge variant={config.color} size="sm">
+        <config.icon className="h-3 w-3 mr-1" />
+        {config.label}
+      </Badge>
+    );
   };
+
+  const getCategoryIcon = (category) => {
+    const iconMap = {
+      'project-management': ChartBarIcon,
+      'engineering': CogIcon,
+      'interior': HomeIcon,
+      'real-estate': BuildingOfficeIcon,
+      'mineral': CubeIcon,
+      'construction': BuildingOfficeIcon,
+      'consulting': UsersIcon
+    };
+    return iconMap[category] || BuildingOfficeIcon;
+  };
+
+  const getCategoryGradient = (category) => {
+    const gradientMap = {
+      'project-management': 'from-blue-500 to-cyan-500',
+      'engineering': 'from-emerald-500 to-teal-500',
+      'interior': 'from-purple-500 to-indigo-500',
+      'real-estate': 'from-orange-500 to-red-500',
+      'mineral': 'from-amber-500 to-yellow-500',
+      'construction': 'from-slate-500 to-gray-500',
+      'consulting': 'from-rose-500 to-pink-500'
+    };
+    return gradientMap[category] || 'from-blue-500 to-cyan-500';
+  };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
@@ -298,11 +368,15 @@ const ProjectsPage = () => {
 
             {/* Project Categories Pills */}
             <div className="flex flex-wrap justify-center gap-2 mb-8">
-              {categories.slice(1).map((category) => (
+              {categories.slice(1, 6).map((category) => (
                 <button
                   key={category.id}
-                  className="px-3 py-1.5 bg-white/10 backdrop-blur-sm border border-white/20 text-white hover:bg-white/20 rounded-lg transition-all duration-200 text-xs font-medium hover:scale-105"
-                  onClick={() => setSelectedCategory(category.id)}
+                  className={`px-3 py-1.5 backdrop-blur-sm border border-white/20 rounded-lg transition-all duration-200 text-xs font-medium hover:scale-105 ${
+                    filters.category === category.id 
+                      ? 'bg-white/30 text-white' 
+                      : 'bg-white/10 text-white hover:bg-white/20'
+                  }`}
+                  onClick={() => handleCategoryChange(category.id)}
                 >
                   {category.label}
                 </button>
@@ -313,113 +387,113 @@ const ProjectsPage = () => {
       </section>
 
       {/* Stats Section */}
-      <section className="py-12 lg:py-16 bg-white dark:bg-gray-800 transform -translate-y-10 relative z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/60 dark:border-gray-700/60 p-6 lg:p-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {stats.map((stat, index) => (
-                <motion.div
-                  key={stat.label}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: index * 0.1 }}
-                  className="text-center group"
-                >
-                  <div className={`inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r ${stat.gradient} rounded-xl mb-4 shadow-lg group-hover:shadow-xl transition-all duration-300 group-hover:scale-110`}>
-                    <stat.icon className="h-8 w-8 text-white" />
-                  </div>
-                  <div className="text-2xl lg:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2 group-hover:text-blue-600 transition-colors">
-                    {stat.value}
-                  </div>
-                  <div className="text-gray-600 dark:text-gray-400 font-medium text-sm">
-                    {stat.label}
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
+      
 
       {/* Filters Section */}
       <section className="py-8 bg-gray-50 dark:bg-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/60 dark:border-gray-700/60 p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
-              {/* Search */}
-              <div className="relative">
-                <MagnifyingGlassIcon className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search projects..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              {/* Category Filter */}
-              <div>
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full px-4 py-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Status Filter */}
-              <div>
-                <select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="w-full px-4 py-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  {statuses.map((status) => (
-                    <option key={status.id} value={status.id}>
-                      {status.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl rounded-xl shadow-lg border border-gray-200/60 dark:border-gray-700/60 p-4 lg:p-6">
+            {/* Mobile Filters Toggle */}
+            <div className="lg:hidden mb-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowFilters(!showFilters)}
+                leftIcon={<FunnelIcon className="h-4 w-4" />}
+                className="w-full"
+              >
+                {showFilters ? 'Hide Filters' : 'Show Filters'}
+              </Button>
             </div>
 
-            {/* Active Filters */}
-            {(selectedCategory !== 'all' || selectedStatus !== 'all' || searchTerm) && (
-              <div className="flex flex-wrap gap-2">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Active filters:</span>
-                {selectedCategory !== 'all' && (
-                  <Badge variant="blue" size="sm">
-                    Category: {categories.find(c => c.id === selectedCategory)?.label}
-                  </Badge>
-                )}
-                {selectedStatus !== 'all' && (
-                  <Badge variant="green" size="sm">
-                    Status: {statuses.find(s => s.id === selectedStatus)?.label}
-                  </Badge>
-                )}
-                {searchTerm && (
-                  <Badge variant="gray" size="sm">
-                    Search: "{searchTerm}"
-                  </Badge>
-                )}
-                <button
-                  onClick={() => {
-                    setSelectedCategory('all');
-                    setSelectedStatus('all');
-                    setSearchTerm('');
-                  }}
-                  className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  Clear all
-                </button>
+            {/* Filters */}
+            <div className={`${showFilters ? 'block' : 'hidden'} lg:block`}>
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+                {/* Search */}
+                <div className="relative">
+                  <MagnifyingGlassIcon className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search projects..."
+                    value={searchTerm}
+                    onChange={handleSearch}
+                    className="w-full pl-10 pr-4 py-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
+                {/* Category Filter */}
+                <div>
+                  <select
+                    value={filters.category}
+                    onChange={(e) => handleCategoryChange(e.target.value)}
+                    className="w-full px-4 py-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Status Filter */}
+                <div>
+                  <select
+                    value={filters.status}
+                    onChange={(e) => handleStatusChange(e.target.value)}
+                    className="w-full px-4 py-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    {statuses.map((status) => (
+                      <option key={status.id} value={status.id}>
+                        {status.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Sort */}
+                <div>
+                  <select
+                    value={filters.sort}
+                    onChange={(e) => handleSortChange(e.target.value)}
+                    className="w-full px-4 py-3 text-sm border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="budget-high">Highest Budget</option>
+                    <option value="budget-low">Lowest Budget</option>
+                    <option value="popular">Most Popular</option>
+                  </select>
+                </div>
               </div>
-            )}
+
+              {/* Active Filters */}
+              {(filters.category !== 'all' || filters.status !== 'all' || searchTerm) && (
+                <div className="flex flex-wrap gap-2 items-center">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Active filters:</span>
+                  {filters.category !== 'all' && (
+                    <Badge variant="blue" size="sm">
+                      Category: {categories.find(c => c.id === filters.category)?.label}
+                    </Badge>
+                  )}
+                  {filters.status !== 'all' && (
+                    <Badge variant="green" size="sm">
+                      Status: {statuses.find(s => s.id === filters.status)?.label}
+                    </Badge>
+                  )}
+                  {searchTerm && (
+                    <Badge variant="gray" size="sm">
+                      Search: "{searchTerm}"
+                    </Badge>
+                  )}
+                  <button
+                    onClick={clearAllFilters}
+                    className="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                  >
+                    Clear all
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </section>
@@ -431,37 +505,134 @@ const ProjectsPage = () => {
         <div className="absolute bottom-1/4 left-1/4 w-64 h-64 bg-gradient-to-r from-emerald-400/10 to-cyan-400/10 rounded-full blur-3xl"></div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {filteredProjects.length === 0 ? (
+          {/* Loading State */}
+          {isLoading && projects.length === 0 && (
+            <div className="flex items-center justify-center py-12">
+              <LoadingSpinner size="lg" />
+              <span className="ml-3 text-gray-600 dark:text-gray-400">Loading projects...</span>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 mb-8">
+              <div className="flex items-start space-x-3">
+                <XMarkIcon className="h-5 w-5 text-red-500 mt-0.5" />
+                <div>
+                  <h3 className="text-sm font-medium text-red-900 dark:text-red-100">
+                    Error loading projects
+                  </h3>
+                  <p className="text-sm text-red-700 dark:text-red-300 mt-1">{error}</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-3"
+                    onClick={() => dispatch(fetchPublicProjects({ 
+                      page: pagination.currentPage,
+                      ...filters 
+                    }))}
+                  >
+                    Try Again
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* No Results */}
+          {!isLoading && projects.length === 0 && !error && (
             <div className="text-center py-12">
               <PhotoIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
                 No projects found
               </h3>
               <p className="text-gray-600 dark:text-gray-400 mb-6">
-                No projects match your current filters. Try adjusting your search criteria.
+                {searchTerm || filters.category !== 'all' || filters.status !== 'all' 
+                  ? 'No projects match your current filters. Try adjusting your search criteria.'
+                  : 'No projects are currently available.'
+                }
               </p>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSelectedCategory('all');
-                  setSelectedStatus('all');
-                  setSearchTerm('');
-                }}
-              >
-                Clear Filters
-              </Button>
+              {(searchTerm || filters.category !== 'all' || filters.status !== 'all') && (
+                <Button
+                  variant="outline"
+                  onClick={clearAllFilters}
+                >
+                  Clear Filters
+                </Button>
+              )}
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filteredProjects.map((project, index) => (
-                <ProjectCard
-                  key={project.id}
-                  project={project}
-                  index={index}
-                  onViewProject={handleViewProject}
-                />
-              ))}
-            </div>
+          )}
+
+          {/* Projects Grid */}
+          {projects.length > 0 && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+                {projects.map((project, index) => (
+                  <ProjectCard
+                    key={project._id}
+                    project={project}
+                    index={index}
+                    onViewProject={handleViewProject}
+                    getCategoryIcon={getCategoryIcon}
+                    getCategoryGradient={getCategoryGradient}
+                    getStatusBadge={getStatusBadge}
+                    formatCurrency={formatCurrency}
+                  />
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {pagination.totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-12 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    Showing {((pagination.currentPage - 1) * 12) + 1} to{' '}
+                    {Math.min(pagination.currentPage * 12, pagination.total)} of{' '}
+                    {pagination.total} projects
+                  </p>
+                  
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(pagination.currentPage - 1)}
+                      disabled={!pagination.hasPrev}
+                      leftIcon={<ChevronLeftIcon className="h-4 w-4" />}
+                    >
+                      Previous
+                    </Button>
+                    
+                    <div className="flex items-center space-x-1">
+                      {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                        const page = i + 1;
+                        return (
+                          <button
+                            key={page}
+                            onClick={() => handlePageChange(page)}
+                            className={`px-3 py-1 text-sm rounded transition-colors ${
+                              page === pagination.currentPage
+                                ? 'bg-blue-500 text-white'
+                                : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(pagination.currentPage + 1)}
+                      disabled={!pagination.hasNext}
+                      rightIcon={<ChevronRightIcon className="h-4 w-4" />}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>
@@ -480,6 +651,11 @@ const ProjectsPage = () => {
             onNextImage={nextImage}
             onPrevImage={prevImage}
             onClose={() => setShowProjectModal(false)}
+            getCategoryIcon={getCategoryIcon}
+            getCategoryGradient={getCategoryGradient}
+            getStatusBadge={getStatusBadge}
+            formatCurrency={formatCurrency}
+            formatDate={formatDate}
           />
         )}
       </Modal>
@@ -488,27 +664,13 @@ const ProjectsPage = () => {
 };
 
 // Project Card Component
-const ProjectCard = ({ project, index, onViewProject }) => {
-  const categoryConfig = {
-    'project-management': { icon: ChartBarIcon, gradient: 'from-blue-500 to-cyan-500' },
-    'engineering': { icon: CogIcon, gradient: 'from-emerald-500 to-teal-500' },
-    'interior': { icon: HomeIcon, gradient: 'from-purple-500 to-indigo-500' },
-    'real-estate': { icon: BuildingOfficeIcon, gradient: 'from-orange-500 to-red-500' },
-    'mineral': { icon: CubeIcon, gradient: 'from-amber-500 to-yellow-500' }
-  };
-
-  const config = categoryConfig[project.category] || categoryConfig['project-management'];
-  const Icon = config.icon;
-
-  const getStatusBadge = (status) => {
-    const statusConfig = {
-      completed: { label: 'Completed', color: 'green' },
-      ongoing: { label: 'Ongoing', color: 'blue' },
-      planning: { label: 'Planning', color: 'yellow' }
-    };
-    const statusConf = statusConfig[status] || statusConfig.completed;
-    return <Badge variant={statusConf.color} size="sm">{statusConf.label}</Badge>;
-  };
+const ProjectCard = ({ project, index, onViewProject, getCategoryIcon, getCategoryGradient, getStatusBadge, formatCurrency }) => {
+  const Icon = getCategoryIcon(project.category);
+  const gradient = getCategoryGradient(project.category);
+  
+  // Get primary image or first image
+  const primaryImage = project.media?.images?.find(img => img.isPrimary) || project.media?.images?.[0];
+  const imageUrl = primaryImage?.url || 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80';
 
   return (
     <motion.div
@@ -521,14 +683,14 @@ const ProjectCard = ({ project, index, onViewProject }) => {
         {/* Project Image */}
         <div className="relative h-48 overflow-hidden">
           <img
-            src={project.images[0]}
+            src={imageUrl}
             alt={project.title}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
             onError={(e) => {
-              e.target.src = '/api/placeholder/400/300';
+              e.target.src = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300&q=80';
             }}
           />
-          <div className={`absolute inset-0 bg-gradient-to-tr ${config.gradient} opacity-60 group-hover:opacity-40 transition-opacity duration-300`}></div>
+          <div className={`absolute inset-0 bg-gradient-to-tr ${gradient} opacity-60 group-hover:opacity-40 transition-opacity duration-300`}></div>
           
           {/* Category Icon */}
           <div className="absolute top-4 left-4">
@@ -543,16 +705,26 @@ const ProjectCard = ({ project, index, onViewProject }) => {
           </div>
 
           {/* Progress Bar for Ongoing Projects */}
-          {project.status === 'ongoing' && project.progress && (
+          {project.status === 'ongoing' && project.progress?.percentage > 0 && (
             <div className="absolute bottom-4 left-4 right-4">
               <div className="bg-white/20 backdrop-blur-sm rounded-full h-2">
                 <div
                   className="bg-white rounded-full h-2 transition-all duration-300"
-                  style={{ width: `${project.progress}%` }}
+                  style={{ width: `${project.progress.percentage}%` }}
                 ></div>
               </div>
               <div className="text-white text-xs mt-1 font-medium">
-                {project.progress}% Complete
+                {project.progress.percentage}% Complete
+              </div>
+            </div>
+          )}
+
+          {/* Featured Badge */}
+          {project.displaySettings?.isFeatured && (
+            <div className="absolute top-4 left-1/2 transform -translate-x-1/2">
+              <div className="px-2 py-1 bg-amber-500 text-white text-xs font-medium rounded-full flex items-center">
+                <StarIcon className="h-3 w-3 mr-1" />
+                Featured
               </div>
             </div>
           )}
@@ -561,7 +733,7 @@ const ProjectCard = ({ project, index, onViewProject }) => {
         {/* Project Content */}
         <div className="p-6">
           <div className="mb-4">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2 group-hover:text-blue-600 transition-colors">
+            <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2 group-hover:text-blue-600 transition-colors line-clamp-2">
               {project.title}
             </h3>
             <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-2">
@@ -573,40 +745,62 @@ const ProjectCard = ({ project, index, onViewProject }) => {
           <div className="space-y-2 mb-4">
             <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
               <MapPinIcon className="h-4 w-4 mr-2 flex-shrink-0" />
-              <span className="truncate">{project.location}</span>
+              <span className="truncate">
+                {project.location?.city && project.location?.region 
+                  ? `${project.location.city}, ${project.location.region}`
+                  : project.location?.city || project.location?.region || 'Location not specified'
+                }
+              </span>
             </div>
             <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
               <CalendarIcon className="h-4 w-4 mr-2 flex-shrink-0" />
-              <span>{project.duration}</span>
+              <span>{project.timeline?.duration || 'Duration not specified'}</span>
             </div>
             <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
               <UsersIcon className="h-4 w-4 mr-2 flex-shrink-0" />
-              <span className="truncate">{project.client}</span>
+              <span className="truncate">{project.client?.name || 'Client not specified'}</span>
+            </div>
+            <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
+              <BanknotesIcon className="h-4 w-4 mr-2 flex-shrink-0" />
+              <span className="font-medium">
+                {formatCurrency(project.budget?.amount, project.budget?.currency)}
+              </span>
             </div>
           </div>
 
           {/* Features */}
           <div className="flex flex-wrap gap-1 mb-4">
-            {project.features.slice(0, 3).map((feature, index) => (
+            {project.features?.slice(0, 3).map((feature, idx) => (
               <span
-                key={index}
+                key={idx}
                 className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-md"
               >
                 {feature}
               </span>
             ))}
-            {project.features.length > 3 && (
+            {project.features?.length > 3 && (
               <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-xs rounded-md">
                 +{project.features.length - 3} more
               </span>
             )}
           </div>
 
+          {/* Views Counter */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center text-xs text-gray-500 dark:text-gray-400">
+              <EyeIcon className="h-3 w-3 mr-1" />
+              <span>{project.analytics?.views || 0} views</span>
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              Started {formatRelativeTime(project.timeline?.startDate)}
+            </div>
+          </div>
+
           {/* View Project Button */}
           <Button
             onClick={() => onViewProject(project)}
             size="sm"
-            className={`w-full bg-gradient-to-r ${config.gradient} hover:shadow-lg transform hover:scale-105 transition-all duration-200`}
+            className={`w-full bg-gradient-to-r ${gradient} hover:shadow-lg transform hover:scale-105 transition-all duration-200`}
           >
             <EyeIcon className="h-4 w-4 mr-2" />
             View Details
@@ -619,44 +813,46 @@ const ProjectCard = ({ project, index, onViewProject }) => {
 };
 
 // Project Details Modal Component
-const ProjectDetailsModal = ({ project, currentImageIndex, onNextImage, onPrevImage, onClose }) => {
-  const categoryConfig = {
-    'project-management': { icon: ChartBarIcon, gradient: 'from-blue-500 to-cyan-500' },
-    'engineering': { icon: CogIcon, gradient: 'from-emerald-500 to-teal-500' },
-    'interior': { icon: HomeIcon, gradient: 'from-purple-500 to-indigo-500' },
-    'real-estate': { icon: BuildingOfficeIcon, gradient: 'from-orange-500 to-red-500' },
-    'mineral': { icon: CubeIcon, gradient: 'from-amber-500 to-yellow-500' }
-  };
-
-  const config = categoryConfig[project.category] || categoryConfig['project-management'];
-  const Icon = config.icon;
-
-  const getStatusBadge = (status) => {
-    const statusConfig = {
-      completed: { label: 'Completed', color: 'green' },
-      ongoing: { label: 'Ongoing', color: 'blue' },
-      planning: { label: 'Planning', color: 'yellow' }
-    };
-    const statusConf = statusConfig[status] || statusConfig.completed;
-    return <Badge variant={statusConf.color} size="sm">{statusConf.label}</Badge>;
-  };
+const ProjectDetailsModal = ({ 
+  project, 
+  currentImageIndex, 
+  onNextImage, 
+  onPrevImage, 
+  onClose,
+  getCategoryIcon,
+  getCategoryGradient,
+  getStatusBadge,
+  formatCurrency,
+  formatDate
+}) => {
+  const Icon = getCategoryIcon(project.category);
+  const gradient = getCategoryGradient(project.category);
+  
+  const images = project.media?.images || [];
+  const currentImage = images[currentImageIndex];
 
   return (
     <div className="p-6 max-h-[80vh] overflow-y-auto">
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-start space-x-4">
-          <div className={`w-12 h-12 bg-gradient-to-r ${config.gradient} rounded-xl flex items-center justify-center flex-shrink-0`}>
+          <div className={`w-12 h-12 bg-gradient-to-r ${gradient} rounded-xl flex items-center justify-center flex-shrink-0`}>
             <Icon className="h-6 w-6 text-white" />
           </div>
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
               {project.title}
             </h2>
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 flex-wrap gap-2">
               {getStatusBadge(project.status)}
+              {project.displaySettings?.isFeatured && (
+                <Badge variant="amber" size="sm">
+                  <StarIcon className="h-3 w-3 mr-1" />
+                  Featured
+                </Badge>
+              )}
               <span className="text-gray-600 dark:text-gray-400 text-sm">
-                {project.client}
+                {project.client?.name}
               </span>
             </div>
           </div>
@@ -670,48 +866,62 @@ const ProjectDetailsModal = ({ project, currentImageIndex, onNextImage, onPrevIm
       </div>
 
       {/* Image Gallery */}
-      <div className="relative mb-6">
-        <div className="aspect-video rounded-xl overflow-hidden">
-          <img
-            src={project.images[currentImageIndex]}
-            alt={`${project.title} - Image ${currentImageIndex + 1}`}
-            className="w-full h-full object-cover"
-            onError={(e) => {
-              e.target.src = '/api/placeholder/800/450';
-            }}
-          />
+      {images.length > 0 && (
+        <div className="relative mb-6">
+          <div className="aspect-video rounded-xl overflow-hidden">
+            <img
+              src={currentImage?.url || images[0]?.url}
+              alt={currentImage?.alt || `${project.title} - Image ${currentImageIndex + 1}`}
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                e.target.src = 'https://images.unsplash.com/photo-1560518883-ce09059eeffa?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=450&q=80';
+              }}
+            />
+          </div>
+          
+          {images.length > 1 && (
+            <>
+              <button
+                onClick={onPrevImage}
+                className="absolute left-4 top-1/2 transform -translate-y-1/2 w-10 h-10 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-colors"
+              >
+                <ChevronLeftIcon className="h-5 w-5 text-gray-800" />
+              </button>
+              <button
+                onClick={onNextImage}
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 w-10 h-10 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-colors"
+              >
+                <ChevronRightIcon className="h-5 w-5 text-gray-800" />
+              </button>
+              
+              {/* Image Indicators */}
+              <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                {images.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setCurrentImageIndex(index)}
+                    className={`w-2 h-2 rounded-full transition-colors ${
+                      index === currentImageIndex ? 'bg-white' : 'bg-white/50'
+                    }`}
+                  />
+                ))}
+              </div>
+
+              {/* Image Counter */}
+              <div className="absolute top-4 right-4 px-2 py-1 bg-black/50 text-white text-xs rounded-md">
+                {currentImageIndex + 1} / {images.length}
+              </div>
+            </>
+          )}
+
+          {/* Image Caption */}
+          {currentImage?.caption && (
+            <p className="text-center text-gray-600 dark:text-gray-400 text-sm mt-2">
+              {currentImage.caption}
+            </p>
+          )}
         </div>
-        
-        {project.images.length > 1 && (
-          <>
-            <button
-              onClick={onPrevImage}
-              className="absolute left-4 top-1/2 transform -translate-y-1/2 w-10 h-10 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-colors"
-            >
-              <ChevronLeftIcon className="h-5 w-5 text-gray-800" />
-            </button>
-            <button
-              onClick={onNextImage}
-              className="absolute right-4 top-1/2 transform -translate-y-1/2 w-10 h-10 bg-white/80 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white transition-colors"
-            >
-              <ChevronRightIcon className="h-5 w-5 text-gray-800" />
-            </button>
-            
-            {/* Image Indicators */}
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
-              {project.images.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentImageIndex(index)}
-                  className={`w-2 h-2 rounded-full transition-colors ${
-                    index === currentImageIndex ? 'bg-white' : 'bg-white/50'
-                  }`}
-                />
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+      )}
 
       {/* Project Information Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -723,27 +933,52 @@ const ProjectDetailsModal = ({ project, currentImageIndex, onNextImage, onPrevIm
               Project Overview
             </h3>
             <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-              {project.longDescription}
+              {project.longDescription || project.description}
             </p>
           </div>
 
           {/* Features */}
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
-              Key Features
-            </h3>
-            <div className="grid grid-cols-2 gap-3">
-              {project.features.map((feature, index) => (
-                <div key={index} className="flex items-center space-x-2">
-                  <CheckCircleIcon className="h-4 w-4 text-green-500 flex-shrink-0" />
-                  <span className="text-gray-700 dark:text-gray-300 text-sm">{feature}</span>
-                </div>
-              ))}
+          {project.features && project.features.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                Key Features
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {project.features.map((feature, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <CheckCircleIcon className="h-4 w-4 text-green-500 flex-shrink-0" />
+                    <span className="text-gray-700 dark:text-gray-300 text-sm">{feature}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Services */}
+          {project.services && project.services.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                Services Provided
+              </h3>
+              <div className="space-y-2">
+                {project.services.map((service, index) => (
+                  <div key={index} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100 text-sm">
+                      {service.name}
+                    </h4>
+                    {service.description && (
+                      <p className="text-gray-600 dark:text-gray-400 text-xs mt-1">
+                        {service.description}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Progress (for ongoing projects) */}
-          {project.status === 'ongoing' && project.progress && (
+          {project.status === 'ongoing' && project.progress?.percentage > 0 && (
             <div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
                 Project Progress
@@ -751,15 +986,39 @@ const ProjectDetailsModal = ({ project, currentImageIndex, onNextImage, onPrevIm
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">Completion</span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100">{project.progress}%</span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">
+                    {project.progress.percentage}%
+                  </span>
                 </div>
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                   <div
-                    className={`bg-gradient-to-r ${config.gradient} rounded-full h-2 transition-all duration-300`}
-                    style={{ width: `${project.progress}%` }}
+                    className={`bg-gradient-to-r ${gradient} rounded-full h-3 transition-all duration-300`}
+                    style={{ width: `${project.progress.percentage}%` }}
                   ></div>
                 </div>
               </div>
+
+              {/* Milestones */}
+              {project.progress?.milestones && project.progress.milestones.length > 0 && (
+                <div className="mt-4">
+                  <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2 text-sm">
+                    Recent Milestones
+                  </h4>
+                  <div className="space-y-2">
+                    {project.progress.milestones.slice(0, 3).map((milestone, index) => (
+                      <div key={index} className="flex items-center justify-between text-xs">
+                        <span className="text-gray-700 dark:text-gray-300">{milestone.name}</span>
+                        <Badge 
+                          variant={milestone.status === 'completed' ? 'green' : 'blue'} 
+                          size="sm"
+                        >
+                          {milestone.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -773,42 +1032,100 @@ const ProjectDetailsModal = ({ project, currentImageIndex, onNextImage, onPrevIm
             </h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                <span className="text-gray-600 dark:text-gray-400 font-medium">Client</span>
-                <span className="text-gray-900 dark:text-gray-100">{project.client}</span>
+                <span className="text-gray-600 dark:text-gray-400 font-medium text-sm">Client</span>
+                <span className="text-gray-900 dark:text-gray-100 text-sm">
+                  {project.client?.name || 'Not specified'}
+                </span>
               </div>
+              
               <div className="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                <span className="text-gray-600 dark:text-gray-400 font-medium">Location</span>
-                <span className="text-gray-900 dark:text-gray-100">{project.location}</span>
+                <span className="text-gray-600 dark:text-gray-400 font-medium text-sm">Location</span>
+                <span className="text-gray-900 dark:text-gray-100 text-sm">
+                  {project.location?.city && project.location?.region 
+                    ? `${project.location.city}, ${project.location.region}`
+                    : 'Not specified'
+                  }
+                </span>
               </div>
+              
               <div className="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                <span className="text-gray-600 dark:text-gray-400 font-medium">Duration</span>
-                <span className="text-gray-900 dark:text-gray-100">{project.duration}</span>
+                <span className="text-gray-600 dark:text-gray-400 font-medium text-sm">Duration</span>
+                <span className="text-gray-900 dark:text-gray-100 text-sm">
+                  {project.timeline?.duration || 'Not specified'}
+                </span>
               </div>
+              
               <div className="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                <span className="text-gray-600 dark:text-gray-400 font-medium">Budget</span>
-                <span className="text-gray-900 dark:text-gray-100 font-semibold">{project.budget}</span>
+                <span className="text-gray-600 dark:text-gray-400 font-medium text-sm">Budget</span>
+                <span className="text-gray-900 dark:text-gray-100 font-semibold text-sm">
+                  {formatCurrency(project.budget?.amount, project.budget?.currency)}
+                </span>
               </div>
-              {project.completedDate && (
+              
+              <div className="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
+                <span className="text-gray-600 dark:text-gray-400 font-medium text-sm">Started</span>
+                <span className="text-gray-900 dark:text-gray-100 text-sm">
+                  {formatDate(project.timeline?.startDate)}
+                </span>
+              </div>
+              
+              {project.timeline?.completedDate && (
                 <div className="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                  <span className="text-gray-600 dark:text-gray-400 font-medium">Completed</span>
-                  <span className="text-gray-900 dark:text-gray-100">
-                    {new Date(project.completedDate).toLocaleDateString()}
+                  <span className="text-gray-600 dark:text-gray-400 font-medium text-sm">Completed</span>
+                  <span className="text-gray-900 dark:text-gray-100 text-sm">
+                    {formatDate(project.timeline.completedDate)}
                   </span>
                 </div>
               )}
-              {project.expectedCompletion && (
+              
+              {project.timeline?.expectedCompletion && project.status !== 'completed' && (
                 <div className="flex items-center justify-between py-2 border-b border-gray-200 dark:border-gray-700">
-                  <span className="text-gray-600 dark:text-gray-400 font-medium">Expected Completion</span>
-                  <span className="text-gray-900 dark:text-gray-100">
-                    {new Date(project.expectedCompletion).toLocaleDateString()}
+                  <span className="text-gray-600 dark:text-gray-400 font-medium text-sm">Expected Completion</span>
+                  <span className="text-gray-900 dark:text-gray-100 text-sm">
+                    {formatDate(project.timeline.expectedCompletion)}
                   </span>
                 </div>
               )}
+
+              <div className="flex items-center justify-between py-2">
+                <span className="text-gray-600 dark:text-gray-400 font-medium text-sm">Category</span>
+                <span className="text-gray-900 dark:text-gray-100 text-sm capitalize">
+                  {project.category.replace('-', ' ')}
+                </span>
+              </div>
             </div>
           </div>
 
+          {/* Project Team */}
+          {project.team && project.team.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                Project Team
+              </h3>
+              <div className="space-y-2">
+                {project.team.slice(0, 4).map((member, index) => (
+                  <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-gray-100 text-sm">
+                        {member.name}
+                      </p>
+                      <p className="text-gray-600 dark:text-gray-400 text-xs">
+                        {member.role} {member.department && `• ${member.department}`}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                {project.team.length > 4 && (
+                  <p className="text-gray-500 dark:text-gray-400 text-xs text-center">
+                    +{project.team.length - 4} more team members
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Testimonial */}
-          {project.testimonial && (
+          {project.testimonial?.text && (
             <div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
                 Client Testimonial
@@ -822,10 +1139,11 @@ const ProjectDetailsModal = ({ project, currentImageIndex, onNextImage, onPrevIm
                     </blockquote>
                     <div className="text-right">
                       <div className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
-                        {project.testimonial.author}
+                        {project.testimonial.author?.name}
                       </div>
                       <div className="text-gray-600 dark:text-gray-400 text-xs">
-                        {project.testimonial.position}
+                        {project.testimonial.author?.position}
+                        {project.testimonial.author?.company && `, ${project.testimonial.author.company}`}
                       </div>
                     </div>
                   </div>
@@ -833,10 +1151,65 @@ const ProjectDetailsModal = ({ project, currentImageIndex, onNextImage, onPrevIm
               </div>
             </div>
           )}
+
+          {/* Awards */}
+          {project.awards && project.awards.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                Awards & Recognition
+              </h3>
+              <div className="space-y-2">
+                {project.awards.map((award, index) => (
+                  <div key={index} className="flex items-center space-x-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+                    <TrophyIcon className="h-5 w-5 text-amber-500" />
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-gray-100 text-sm">
+                        {award.name}
+                      </p>
+                      <p className="text-gray-600 dark:text-gray-400 text-xs">
+                        {award.organization} • {award.year}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Sustainability */}
+          {project.sustainability?.sustainabilityFeatures?.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">
+                Sustainability Features
+              </h3>
+              <div className="grid grid-cols-1 gap-2">
+                {project.sustainability.sustainabilityFeatures.map((feature, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <CheckCircleIcon className="h-4 w-4 text-green-500 flex-shrink-0" />
+                    <span className="text-gray-700 dark:text-gray-300 text-sm">{feature}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
+};
+
+const formatRelativeTime = (date) => {
+  if (!date) return 'Not available';
+  const now = new Date();
+  const diff = now - new Date(date);
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return `${days} days ago`;
+  if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
+  if (days < 365) return `${Math.floor(days / 30)} months ago`;
+  return `${Math.floor(days / 365)} years ago`;
 };
 
 export default ProjectsPage;
