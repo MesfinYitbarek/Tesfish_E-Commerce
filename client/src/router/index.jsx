@@ -23,6 +23,7 @@ import EmployeeManagement from '../pages/admin/EmployeeManagement';
 import EmployeeOverview from '../pages/dashboard/EmployeeDashboard';
 import EmployeeBooking from '../pages/employee/EmployeeBooking';
 import EmployeeAppointments from '../pages/employee/EmployeeAppointments';
+import AdminProjects from '../pages/admin/AdminProjects';
 
 // Lazy Pages - Existing
 const HomePage = lazy(() => import('../pages/home/HomePage'));
@@ -253,7 +254,8 @@ export const router = createBrowserRouter([
       { path: 'users', element: <LazyWrapper><UserManagement /></LazyWrapper> },
       { path: 'analytics', element: <LazyWrapper><PlatformAnalytics /></LazyWrapper> },
       { path: 'listings', element: <LazyWrapper><ListingModeration /></LazyWrapper> },
-{ path: 'minerals', element: <LazyWrapper><MineralManagement /></LazyWrapper> },
+      { path: 'projects', element: <LazyWrapper><AdminProjects /></LazyWrapper> },
+      { path: 'minerals', element: <LazyWrapper><MineralManagement /></LazyWrapper> },
       // Service Management Routes
       { path: 'services', element: <LazyWrapper><ServicesDashboard /></LazyWrapper> },
       { path: 'services/inquiries', element: <LazyWrapper><ServicesDashboard /></LazyWrapper> },

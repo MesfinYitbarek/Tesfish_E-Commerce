@@ -12,107 +12,83 @@ import {
 // @access  Private (Admin only)
 export const getProjectsForAdmin = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
     const skip = (page - 1) * limit;
 
     // Build query
-    let query = {};
+    const query = {};
 
-    // Search
-    if (req.query.search) {
+    // 🔍 Search filter
+    if (req.query.search?.trim()) {
       query.$or = [
-        { title: { $regex: req.query.search, $options: 'i' } },
-        { description: { $regex: req.query.search, $options: 'i' } },
-        { 'client.name': { $regex: req.query.search, $options: 'i' } },
-        { 'location.city': { $regex: req.query.search, $options: 'i' } }
+        { title: { $regex: req.query.search, $options: "i" } },
+        { description: { $regex: req.query.search, $options: "i" } },
+        { "client.name": { $regex: req.query.search, $options: "i" } },
+        { "location.city": { $regex: req.query.search, $options: "i" } },
       ];
     }
 
-    // Status filter
-    if (req.query.status) {
+    // Status filter (ignore if "all")
+    if (req.query.status && req.query.status !== "all") {
       query.status = req.query.status;
     }
 
-    // Category filter
-    if (req.query.category) {
+    // Category filter (ignore if "all")
+    if (req.query.category && req.query.category !== "all") {
       query.category = req.query.category;
     }
 
     // Date range filter
     if (req.query.startDate || req.query.endDate) {
-      query['timeline.startDate'] = {};
-      if (req.query.startDate) {
-        query['timeline.startDate'].$gte = new Date(req.query.startDate);
-      }
-      if (req.query.endDate) {
-        query['timeline.startDate'].$lte = new Date(req.query.endDate);
-      }
+      query["timeline.startDate"] = {};
+      if (req.query.startDate)
+        query["timeline.startDate"].$gte = new Date(req.query.startDate);
+      if (req.query.endDate)
+        query["timeline.startDate"].$lte = new Date(req.query.endDate);
     }
 
     // Budget range filter
     if (req.query.minBudget || req.query.maxBudget) {
-      query['budget.amount'] = {};
-      if (req.query.minBudget) {
-        query['budget.amount'].$gte = Number(req.query.minBudget);
-      }
-      if (req.query.maxBudget) {
-        query['budget.amount'].$lte = Number(req.query.maxBudget);
-      }
+      query["budget.amount"] = {};
+      if (req.query.minBudget) query["budget.amount"].$gte = Number(req.query.minBudget);
+      if (req.query.maxBudget) query["budget.amount"].$lte = Number(req.query.maxBudget);
     }
 
     // Featured filter
-    if (req.query.featured) {
-      query['displaySettings.isFeatured'] = req.query.featured === 'true';
+    if (req.query.featured !== undefined) {
+      query["displaySettings.isFeatured"] = req.query.featured === "true";
     }
 
     // Public filter
-    if (req.query.public) {
-      query['displaySettings.isPublic'] = req.query.public === 'true';
+    if (req.query.public !== undefined) {
+      query["displaySettings.isPublic"] = req.query.public === "true";
     }
 
     // Sorting
-    let sort = {};
-    switch (req.query.sort) {
-      case 'budget-low':
-        sort = { 'budget.amount': 1 };
-        break;
-      case 'budget-high':
-        sort = { 'budget.amount': -1 };
-        break;
-      case 'newest':
-        sort = { createdAt: -1 };
-        break;
-      case 'oldest':
-        sort = { createdAt: 1 };
-        break;
-      case 'title':
-        sort = { title: 1 };
-        break;
-      case 'start-date':
-        sort = { 'timeline.startDate': -1 };
-        break;
-      case 'progress':
-        sort = { 'progress.percentage': -1 };
-        break;
-      case 'views':
-        sort = { 'analytics.views': -1 };
-        break;
-      default:
-        sort = { createdAt: -1 };
-    }
+    const sortOptions = {
+      "budget-low": { "budget.amount": 1 },
+      "budget-high": { "budget.amount": -1 },
+      newest: { createdAt: -1 },
+      oldest: { createdAt: 1 },
+      title: { title: 1 },
+      "start-date": { "timeline.startDate": -1 },
+      progress: { "progress.percentage": -1 },
+      views: { "analytics.views": -1 },
+    };
+    const sort = sortOptions[req.query.sort] || { createdAt: -1 };
 
     // Fetch projects
-    const projects = await Project.find(query)
-      .populate('createdBy', 'fullName email')
-      .populate('updatedBy', 'fullName email')
-      .sort(sort)
-      .skip(skip)
-      .limit(limit)
-      .lean();
-
-    // Get total count
-    const total = await Project.countDocuments(query);
+    const [projects, total] = await Promise.all([
+      Project.find(query)
+        .populate("createdBy", "fullName email")
+        .populate("updatedBy", "fullName email")
+        .sort(sort)
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      Project.countDocuments(query),
+    ]);
 
     res.status(200).json({
       success: true,
@@ -120,11 +96,11 @@ export const getProjectsForAdmin = async (req, res) => {
         projects,
         pagination: {
           currentPage: page,
-          totalPages: Math.ceil(total / limit),
+          totalPages: Math.ceil(total / limit) || 1,
           totalProjects: total,
-          hasNext: page < Math.ceil(total / limit),
+          hasNext: page * limit < total,
           hasPrev: page > 1,
-        }
+        },
       },
     });
   } catch (error) {
@@ -135,6 +111,8 @@ export const getProjectsForAdmin = async (req, res) => {
     });
   }
 };
+
+
 
 // @desc    Create new project
 // @route   POST /api/admin/projects

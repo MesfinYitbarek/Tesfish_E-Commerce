@@ -150,7 +150,11 @@ const AdminLayout = () => {
               icon={<BuildingOfficeIcon className="h-5 w-5" />}
               label="Minerals"
             />
-
+            <NavItem
+              to="/admin/projects"
+              icon={<BuildingOfficeIcon className="h-5 w-5" />}
+              label="Projects"
+            />
             <NavItem
               to="/admin/services"
               icon={<WrenchScrewdriverIcon className="h-5 w-5" />}

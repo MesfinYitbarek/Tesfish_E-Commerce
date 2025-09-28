@@ -10,11 +10,13 @@ import appointmentSlice from './slices/appointmentSlice';
 import serviceInquirySlice from './slices/serviceInquirySlice';
 import adminSlice from './slices/adminSlice';
 import profileSlice from './slices/profileSlice';
+import projectSlice from './slices/projectSlice';
 import employeeSlice from './slices/employeeSlice'
 export const store = configureStore({
   reducer: {
     profile: profileSlice,
     admin: adminSlice,
+    projects: projectSlice,
      employees: employeeSlice,
     auth: authSlice,
     products: productSlice,
