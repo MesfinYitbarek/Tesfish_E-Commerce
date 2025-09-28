@@ -121,6 +121,13 @@ const ProjectsPage = () => {
       description: 'Comprehensive project management services'
     },
     { 
+      id: 'landscape-design', 
+      label: 'LandScape Design', 
+      icon: ChartBarIcon, 
+      color: 'emerald',
+      description: 'Comprehensive LandScape Design services'
+    },
+    { 
       id: 'engineering', 
       label: 'Engineering Design', 
       icon: CogIcon, 
