@@ -36,32 +36,19 @@ const productSchema = new mongoose.Schema({
   },
   sellerType: {
     type: String,
-    enum: ['company', 'individual'],
+    enum: ['company', 'individual','admin'],
     required: true
   },
   
   // Main Product Type
   productType: {
     type: String,
-    // enum: ['homes', 'plots', 'commercials', 'others','real-estate'],
     required: true
   },
   
   // Sub Product Type based on main type
   subProductType: {
     type: String,
-    // validate: {
-    //   validator: function(value) {
-    //     const validTypes = {
-    //       homes: ['houses', 'apartment', 'villas', 'condos', 'townhouses', 'offices', 'warehouses', 'shops', 'others'],
-    //       plots: ['mixed-use-land', 'residential-land', 'commercial-land', 'agricultural-land'],
-    //       commercials: ['buildings', 'factories', 'hotels', 'real-estate', 'companies'],
-    //       others: ['electronics', 'vehicles', 'furnitures', 'agricultural-products', 'construction-equipment']
-    //     };
-    //     return validTypes[this.productType]?.includes(value);
-    //   },
-    //   message: 'Invalid sub product type for the selected product type'
-    //}
   },
   
   // Listing Type
@@ -78,7 +65,6 @@ const productSchema = new mongoose.Schema({
   model: String,
   condition: {
     type: String,
-    // enum: ['new', 'like-new', 'used', 'refurbished'],
     default: 'new'
   },
   
@@ -99,7 +85,7 @@ const productSchema = new mongoose.Schema({
     },
     priceType: {
       type: String,
-      enum: ['fixed', 'starting-from', 'per-unit', 'per-day', 'per-month', 'per-year'],
+      // enum: ['fixed', 'starting-from', 'per-unit', 'per-day', 'per-month', 'per-year'],
       default: 'fixed'
     },
     // For rental properties
@@ -346,7 +332,60 @@ const productSchema = new mongoose.Schema({
     hoursUsed: Number,
     specifications: [String]
   },
-  
+  //Basic Mineral Details (simplified)
+  mineralDetails: {
+    mineralName: {
+      type: String,
+      required: function() {
+        return this.productType === 'minerals';
+      }
+    },
+    mineralType: {
+      type: String,
+      enum: [
+        'gold', 'silver', 'copper', 'iron', 'zinc', 'lead', 
+        'gemstones', 'coal', 'salt', 'limestone', 'marble', 
+        'granite', 'sand', 'gravel', 'other'
+      ]
+    },
+    origin: {
+      country: {
+        type: String,
+        default: 'Ethiopia'
+      },
+      region: String,
+      mine: String
+    },
+    quality: {
+      grade: {
+        type: String,
+        enum: ['premium', 'high', 'medium', 'standard', 'low'],
+        default: 'standard'
+      },
+      purity: {
+        type: Number, // Percentage 0-100
+        min: 0,
+        max: 100
+      }
+    },
+    weight: {
+      value: Number,
+      unit: {
+        type: String,
+        enum: ['grams', 'kg', 'tons'],
+        default: 'kg'
+      }
+    },
+    certification: {
+      certified: {
+        type: Boolean,
+        default: false
+      },
+      certificationBody: String,
+      certificateNumber: String,
+      validUntil: Date
+    }
+  },
   // Status
   status: {
     type: String,

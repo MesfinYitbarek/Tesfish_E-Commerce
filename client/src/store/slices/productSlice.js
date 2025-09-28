@@ -210,6 +210,160 @@ export const fetchProductStats = createAsyncThunk(
   }
 );
 
+// ================= MINERAL MANAGEMENT THUNKS =================
+
+export const fetchMineralsForAdmin = createAsyncThunk(
+  'products/fetchMineralsForAdmin',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const response = await productService.getMineralsForAdmin(params);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to fetch minerals for admin'
+      );
+    }
+  }
+);
+
+export const createMineral = createAsyncThunk(
+  'products/createMineral',
+  async (mineralData, { rejectWithValue }) => {
+    try {
+      const response = await productService.createMineral(mineralData);
+      toast.success('Mineral created successfully!');
+      return response.data;
+    } catch (error) {
+      const message =
+        error.response?.data?.message || 'Failed to create mineral';
+      toast.error(message);
+      return rejectWithValue(message);
+    }
+  }
+);
+
+export const updateMineral = createAsyncThunk(
+  'products/updateMineral',
+  async ({ id, mineralData }, { rejectWithValue }) => {
+    try {
+      const response = await productService.updateMineral(id, mineralData);
+      toast.success('Mineral updated successfully!');
+      return response.data;
+    } catch (error) {
+      const message =
+        error.response?.data?.message || 'Failed to update mineral';
+      toast.error(message);
+      return rejectWithValue(message);
+    }
+  }
+);
+
+export const fetchMineralById = createAsyncThunk(
+  'products/fetchMineralById',
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await productService.getMineralById(id);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to fetch mineral'
+      );
+    }
+  }
+);
+
+export const deleteMineral = createAsyncThunk(
+  'products/deleteMineral',
+  async (mineralId, { rejectWithValue }) => {
+    try {
+      const response = await productService.deleteMineral(mineralId);
+      toast.success(response.message || 'Mineral deleted successfully');
+      return { mineralId, data: response.data };
+    } catch (error) {
+      const message =
+        error.response?.data?.message || 'Failed to delete mineral';
+      toast.error(message);
+      return rejectWithValue(message);
+    }
+  }
+);
+
+export const updateMineralStatus = createAsyncThunk(
+  'products/updateMineralStatus',
+  async ({ mineralId, status }, { rejectWithValue }) => {
+    try {
+      const response = await productService.updateMineralStatus(mineralId, status);
+      toast.success(`Mineral ${status} successfully`);
+      return { mineralId, status, data: response.data };
+    } catch (error) {
+      const message =
+        error.response?.data?.message || 'Failed to update mineral status';
+      toast.error(message);
+      return rejectWithValue(message);
+    }
+  }
+);
+
+export const fetchMineralStats = createAsyncThunk(
+  'products/fetchMineralStats',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await productService.getMineralStats();
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to fetch mineral statistics'
+      );
+    }
+  }
+);
+
+export const fetchMineralTypes = createAsyncThunk(
+  'products/fetchMineralTypes',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await productService.getMineralTypes();
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || 'Failed to fetch mineral types'
+      );
+    }
+  }
+);
+
+export const bulkUpdateMinerals = createAsyncThunk(
+  'products/bulkUpdateMinerals',
+  async ({ mineralIds, updates }, { rejectWithValue }) => {
+    try {
+      const response = await productService.bulkUpdateMinerals(mineralIds, updates);
+      toast.success('Minerals updated successfully!');
+      return { mineralIds, updates, data: response.data };
+    } catch (error) {
+      const message =
+        error.response?.data?.message || 'Failed to update minerals';
+      toast.error(message);
+      return rejectWithValue(message);
+    }
+  }
+);
+
+export const exportMinerals = createAsyncThunk(
+  'products/exportMinerals',
+  async (params = {}, { rejectWithValue }) => {
+    try {
+      const response = await productService.exportMinerals(params);
+      toast.success('Minerals exported successfully!');
+      return response;
+    } catch (error) {
+      const message =
+        error.response?.data?.message || 'Failed to export minerals';
+      toast.error(message);
+      return rejectWithValue(message);
+    }
+  }
+);
+
 // ================= ADMIN THUNKS =================
 export const fetchProductsForAdmin = createAsyncThunk(
   'products/fetchProductsForAdmin',
@@ -257,7 +411,7 @@ export const bulkDeleteProducts = createAsyncThunk(
   }
 );
 
-// ================= PROPERTY REGISTRATION THUNKS (UPDATED FOR ADMIN) =================
+// ================= PROPERTY REGISTRATION THUNKS (EXISTING) =================
 export const submitPropertyRegistration = createAsyncThunk(
   'products/submitPropertyRegistration',
   async (registrationData, { rejectWithValue }) => {
@@ -414,6 +568,37 @@ const initialState = {
   statsLoading: false,
   error: null,
 
+  // Minerals (New section)
+  minerals: [],
+  currentMineral: null,
+  mineralTypes: [],
+  mineralStats: null,
+  mineralLoading: false,
+  mineralError: null,
+  mineralPagination: {
+    currentPage: 1,
+    totalPages: 1,
+    totalMinerals: 0,
+    hasNext: false,
+    hasPrev: false,
+  },
+  mineralFilters: {
+    search: '',
+    mineralType: '',
+    qualityGrade: '',
+    originCountry: '',
+    region: '',
+    status: '',
+    minPrice: '',
+    maxPrice: '',
+    minPurity: '',
+    maxPurity: '',
+    verified: '',
+    page: 1,
+    limit: 20,
+    sort: 'newest'
+  },
+
   // Property Registrations (Updated for Admin)
   registrations: [],
   myRegistrations: [],
@@ -506,6 +691,19 @@ const productSlice = createSlice({
         limit: state.filters.limit,
       };
     },
+    setMineralFilters: (state, action) => {
+      state.mineralFilters = { ...state.mineralFilters, ...action.payload };
+      if (!action.payload.page) {
+        state.mineralFilters.page = 1;
+      }
+    },
+    clearMineralFilters: state => {
+      state.mineralFilters = {
+        ...initialState.mineralFilters,
+        sort: state.mineralFilters.sort,
+        limit: state.mineralFilters.limit,
+      };
+    },
     setRegistrationFilters: (state, action) => {
       state.registrationFilters = { ...state.registrationFilters, ...action.payload };
       if (!action.payload.page) {
@@ -526,6 +724,12 @@ const productSlice = createSlice({
       state.currentProduct = null;
       state.relatedProducts = [];
     },
+    setCurrentMineral: (state, action) => {
+      state.currentMineral = action.payload;
+    },
+    clearCurrentMineral: state => {
+      state.currentMineral = null;
+    },
     setCurrentRegistration: (state, action) => {
       state.currentRegistration = action.payload;
     },
@@ -541,6 +745,16 @@ const productSlice = createSlice({
       if (productIndex !== -1) {
         state.products[productIndex] = {
           ...state.products[productIndex],
+          ...updates,
+        };
+      }
+    },
+    updateMineralInList: (state, action) => {
+      const { mineralId, updates } = action.payload;
+      const mineralIndex = state.minerals.findIndex(m => m._id === mineralId);
+      if (mineralIndex !== -1) {
+        state.minerals[mineralIndex] = {
+          ...state.minerals[mineralIndex],
           ...updates,
         };
       }
@@ -581,6 +795,14 @@ const productSlice = createSlice({
         state.pagination.totalProducts -= 1;
       }
     },
+    removeMineralOptimistically: (state, action) => {
+      state.minerals = state.minerals.filter(
+        mineral => mineral._id !== action.payload
+      );
+      if (state.mineralPagination.totalMinerals > 0) {
+        state.mineralPagination.totalMinerals -= 1;
+      }
+    },
     removeRegistrationOptimistically: (state, action) => {
       state.myRegistrations = state.myRegistrations.filter(
         registration => registration._id !== action.payload
@@ -597,6 +819,16 @@ const productSlice = createSlice({
     },
     resetProductState: (state) => {
       return initialState;
+    },
+    resetMineralState: (state) => {
+      state.minerals = [];
+      state.currentMineral = null;
+      state.mineralTypes = [];
+      state.mineralStats = null;
+      state.mineralLoading = false;
+      state.mineralError = null;
+      state.mineralPagination = initialState.mineralPagination;
+      state.mineralFilters = initialState.mineralFilters;
     },
     resetRegistrationState: (state) => {
       state.registrations = [];
@@ -778,6 +1010,144 @@ const productSlice = createSlice({
         }
       })
 
+      // ================= MINERAL CASES =================
+      
+      // Fetch Minerals for Admin
+      .addCase(fetchMineralsForAdmin.pending, state => {
+        state.mineralLoading = true;
+        state.mineralError = null;
+      })
+      .addCase(fetchMineralsForAdmin.fulfilled, (state, action) => {
+        state.mineralLoading = false;
+        state.minerals = action.payload.minerals || [];
+        state.mineralPagination = action.payload.pagination || initialState.mineralPagination;
+      })
+      .addCase(fetchMineralsForAdmin.rejected, (state, action) => {
+        state.mineralLoading = false;
+        state.mineralError = action.payload;
+      })
+
+      // Create Mineral
+      .addCase(createMineral.pending, state => {
+        state.mineralLoading = true;
+        state.mineralError = null;
+      })
+      .addCase(createMineral.fulfilled, (state, action) => {
+        state.mineralLoading = false;
+        state.minerals.unshift(action.payload.mineral);
+        if (state.mineralPagination.totalMinerals >= 0) {
+          state.mineralPagination.totalMinerals += 1;
+        }
+      })
+      .addCase(createMineral.rejected, (state, action) => {
+        state.mineralLoading = false;
+        state.mineralError = action.payload;
+      })
+
+      // Update Mineral
+      .addCase(updateMineral.pending, state => {
+        state.mineralLoading = true;
+        state.mineralError = null;
+      })
+      .addCase(updateMineral.fulfilled, (state, action) => {
+        state.mineralLoading = false;
+        const mineralIndex = state.minerals.findIndex(m => m._id === action.payload.mineral._id);
+        if (mineralIndex !== -1) {
+          state.minerals[mineralIndex] = action.payload.mineral;
+        }
+        if (state.currentMineral?._id === action.payload.mineral._id) {
+          state.currentMineral = action.payload.mineral;
+        }
+      })
+      .addCase(updateMineral.rejected, (state, action) => {
+        state.mineralLoading = false;
+        state.mineralError = action.payload;
+      })
+
+      // Fetch Mineral by ID
+      .addCase(fetchMineralById.pending, state => {
+        state.mineralLoading = true;
+        state.mineralError = null;
+      })
+      .addCase(fetchMineralById.fulfilled, (state, action) => {
+        state.mineralLoading = false;
+        state.currentMineral = action.payload.mineral;
+      })
+      .addCase(fetchMineralById.rejected, (state, action) => {
+        state.mineralLoading = false;
+        state.mineralError = action.payload;
+      })
+
+      // Delete Mineral
+      .addCase(deleteMineral.pending, state => {
+        state.mineralLoading = true;
+        state.mineralError = null;
+      })
+      .addCase(deleteMineral.fulfilled, (state, action) => {
+        state.mineralLoading = false;
+        state.minerals = state.minerals.filter(
+          mineral => mineral._id !== action.payload.mineralId
+        );
+        if (state.mineralPagination.totalMinerals > 0) {
+          state.mineralPagination.totalMinerals -= 1;
+        }
+      })
+      .addCase(deleteMineral.rejected, (state, action) => {
+        state.mineralLoading = false;
+        state.mineralError = action.payload;
+      })
+
+      // Update Mineral Status
+      .addCase(updateMineralStatus.fulfilled, (state, action) => {
+        const { mineralId, status } = action.payload;
+        const mineralIndex = state.minerals.findIndex(m => m._id === mineralId);
+        if (mineralIndex !== -1) {
+          state.minerals[mineralIndex].status = status;
+        }
+        if (state.currentMineral?._id === mineralId) {
+          state.currentMineral.status = status;
+        }
+      })
+
+      // Fetch Mineral Stats
+      .addCase(fetchMineralStats.fulfilled, (state, action) => {
+        state.mineralStats = action.payload;
+      })
+
+      // Fetch Mineral Types
+      .addCase(fetchMineralTypes.fulfilled, (state, action) => {
+        state.mineralTypes = action.payload.mineralTypes || [];
+      })
+
+      // Bulk Update Minerals
+      .addCase(bulkUpdateMinerals.pending, state => {
+        state.mineralLoading = true;
+      })
+      .addCase(bulkUpdateMinerals.fulfilled, (state, action) => {
+        state.mineralLoading = false;
+        const { mineralIds, updates } = action.payload;
+        state.minerals = state.minerals.map(m =>
+          mineralIds.includes(m._id) ? { ...m, ...updates } : m
+        );
+      })
+      .addCase(bulkUpdateMinerals.rejected, (state, action) => {
+        state.mineralLoading = false;
+        state.mineralError = action.payload;
+      })
+
+      // Export Minerals
+      .addCase(exportMinerals.pending, state => {
+        state.mineralLoading = true;
+      })
+      .addCase(exportMinerals.fulfilled, (state, action) => {
+        state.mineralLoading = false;
+        // Export is downloaded, no state update needed
+      })
+      .addCase(exportMinerals.rejected, (state, action) => {
+        state.mineralLoading = false;
+        state.mineralError = action.payload;
+      })
+
       // ================= ADMIN CASES =================
       .addCase(fetchProductsForAdmin.pending, state => {
         state.adminLoading = true;
@@ -837,7 +1207,7 @@ const productSlice = createSlice({
         state.error = action.payload;
       })
 
-      // ================= PROPERTY REGISTRATION CASES (UPDATED FOR ADMIN) =================
+      // ================= PROPERTY REGISTRATION CASES (EXISTING) =================
       // Submit Registration
       .addCase(submitPropertyRegistration.pending, state => {
         state.isSubmitting = true;
@@ -1010,20 +1380,28 @@ const productSlice = createSlice({
 export const {
   setFilters,
   clearFilters,
+  setMineralFilters,
+  clearMineralFilters,
   setRegistrationFilters,
   clearRegistrationFilters,
   setViewMode,
   clearCurrentProduct,
+  setCurrentMineral,
+  clearCurrentMineral,
   setCurrentRegistration,
   clearCurrentRegistration,
   setWishlistedItems,
   updateProductInList,
+  updateMineralInList,
   updateRegistrationInList,
   removeProductOptimistically,
+  removeMineralOptimistically,
   removeRegistrationOptimistically,
   resetProductState,
+  resetMineralState,
   resetRegistrationState,
 } = productSlice.actions;
+
 // ================= SELECTORS =================
 // Basic selectors
 export const selectProducts = (state) => state.products.products;
@@ -1034,6 +1412,17 @@ export const selectCategories = (state) => state.products.categories;
 export const selectPropertyTypes = (state) => state.products.propertyTypes;
 export const selectWishlistedItems = (state) => state.products.wishlistedItems;
 export const selectWishlistIds = (state) => state.products.wishlistedItems;
+
+// Mineral selectors
+export const selectMinerals = (state) => state.products.minerals;
+export const selectCurrentMineral = (state) => state.products.currentMineral;
+export const selectMineralTypes = (state) => state.products.mineralTypes;
+export const selectMineralStats = (state) => state.products.mineralStats;
+export const selectMineralLoading = (state) => state.products.mineralLoading;
+export const selectMineralError = (state) => state.products.mineralError;
+export const selectMineralPagination = (state) => state.products.mineralPagination;
+export const selectMineralFilters = (state) => state.products.mineralFilters;
+
 // Loading selectors
 export const selectIsLoading = (state) => state.products.isLoading;
 export const selectProductLoading = (state) => state.products.productLoading;
@@ -1072,13 +1461,19 @@ export const selectIsWishlisted = (productId) => (state) =>
 export const selectProductById = (productId) => (state) => 
   state.products.products.find(product => product._id === productId);
 
+export const selectMineralById = (mineralId) => (state) => 
+  state.products.minerals.find(mineral => mineral._id === mineralId);
+
 export const selectFeaturedCount = (state) => state.products.featuredProducts.length;
 
 export const selectTotalProducts = (state) => state.products.pagination.totalProducts;
+export const selectTotalMinerals = (state) => state.products.mineralPagination.totalMinerals;
 
 export const selectHasMore = (state) => state.products.pagination.hasNext;
+export const selectMineralHasMore = (state) => state.products.mineralPagination.hasNext;
 
 export const selectCurrentPage = (state) => state.products.pagination.currentPage;
+export const selectMineralCurrentPage = (state) => state.products.mineralPagination.currentPage;
 
 export const selectProductsByCategory = (category) => (state) =>
   state.products.products.filter(product => 
@@ -1087,6 +1482,9 @@ export const selectProductsByCategory = (category) => (state) =>
 
 export const selectProductsByType = (productType) => (state) =>
   state.products.products.filter(product => product.productType === productType);
+
+export const selectMineralsByType = (mineralType) => (state) =>
+  state.products.minerals.filter(mineral => mineral.mineralDetails?.mineralType === mineralType);
 
 export const selectActiveFiltersCount = (state) => {
   const filters = state.products.filters;
@@ -1119,9 +1517,29 @@ export const selectActiveFiltersCount = (state) => {
   return count;
 };
 
+export const selectActiveMineralFiltersCount = (state) => {
+  const filters = state.products.mineralFilters;
+  let count = 0;
+  
+  if (filters.search) count++;
+  if (filters.mineralType) count++;
+  if (filters.qualityGrade) count++;
+  if (filters.originCountry) count++;
+  if (filters.region) count++;
+  if (filters.status) count++;
+  if (filters.minPrice) count++;
+  if (filters.maxPrice) count++;
+  if (filters.minPurity) count++;
+  if (filters.maxPurity) count++;
+  if (filters.verified) count++;
+  
+  return count;
+};
+
 export const selectPriceRange = (state) => ({
   min: state.products.aggregatedFilters.priceRange?.minPrice || 0,
   max: state.products.aggregatedFilters.priceRange?.maxPrice || 0,
   avg: state.products.aggregatedFilters.priceRange?.avgPrice || 0
 });
+
 export default productSlice.reducer;

@@ -166,6 +166,20 @@ export const API_ENDPOINTS = {
     FORGOT_PASSWORD: '/auth/forgot-password',
     RESET_PASSWORD: '/auth/reset-password',
   },
+  ADMIN: {
+    MINERALS: {
+      LIST: '/admin/minerals',
+      CREATE: '/admin/minerals',
+      UPDATE: '/admin/minerals',
+      DELETE: '/admin/minerals',
+      DETAIL: '/admin/minerals',
+      STATS: '/admin/minerals/stats',
+      TYPES: '/admin/minerals/types',
+      UPDATE_STATUS: '/admin/minerals',
+      BULK_UPDATE: '/admin/minerals/bulk-update',
+      EXPORT: '/admin/minerals/export'
+    }
+  },
   PRODUCTS: {
     LIST: '/products',
     DETAIL: '/products',

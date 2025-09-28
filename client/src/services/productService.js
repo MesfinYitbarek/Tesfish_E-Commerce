@@ -1,3 +1,4 @@
+// services/productService.js
 import api from './api';
 import { API_ENDPOINTS } from '../constants';
 
@@ -247,6 +248,184 @@ const productService = {
 
   getFeaturedProducts: async (limit = 8) => {
     const response = await api.get(`${API_ENDPOINTS.PRODUCTS.LIST}/featured?limit=${limit}`);
+    return response.data;
+  },
+
+  // ================= MINERAL MANAGEMENT SERVICES =================
+  
+  // Get all minerals for admin
+  getMineralsForAdmin: async (params = {}) => {
+    const queryParams = new URLSearchParams(params);
+    const response = await api.get(`${API_ENDPOINTS.ADMIN.MINERALS.LIST}?${queryParams}`);
+    return response.data;
+  },
+
+  // Create new mineral (admin only)
+  createMineral: async (mineralData) => {
+    const formData = new FormData();
+    
+    // Extract files from media
+    const imageFiles = [];
+    
+    if (mineralData.media?.images) {
+      mineralData.media.images.forEach((image, index) => {
+        if (image.file instanceof File) {
+          imageFiles.push(image.file);
+          formData.append(`imageMetadata[${index}]`, JSON.stringify({
+            alt: image.alt || '',
+            caption: image.caption || '',
+            isMain: image.isMain || false,
+            tags: image.tags || []
+          }));
+        }
+      });
+    }
+    
+    // Clean media object for JSON serialization
+    const cleanedMineralData = { ...mineralData };
+    if (cleanedMineralData.media) {
+      cleanedMineralData.media = {
+        virtualTour: cleanedMineralData.media.virtualTour || '',
+        images: undefined,
+      };
+    }
+    
+    // Append mineral data as JSON
+    Object.keys(cleanedMineralData).forEach(key => {
+      if (key !== 'media') {
+        if (typeof cleanedMineralData[key] === 'object' && cleanedMineralData[key] !== null) {
+          formData.append(key, JSON.stringify(cleanedMineralData[key]));
+        } else if (cleanedMineralData[key] !== null && cleanedMineralData[key] !== undefined) {
+          formData.append(key, cleanedMineralData[key]);
+        }
+      }
+    });
+    
+    // Append cleaned media object
+    if (cleanedMineralData.media) {
+      formData.append('media', JSON.stringify(cleanedMineralData.media));
+    }
+    
+    // Append image files
+    imageFiles.forEach((file) => {
+      formData.append('images', file);
+    });
+
+    const response = await api.post(API_ENDPOINTS.ADMIN.MINERALS.CREATE, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  // Update mineral (admin only)
+  updateMineral: async (id, mineralData) => {
+    const formData = new FormData();
+    
+    // Extract files from media
+    const imageFiles = [];
+    
+    if (mineralData.media?.images) {
+      mineralData.media.images.forEach((image, index) => {
+        if (image.file instanceof File) {
+          imageFiles.push(image.file);
+          formData.append(`imageMetadata[${index}]`, JSON.stringify({
+            alt: image.alt || '',
+            caption: image.caption || '',
+            isMain: image.isMain || false,
+            tags: image.tags || []
+          }));
+        }
+      });
+    }
+    
+    // Clean media object for JSON serialization
+    const cleanedMineralData = { ...mineralData };
+    if (cleanedMineralData.media) {
+      cleanedMineralData.media = {
+        virtualTour: cleanedMineralData.media.virtualTour || '',
+        images: cleanedMineralData.media.images?.filter(img => !img.file) || [],
+      };
+    }
+    
+    // Append mineral data as JSON
+    Object.keys(cleanedMineralData).forEach(key => {
+      if (key !== 'media') {
+        if (typeof cleanedMineralData[key] === 'object' && cleanedMineralData[key] !== null) {
+          formData.append(key, JSON.stringify(cleanedMineralData[key]));
+        } else if (cleanedMineralData[key] !== null && cleanedMineralData[key] !== undefined) {
+          formData.append(key, cleanedMineralData[key]);
+        }
+      }
+    });
+    
+    // Append cleaned media object
+    if (cleanedMineralData.media) {
+      formData.append('media', JSON.stringify(cleanedMineralData.media));
+    }
+    
+    // Append image files
+    imageFiles.forEach((file) => {
+      formData.append('images', file);
+    });
+
+    const response = await api.put(`${API_ENDPOINTS.ADMIN.MINERALS.UPDATE}/${id}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  // Get mineral by ID (admin only)
+  getMineralById: async (id) => {
+    const response = await api.get(`${API_ENDPOINTS.ADMIN.MINERALS.DETAIL}/${id}`);
+    return response.data;
+  },
+
+  // Delete mineral (admin only)
+  deleteMineral: async (id) => {
+    const response = await api.delete(`${API_ENDPOINTS.ADMIN.MINERALS.DELETE}/${id}`);
+    return response.data;
+  },
+
+  // Update mineral status (admin only)
+  updateMineralStatus: async (id, status) => {
+    const response = await api.put(`${API_ENDPOINTS.ADMIN.MINERALS.UPDATE_STATUS}/${id}/status`, { status });
+    return response.data;
+  },
+
+  // Get mineral statistics (admin only)
+  getMineralStats: async () => {
+    const response = await api.get(API_ENDPOINTS.ADMIN.MINERALS.STATS);
+    return response.data;
+  },
+
+  // Get mineral types (admin only)
+  getMineralTypes: async () => {
+    const response = await api.get(API_ENDPOINTS.ADMIN.MINERALS.TYPES);
+    return response.data;
+  },
+
+  // Bulk update minerals (admin only)
+  bulkUpdateMinerals: async (mineralIds, updates) => {
+    const response = await api.put(API_ENDPOINTS.ADMIN.MINERALS.BULK_UPDATE, {
+      mineralIds,
+      updateData: updates
+    });
+    return response.data;
+  },
+
+  // Export minerals (admin only)
+  exportMinerals: async (params = {}) => {
+    const queryParams = new URLSearchParams(params);
+    const response = await api.post(`${API_ENDPOINTS.ADMIN.MINERALS.EXPORT}?${queryParams}`, {
+      format: 'csv',
+      filters: params
+    }, {
+      responseType: 'blob'
+    });
     return response.data;
   },
 

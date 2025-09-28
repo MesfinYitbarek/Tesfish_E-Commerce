@@ -55,6 +55,7 @@ const AdminDashboard = lazy(() => import('../pages/admin/AdminDashboard'));
 const PlatformAnalytics = lazy(() => import('../pages/admin/PlatformAnalytics'));
 const UserManagement = lazy(() => import('../pages/admin/UserManagement'));
 const ListingModeration = lazy(() => import('../pages/admin/ListingModeration'));
+const MineralManagement = lazy(()=> import ('../pages/admin/MineralManagement'))
 const ServicesDashboard = lazy(() => import('../pages/admin/ServicesDashboard'));
 const ServiceInquiryDetail = lazy(() => import('../pages/services/ServiceInquiryDetail'));
 
@@ -252,7 +253,7 @@ export const router = createBrowserRouter([
       { path: 'users', element: <LazyWrapper><UserManagement /></LazyWrapper> },
       { path: 'analytics', element: <LazyWrapper><PlatformAnalytics /></LazyWrapper> },
       { path: 'listings', element: <LazyWrapper><ListingModeration /></LazyWrapper> },
-
+{ path: 'minerals', element: <LazyWrapper><MineralManagement /></LazyWrapper> },
       // Service Management Routes
       { path: 'services', element: <LazyWrapper><ServicesDashboard /></LazyWrapper> },
       { path: 'services/inquiries', element: <LazyWrapper><ServicesDashboard /></LazyWrapper> },

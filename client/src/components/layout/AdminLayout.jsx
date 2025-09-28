@@ -145,6 +145,11 @@ const AdminLayout = () => {
               icon={<BuildingOfficeIcon className="h-5 w-5" />}
               label="Listing Moderation"
             />
+            <NavItem
+              to="/admin/minerals"
+              icon={<BuildingOfficeIcon className="h-5 w-5" />}
+              label="Minerals"
+            />
 
             <NavItem
               to="/admin/services"

@@ -18,6 +18,7 @@ import { fileURLToPath } from "url";
 // Routes
 import authRoutes from './routes/auth/authRoutes.js';
 import employeeRoutes from './routes/employee/employeeRoutes.js';
+import mineralRoutes from './routes/admin/mineralRoutes.js';
 import productRoutes from './routes/product/productRoutes.js';
 import paymentRoutes from './routes/payment/paymentRoutes.js';
 import bookingRoutes from './routes/booking/bookingRoutes.js';
@@ -160,6 +161,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/employees', employeeRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/admin/minerals', mineralRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/bookings', bookingRoutes);

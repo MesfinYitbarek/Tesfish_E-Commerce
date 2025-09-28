@@ -1,4 +1,3 @@
-// routes/product/productRoutes.js
 import express from "express";
 import { body } from "express-validator";
 import {
@@ -13,7 +12,6 @@ import {
   updateProductStatus,
   getPropertyTypes,
   getFeaturedProducts,
-
 } from "../../controllers/product/productController.js";
 import { protect, authorize } from "../../middleware/auth/authMiddleware.js";
 import { uploadConfigs } from "../../middleware/upload/uploadMiddleware.js"; 
@@ -21,7 +19,7 @@ import { handleValidationErrors } from "../../middleware/validation/validationMi
 
 const router = express.Router();
 
-// Validation rules for product creation/update
+// Enhanced validation rules for product creation/update (including minerals)
 const productValidation = [
   body('title')
     .notEmpty()
@@ -38,7 +36,7 @@ const productValidation = [
   body('productType')
     .notEmpty()
     .withMessage('Product type is required')
-    .isIn(['homes', 'plots', 'commercials', 'others'])
+    .isIn(['homes', 'plots', 'commercials', 'others', 'minerals']) // Added minerals
     .withMessage('Invalid product type'),
   
   body('subProductType')
@@ -60,6 +58,21 @@ const productValidation = [
     .isIn(['ETB', 'USD', 'EUR'])
     .withMessage('Invalid currency'),
   
+  // Mineral-specific validation
+  body('mineralDetails.mineralName')
+    .if(body('productType').equals('minerals'))
+    .notEmpty()
+    .withMessage('Mineral name is required for minerals'),
+  
+  body('mineralDetails.mineralType')
+    .if(body('productType').equals('minerals'))
+    .isIn(['gold', 'silver', 'copper', 'iron', 'zinc', 'lead', 'gemstones', 'coal', 'salt', 'limestone', 'marble', 'granite', 'sand', 'gravel', 'other'])
+    .withMessage('Invalid mineral type'),
+  
+  body('mineralDetails.quality.purity')
+    .optional()
+    .isFloat({ min: 0, max: 100 })
+    .withMessage('Purity must be between 0 and 100'),
   
   body('contactInfo.email')
     .optional()
@@ -69,107 +82,25 @@ const productValidation = [
   handleValidationErrors
 ];
 
-// Status update validation
-const statusValidation = [
-  body('status')
-    .isIn(['draft', 'active', 'sold', 'rented', 'out-of-stock', 'discontinued', 'pending-approval'])
-    .withMessage('Invalid status'),
-  handleValidationErrors
-];
-
-// Bulk operations validation
-const bulkValidation = [
-  body('productIds')
-    .isArray({ min: 1 })
-    .withMessage('Product IDs array is required'),
-  body('productIds.*')
-    .isMongoId()
-    .withMessage('Invalid product ID format'),
-  handleValidationErrors
-];
-
 // ================= PUBLIC ROUTES =================
-
-// Get all products with filtering and pagination
 router.get("/", getProducts);
-
-// Get featured products
 router.get("/featured", getFeaturedProducts);
-
-// Get property types with counts
 router.get("/property-types", getPropertyTypes);
-
-// Get single product by ID
 router.get("/:id", getProduct);
 
 // ================= ADMIN ROUTES =================
-
-// Get all products for admin with enhanced filtering
-router.get(
-  "/admin/all", 
-  protect, 
-  authorize("admin"), 
-  getProductsForAdmin
-);
-
-// Get product statistics for admin dashboard
-router.get(
-  "/admin/stats", 
-  protect, 
-  authorize("admin"), 
-  getProductStats
-);
-
-
+router.get("/admin/all", protect, authorize("admin"), getProductsForAdmin);
+router.get("/admin/stats", protect, authorize("admin"), getProductStats);
 
 // ================= SELLER ROUTES =================
-
-// Get seller's own products
-router.get(
-  "/seller/my-products",
-  protect,
-  authorize("company", "individual"),
-  getMyProducts
-);
+router.get("/seller/my-products", protect, authorize("company", "individual", "admin"), getMyProducts);
 
 // ================= PROTECTED ROUTES (CRUD) =================
+router.post("/", protect, authorize("company", "individual", "admin"), uploadConfigs.productMedia, productValidation, createProduct);
+router.put("/:id", protect, authorize("company", "individual", "admin"), uploadConfigs.productMedia, productValidation, updateProduct);
+router.put("/:id/status", protect, authorize("company", "individual", "admin"), updateProductStatus);
+router.delete("/:id", protect, authorize("company", "individual", "admin"), deleteProduct);
 
-// Create new product
-router.post(
-  "/",
-  protect,
-  authorize("company", "individual"),
-  uploadConfigs.productMedia, // Use the specific configuration for product media
-  productValidation,
-  createProduct
-);
-
-// Update existing product
-router.put(
-  "/:id",
-  protect,
-  authorize("company", "individual", "admin"),
-  uploadConfigs.productMedia, // Use the specific configuration for product media
-  productValidation,
-  updateProduct
-);
-
-// Update product status only
-router.put(
-  "/:id/status",
-  protect,
-  authorize("company", "individual", "admin"),
-  statusValidation,
-  updateProductStatus
-);
-
-// Delete product
-router.delete(
-  "/:id",
-  protect,
-  authorize("company", "individual", "admin"),
-  deleteProduct
-);
 
 // ================= ADDITIONAL ROUTES =================
 
