@@ -90,6 +90,12 @@ const ServiceInquiryModal = ({ isOpen, onClose, preSelectedService = null }) => 
       icon: '🏠'
     },
     {
+      value: 'landscape-design',
+      label: 'Landscape Design',
+      description: 'Professional landscape design services for gardens, parks, and outdoor spaces with sustainable and aesthetic solutions.',
+      icon: '🌿'
+    },
+    {
       value: 'real-estate-consultancy',
       label: 'Real Estate Consultancy',
       description: 'Expert advisory services for property investment, legal, and technical consultation.',
@@ -102,6 +108,7 @@ const ServiceInquiryModal = ({ isOpen, onClose, preSelectedService = null }) => 
       icon: '⛏️'
     }
   ];
+
 
   const urgencyOptions = [
     { value: 'low', label: 'Low Priority', description: 'No rush, flexible timeline' },
@@ -300,7 +307,7 @@ const ServiceInquiryModal = ({ isOpen, onClose, preSelectedService = null }) => 
         <h4 className="font-medium text-orange-900 dark:text-orange-100 mb-3">
           Mineral Services Specific Information
         </h4>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -449,7 +456,7 @@ const ServiceInquiryModal = ({ isOpen, onClose, preSelectedService = null }) => 
             </span>
           </div>
           <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-            <div 
+            <div
               className="bg-blue-500 h-2 rounded-full transition-all duration-300"
               style={{ width: `${(currentStep / 4) * 100}%` }}
             ></div>
@@ -481,11 +488,10 @@ const ServiceInquiryModal = ({ isOpen, onClose, preSelectedService = null }) => 
                     key={service.value}
                     type="button"
                     onClick={() => handleInputChange(null, 'serviceType', service.value)}
-                    className={`p-3 sm:p-4 border-2 rounded-lg text-left transition-colors ${
-                      formData.serviceType === service.value
+                    className={`p-3 sm:p-4 border-2 rounded-lg text-left transition-colors ${formData.serviceType === service.value
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                         : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-start space-x-3">
                       <span className="text-xl sm:text-2xl flex-shrink-0">{service.icon}</span>
@@ -619,11 +625,10 @@ const ServiceInquiryModal = ({ isOpen, onClose, preSelectedService = null }) => 
                       key={option.value}
                       type="button"
                       onClick={() => handleTimelineChange('urgency', option.value)}
-                      className={`p-3 border-2 rounded-lg text-left transition-colors ${
-                        formData.projectDetails.timeline.urgency === option.value
+                      className={`p-3 border-2 rounded-lg text-left transition-colors ${formData.projectDetails.timeline.urgency === option.value
                           ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                           : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                      }`}
+                        }`}
                     >
                       <div className="font-medium text-gray-900 dark:text-gray-100">
                         {option.label}
@@ -679,7 +684,7 @@ const ServiceInquiryModal = ({ isOpen, onClose, preSelectedService = null }) => 
                 <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
                   Review Your Request
                 </h3>
-                
+
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-3">
                   <div>
                     <span className="font-medium text-gray-900 dark:text-gray-100">Service Type:</span>
@@ -687,14 +692,14 @@ const ServiceInquiryModal = ({ isOpen, onClose, preSelectedService = null }) => 
                       {serviceOptions.find(s => s.value === formData.serviceType)?.label}
                     </span>
                   </div>
-                  
+
                   <div>
                     <span className="font-medium text-gray-900 dark:text-gray-100">Project:</span>
                     <span className="ml-2 text-gray-700 dark:text-gray-300">
                       {formData.projectDetails.title}
                     </span>
                   </div>
-                  
+
                   <div>
                     <span className="font-medium text-gray-900 dark:text-gray-100">Location:</span>
                     <span className="ml-2 text-gray-700 dark:text-gray-300">
@@ -702,14 +707,14 @@ const ServiceInquiryModal = ({ isOpen, onClose, preSelectedService = null }) => 
                       {formData.projectDetails.location.region && `, ${formData.projectDetails.location.region}`}
                     </span>
                   </div>
-                  
+
                   <div>
                     <span className="font-medium text-gray-900 dark:text-gray-100">Urgency:</span>
                     <span className="ml-2 text-gray-700 dark:text-gray-300">
                       {urgencyOptions.find(u => u.value === formData.projectDetails.timeline.urgency)?.label}
                     </span>
                   </div>
-                  
+
                   {/* Mineral Services Specific Info in Review */}
                   {formData.serviceType === 'mineral-services' && (
                     <>
@@ -739,7 +744,7 @@ const ServiceInquiryModal = ({ isOpen, onClose, preSelectedService = null }) => 
                       )}
                     </>
                   )}
-                  
+
                   {(formData.projectDetails.budget.min || formData.projectDetails.budget.max) && (
                     <div>
                       <span className="font-medium text-gray-900 dark:text-gray-100">Budget:</span>
@@ -747,8 +752,8 @@ const ServiceInquiryModal = ({ isOpen, onClose, preSelectedService = null }) => 
                         {formData.projectDetails.budget.min && formData.projectDetails.budget.max
                           ? `${formData.projectDetails.budget.min} - ${formData.projectDetails.budget.max} ${formData.projectDetails.budget.currency}`
                           : formData.projectDetails.budget.min
-                          ? `From ${formData.projectDetails.budget.min} ${formData.projectDetails.budget.currency}`
-                          : `Up to ${formData.projectDetails.budget.max} ${formData.projectDetails.budget.currency}`
+                            ? `From ${formData.projectDetails.budget.min} ${formData.projectDetails.budget.currency}`
+                            : `Up to ${formData.projectDetails.budget.max} ${formData.projectDetails.budget.currency}`
                         }
                       </span>
                     </div>
@@ -783,7 +788,7 @@ const ServiceInquiryModal = ({ isOpen, onClose, preSelectedService = null }) => 
                     </span>
                   </label>
                 </div>
-                
+
                 {attachments.length > 0 && (
                   <div className="mt-3 space-y-2">
                     {attachments.map((file, index) => (
@@ -834,7 +839,7 @@ const ServiceInquiryModal = ({ isOpen, onClose, preSelectedService = null }) => 
               </Button>
             )}
           </div>
-          
+
           <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
             <Button
               variant="outline"
@@ -844,7 +849,7 @@ const ServiceInquiryModal = ({ isOpen, onClose, preSelectedService = null }) => 
             >
               Cancel
             </Button>
-            
+
             {currentStep < 4 ? (
               <Button
                 onClick={handleNext}

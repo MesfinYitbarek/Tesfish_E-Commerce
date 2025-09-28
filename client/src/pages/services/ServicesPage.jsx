@@ -91,6 +91,28 @@ const ServicesPage = () => {
       popular: false
     },
     {
+      id: 'landscape-design',
+      title: 'Landscape Design',
+      subtitle: 'Create Inspiring Outdoor Spaces',
+      icon: SparklesIcon, // you can replace with a more fitting icon
+      shortDescription: 'Professional landscape design services for residential, commercial, and public spaces',
+      description: 'We design sustainable, functional, and aesthetically pleasing outdoor environments including gardens, parks, residential compounds, and commercial spaces.',
+      features: [
+        'Garden and green space design',
+        'Hardscape design (paths, patios, retaining walls)',
+        'Irrigation and drainage planning',
+        'Plant selection and arrangement',
+        'Landscape lighting design',
+        'Sustainable and eco-friendly landscaping',
+        '3D visualization and rendering',
+        'Site analysis and planning'
+      ],
+      duration: '1-6 months',
+      image: 'https://images.unsplash.com/photo-1501004318641-b39e6451bec6?w=600&h=400&fit=crop',
+      gradient: 'from-green-500 to-lime-500',
+      popular: true
+    },
+    {
       id: 'real-estate-consultancy',
       title: 'Real Estate Consultancy',
       subtitle: 'Expert Advisory Services',
@@ -136,6 +158,7 @@ const ServicesPage = () => {
     }
   ];
 
+
   const stats = [
     { label: 'Projects Completed', value: '500+', icon: CheckIcon },
     { label: 'Happy Clients', value: '300+', icon: StarIcon },
@@ -179,9 +202,9 @@ const ServicesPage = () => {
                 Services
               </span>
             </h1>
-            
+
             <p className="text-lg lg:text-xl text-blue-100 mb-8 max-w-4xl mx-auto leading-relaxed">
-              Expert solutions for your construction, design, real estate, and mineral exploration needs 
+              Expert solutions for your construction, design, real estate, and mineral exploration needs
               <span className="text-white font-semibold"> across Ethiopia</span>
             </p>
 
@@ -235,7 +258,7 @@ const ServicesPage = () => {
               Comprehensive Solutions
             </h2>
             <p className="text-lg text-slate-600 dark:text-slate-300 max-w-3xl mx-auto leading-relaxed">
-              Tailored professional services designed to meet your specific needs with 
+              Tailored professional services designed to meet your specific needs with
               <span className="text-blue-600 dark:text-blue-400 font-semibold"> excellence and precision</span>
             </p>
           </div>
@@ -250,9 +273,9 @@ const ServicesPage = () => {
                 onMouseEnter={() => setActiveService(service.id)}
                 onMouseLeave={() => setActiveService(null)}
               >
-                <ServiceCard 
-                  service={service} 
-                  index={index} 
+                <ServiceCard
+                  service={service}
+                  index={index}
                   isActive={activeService === service.id}
                   onGetStarted={handleGetStarted}
                 />
@@ -266,7 +289,7 @@ const ServicesPage = () => {
       <section className="py-12 lg:py-18 relative overflow-hidden">
         {/* Background */}
         <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900"></div>
-        
+
         {/* Background Elements */}
         <div className="absolute inset-0 opacity-20">
           <div className="absolute top-0 left-0 w-64 h-64 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-full blur-3xl"></div>
@@ -285,10 +308,10 @@ const ServicesPage = () => {
             Ready to Start Your Project?
           </h2>
           <p className="text-lg lg:text-xl text-blue-100 mb-8 max-w-3xl mx-auto leading-relaxed">
-            Get in touch with our experts for a free consultation and discover how we can 
+            Get in touch with our experts for a free consultation and discover how we can
             bring your vision to life with professional excellence.
           </p>
-          
+
           <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8">
             <Button
               size="md"
@@ -356,25 +379,25 @@ const ServiceCard = ({ service, index, isActive, onGetStarted }) => {
   const isEven = index % 2 === 0;
 
   return (
-    <div 
+    <div
       className={`flex flex-col ${isEven ? 'lg:flex-row' : 'lg:flex-row-reverse'} items-center gap-8 lg:gap-12`}
       style={{ animationDelay: `${index * 200}ms` }}
     >
       {/* Image Section */}
       <div className="w-full lg:flex-1">
         <div className="relative group">
-          <div className="absolute inset-0 bg-gradient-to-r opacity-20 rounded-xl blur-xl group-hover:opacity-30 transition-opacity duration-300" 
-               style={{ background: `linear-gradient(to right, var(--tw-gradient-stops))` }}></div>
+          <div className="absolute inset-0 bg-gradient-to-r opacity-20 rounded-xl blur-xl group-hover:opacity-30 transition-opacity duration-300"
+            style={{ background: `linear-gradient(to right, var(--tw-gradient-stops))` }}></div>
           <div className="relative overflow-hidden rounded-xl shadow-2xl group-hover:shadow-3xl transition-shadow duration-500">
             <img
               src={service.image}
               alt={service.title}
               className="w-full h-48 sm:h-64 lg:h-72 object-cover group-hover:scale-110 transition-transform duration-700"
             />
-            
+
             {/* Gradient Overlay */}
             <div className={`absolute inset-0 bg-gradient-to-br ${service.gradient} opacity-60 group-hover:opacity-50 transition-opacity duration-300`}></div>
-            
+
             {/* Icon Overlay */}
             <div className="absolute top-6 left-6">
               <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
@@ -419,7 +442,7 @@ const ServiceCard = ({ service, index, isActive, onGetStarted }) => {
               </p>
             </div>
           </div>
-          
+
           <p className="text-base lg:text-lg text-slate-600 dark:text-slate-300 leading-relaxed">
             {service.description}
           </p>
@@ -431,7 +454,7 @@ const ServiceCard = ({ service, index, isActive, onGetStarted }) => {
             <CheckIcon className="h-4 w-4 text-emerald-500 mr-2" />
             What's Included
           </h4>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {service.features.slice(0, 6).map((feature, featureIndex) => (
               <div key={featureIndex} className="flex items-start space-x-2 group">
