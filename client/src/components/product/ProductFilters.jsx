@@ -1,7 +1,7 @@
 // components/product/ProductFilters.jsx - Compact Design with Subtypes
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   ChevronDownIcon,
   MapPinIcon,
   CurrencyDollarIcon,
@@ -12,12 +12,9 @@ import {
   TagIcon
 } from '@heroicons/react/24/outline';
 
-const ProductFilters = ({ 
-  filters, 
-  categories, 
-  propertyTypes, 
-  aggregatedFilters,
-  onFilterChange, 
+const ProductFilters = ({
+  filters,
+  onFilterChange,
   onClearFilters,
   isMobile = false
 }) => {
@@ -59,6 +56,16 @@ const ProductFilters = ({
         { value: 'hotels', label: 'Hotels' }
       ]
     },
+    minerals: {
+      label: 'minerals',
+      icon: <TagIcon className="h-4 w-4" />,
+      subTypes: [
+        { value: 'gold', label: 'Gold' },
+        { value: 'industrial-minerals', label: 'Industrial Minerals' },
+        { value: 'metallic-minerals', label: 'Metallic Minerals' },
+        { value: 'gemstones', label: 'Gemstones' },
+      ]
+    },
     others: {
       label: 'Others',
       subTypes: [
@@ -81,7 +88,7 @@ const ProductFilters = ({
   const handleFilterChange = (key, value) => {
     // If changing main product type, clear subtype
     if (key === 'productType') {
-      onFilterChange({ 
+      onFilterChange({
         [key]: value,
         subProductType: '' // Clear subtype when main type changes
       });
@@ -91,7 +98,7 @@ const ProductFilters = ({
   };
 
   const getActiveFiltersCount = () => {
-    return Object.values(filters).filter(value => 
+    return Object.values(filters).filter(value =>
       value && value !== '' && value !== 'all'
     ).length;
   };
@@ -234,7 +241,7 @@ const ProductFilters = ({
                 <FilterButton
                   key={index}
                   active={
-                    filters.minPrice == range.min && 
+                    filters.minPrice == range.min &&
                     (range.max === null ? !filters.maxPrice : filters.maxPrice == range.max)
                   }
                   onClick={() => onFilterChange({ minPrice: range.min, maxPrice: range.max })}
@@ -244,7 +251,7 @@ const ProductFilters = ({
                 </FilterButton>
               ))}
             </div>
-            
+
             {/* Custom Range */}
             <div className="pt-1 border-t border-gray-200 dark:border-gray-700">
               <div className="grid grid-cols-2 gap-1.5">
@@ -281,7 +288,7 @@ const ProductFilters = ({
               onChange={(e) => handleFilterChange('city', e.target.value)}
               className="w-full px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
             />
-            
+
             <div className="grid grid-cols-2 gap-1">
               {popularCities.map((city) => (
                 <FilterButton
@@ -403,7 +410,7 @@ const ProductFilters = ({
             <div className="flex flex-wrap gap-1">
               {Object.entries(filters).map(([key, value]) => {
                 if (!value || value === '' || value === 'all') return null;
-                
+
                 let displayValue = value;
                 if (key === 'subProductType' && filters.productType) {
                   const subType = productTypes[filters.productType]?.subTypes?.find(st => st.value === value);
@@ -460,7 +467,7 @@ const FilterSection = ({ title, isExpanded, onToggle, children }) => {
         </span>
         <ChevronDownIcon className={`h-3 w-3 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
       </button>
-      
+
       <AnimatePresence>
         {isExpanded && (
           <motion.div
@@ -485,11 +492,10 @@ const FilterButton = ({ active, onClick, children, className = '' }) => {
   return (
     <button
       onClick={onClick}
-      className={`px-1.5 py-1 rounded transition-all text-xs ${
-        active
+      className={`px-1.5 py-1 rounded transition-all text-xs ${active
           ? 'bg-primary-500 text-white'
           : 'bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
-      } ${className}`}
+        } ${className}`}
     >
       {children}
     </button>

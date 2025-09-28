@@ -73,6 +73,16 @@ const Header = () => {
         { value: 'hotels', label: 'Hotels' }
       ]
     },
+    minerals: {
+      label: 'minerals',
+      icon: <TagIcon className="h-4 w-4" />,
+      subTypes: [
+        { value: 'gold', label: 'Gold' }, 
+        { value: 'industrial-minerals', label: 'Industrial Minerals' },             
+        { value: 'metallic-minerals', label: 'Metallic Minerals' }, 
+        { value: 'gemstones', label: 'Gemstones' },             
+      ]
+    },
     others: {
       label: 'Others',
       icon: <TagIcon className="h-4 w-4" />,
