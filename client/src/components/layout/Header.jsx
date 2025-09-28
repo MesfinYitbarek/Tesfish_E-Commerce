@@ -523,39 +523,6 @@ const Header = () => {
                             </Link>
                           )}
                         </Menu.Item>
-                        
-                        <Menu.Item>
-                          {({ active }) => (
-                            <Link
-                              to="/profile"
-                              className={cn(
-                                'flex items-center px-2 py-2 text-sm rounded-md transition-colors',
-                                active ? 'bg-slate-100 dark:bg-slate-700' : '',
-                                'text-slate-700 dark:text-slate-300'
-                              )}
-                            >
-                              <UserIcon className="h-4 w-4 mr-2" />
-                              Profile
-                            </Link>
-                          )}
-                        </Menu.Item>
-
-                        <Menu.Item>
-                          {({ active }) => (
-                            <Link
-                              to={`${getDashboardLink()}/settings`}
-                              className={cn(
-                                'flex items-center px-2 py-2 text-sm rounded-md transition-colors',
-                                active ? 'bg-slate-100 dark:bg-slate-700' : '',
-                                'text-slate-700 dark:text-slate-300'
-                              )}
-                            >
-                              <CogIcon className="h-4 w-4 mr-2" />
-                              Settings
-                            </Link>
-                          )}
-                        </Menu.Item>
-
                         <div className="my-1 border-t border-slate-100 dark:border-slate-700"></div>
                         
                         <Menu.Item>
