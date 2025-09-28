@@ -108,6 +108,7 @@ const ProductFilters = ({
     { value: 'homes', label: 'Homes', icon: <HomeIcon className="h-3 w-3" /> },
     { value: 'plots', label: 'Plots', icon: <MapPinIcon className="h-3 w-3" /> },
     { value: 'commercials', label: 'Commercial', icon: <BuildingOfficeIcon className="h-3 w-3" /> },
+    { value: 'minerals', label: 'Minerals', icon: <TagIcon className="h-3 w-3" /> },
     { value: 'others', label: 'Others', icon: <TagIcon className="h-3 w-3" /> }
   ];
 
